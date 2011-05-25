@@ -8,6 +8,7 @@
 #include <string>
 #include <sstream>
 #include <stdexcept>
+#include <assert.h>
 
 #include "clpp/clppContext.h"
 
@@ -23,6 +24,9 @@ protected:
 	// Load the kernel source code
 	static string loadKernelSource(string path);
 	static const char* getOpenCLErrorString(cl_int err);
+	static void checkCLStatus(cl_int clStatus);
+
+	clppContext* _context;
 };
 
 #endif

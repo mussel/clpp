@@ -73,3 +73,9 @@ const char* clppSort::getOpenCLErrorString(cl_int err)
 		default: return "Unknown";
 	}
 }
+
+void clppSort::checkCLStatus(cl_int clStatus)
+{
+	const char* e = getOpenCLErrorString(clStatus);
+	assert(clStatus == CL_SUCCESS);
+}
