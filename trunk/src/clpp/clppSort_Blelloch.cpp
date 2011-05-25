@@ -4,6 +4,9 @@ clppSort_Blelloch::clppSort_Blelloch(clppContext* context, string basePath)
 {
 	_context = context;
 
+	nkeys = _N;
+	nkeys_rounded = _N;
+
 	//---- Read the source code
 	_kernelSource = loadKernelSource(basePath + "clppSort_Blelloch.cl");
 
@@ -115,7 +118,7 @@ void clppSort_Blelloch::initializeCLBuffers(void* keys, void* values, size_t dat
 	_clBuffer_temp  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* _HISTOSPLIT, NULL, &clStatus);
 	checkCLStatus(clStatus);
 
-	Resize(datasetSize);
+	Resize(nkeys);
 
 	//---- Send the data
 	clStatus = clEnqueueWriteBuffer(_context->clQueue, _clBuffer_inKeys, CL_FALSE, 0, sizeof(int) * datasetSize, keys, 0, NULL, NULL);
@@ -191,9 +194,9 @@ void clppSort_Blelloch::Transpose(int nbrow,int nbcol)
     local_work_size[0]=1;
     local_work_size[1]=_GROUPS;
 
-
 	// two dimensions: rows and columns
 	clStatus = clEnqueueNDRangeKernel(_context->clQueue, kernel_Transpose, 2, NULL, global_work_size, local_work_size, 0, NULL, &eve);
+	checkCLStatus(clStatus);
 
     // exchange the pointers
 
@@ -211,14 +214,13 @@ void clppSort_Blelloch::Transpose(int nbrow,int nbcol)
     // timing
     clFinish(_context->clQueue);
 
-    cl_ulong beginning,end;
+    cl_ulong beginning, end;
 
-    clStatus=clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_QUEUED, sizeof(cl_ulong), (void*)&beginning, NULL);
-    
-    assert(clStatus== CL_SUCCESS);
+    clStatus = clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_QUEUED, sizeof(cl_ulong), (void*)&beginning, NULL);
+    checkCLStatus(clStatus);
 
-    clStatus=clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), (void*)&end, NULL);
-    assert(clStatus== CL_SUCCESS);
+    clStatus = clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), (void*)&end, NULL);
+    checkCLStatus(clStatus);
 
 	_timerTranspose += (float)(end-beginning)/1e9;
 }
@@ -279,10 +281,10 @@ void clppSort_Blelloch::Histogram(int pass)
 
     cl_ulong beginning,end;
 
-    clStatus=clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_QUEUED, sizeof(cl_ulong), (void*) &beginning, NULL);
+    clStatus = clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_QUEUED, sizeof(cl_ulong), (void*) &beginning, NULL);
     checkCLStatus(clStatus);
 
-    clStatus=clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), (void*) &end, NULL);
+    clStatus = clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), (void*) &end, NULL);
     checkCLStatus(clStatus);
 
     _timerHisto += (float)(end-beginning)/1e9;
@@ -316,16 +318,16 @@ void clppSort_Blelloch::ScanHistogram()
 
     // cout << clStatus<<","<< CL_INVALID_WORK_ITEM_SIZE<< " "<<nbitems<<" "<<nblocitems<<endl;
     // cout <<CL_DEVICE_MAX_WORK_ITEM_SIZES<<endl;
-    assert(clStatus== CL_SUCCESS);
+    checkCLStatus(clStatus);
     clFinish(_context->clQueue);
 
     cl_ulong beginning,end;
 
-    clStatus=clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_QUEUED, sizeof(cl_ulong), (void*)&beginning, NULL);
-    assert(clStatus== CL_SUCCESS);
+    clStatus = clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_QUEUED, sizeof(cl_ulong), (void*)&beginning, NULL);
+    checkCLStatus(clStatus);
 
-    clStatus=clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), (void*)&end, NULL);
-    assert(clStatus== CL_SUCCESS);
+    clStatus = clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), (void*)&end, NULL);
+    checkCLStatus(clStatus);
 
     _timerScan += (float)(end-beginning)/1e9;
 
@@ -341,14 +343,14 @@ void clppSort_Blelloch::ScanHistogram()
 
     clStatus = clEnqueueNDRangeKernel(_context->clQueue, kernel_ScanHistogram, 1, NULL, &nbitems, &nblocitems, 0, NULL, &eve);
 
-    assert(clStatus== CL_SUCCESS);
+    checkCLStatus(clStatus);
     clFinish(_context->clQueue);
 
-    clStatus=clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_QUEUED, sizeof(cl_ulong), (void*) &beginning, NULL);
-    assert(clStatus== CL_SUCCESS);
+    clStatus = clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_QUEUED, sizeof(cl_ulong), (void*) &beginning, NULL);
+    checkCLStatus(clStatus);
 
-    clStatus=clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), (void*)&end, NULL);
-    assert(clStatus== CL_SUCCESS);
+    clStatus = clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), (void*)&end, NULL);
+    checkCLStatus(clStatus);
 
     _timerScan += (float)(end-beginning)/1e9;
 
@@ -358,14 +360,14 @@ void clppSort_Blelloch::ScanHistogram()
 
     clStatus = clEnqueueNDRangeKernel(_context->clQueue, kernel_PasteHistogram, 1, NULL, &nbitems, &nblocitems, 0, NULL, &eve);
 
-    assert(clStatus== CL_SUCCESS);
+    checkCLStatus(clStatus);
     clFinish(_context->clQueue);
 
-    clStatus=clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_QUEUED, sizeof(cl_ulong), (void*)&beginning, NULL);
-    assert(clStatus== CL_SUCCESS);
+    clStatus = clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_QUEUED, sizeof(cl_ulong), (void*)&beginning, NULL);
+    checkCLStatus(clStatus);
 
-    clStatus=clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), (void*)&end, NULL);
-    assert(clStatus== CL_SUCCESS);
+    clStatus = clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), (void*)&end, NULL);
+    checkCLStatus(clStatus);
 
     _timerScan += (float)(end-beginning)/1e9;
 }
@@ -451,16 +453,16 @@ void clppSort_Blelloch::Reorder(int pass)
 
     clStatus = clEnqueueNDRangeKernel(_context->clQueue, kernel_Reorder, 1, NULL, &nbitems, &nblocitems, 0, NULL, &eve);
 
-    assert(clStatus== CL_SUCCESS);
+    checkCLStatus(clStatus);
     clFinish(_context->clQueue);
 
     cl_ulong beginning,end;
 
-    clStatus=clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_QUEUED, sizeof(cl_ulong), (void*) &beginning, NULL);
-    assert(clStatus== CL_SUCCESS);
+    clStatus = clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_QUEUED, sizeof(cl_ulong), (void*) &beginning, NULL);
+    checkCLStatus(clStatus);
 
-    clStatus=clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), (void*) &end, NULL);
-    assert(clStatus== CL_SUCCESS);
+    clStatus = clGetEventProfilingInfo(eve, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), (void*) &end, NULL);
+    checkCLStatus(clStatus);
 
     _timerReorder += (float)(end-beginning)/1e9;
 
