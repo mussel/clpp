@@ -17,11 +17,12 @@ using namespace std;
 class clppSort
 {
 public:
-	void sort(clppContext* context, void* keys, void* values, size_t datasetSize, unsigned int keyBits);
+	void sort(void* keys, void* values, size_t datasetSize, unsigned int keyBits);
 
 protected:
 	// Load the kernel source code
 	static string loadKernelSource(string path);
+	static const char* getOpenCLErrorString(cl_int err);
 };
 
 #endif

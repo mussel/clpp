@@ -18,8 +18,8 @@ int main(int argc, const char **argv)
 	context.setup();
 
 	//---- Blelloch
-	clppSort_Blelloch* sort01 = new clppSort_Blelloch("src/clpp/");
-	sort01->sort(&context, keys, keys, datasetSize, 32);
+	clppSort_Blelloch* sort01 = new clppSort_Blelloch(&context, "src/clpp/");
+	sort01->sort(keys, keys, datasetSize, 32);
 
 	//---- Free
 	free(keys);

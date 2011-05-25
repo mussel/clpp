@@ -1,5 +1,29 @@
-// change of index for the transposition
-int index(int i,int n)
+// these parameters can be changed
+#define _ITEMS  32 // number of items in a group
+#define _GROUPS 16 // the number of virtual processors is _ITEMS * _GROUPS
+#define  _HISTOSPLIT 128 // number of splits of the histogram
+#define _TOTALBITS 16  // number of bits for the integer in the list (max=32)
+#define _BITS 4  // number of bits in the radix
+
+// max size of the sorted vector
+// it has to be divisible by  _ITEMS * _GROUPS
+// (for other sizes, pad the list with big values)
+//#define _N (_ITEMS * _GROUPS * 16)  
+#define _N (1<<21)  // maximal size of the list  
+#define VERBOSE 1
+#define TRANSPOSE 1  // transpose the initial vector (faster memory access)
+#define PERMUT 1  // store the final permutation
+
+// the following parameters are computed from the previous
+#define _RADIX (1 << _BITS) //  radix  = 2^_BITS
+#define _PASS (_TOTALBITS/_BITS) // number of needed passes to sort the list
+#define _HISTOSIZE (_ITEMS * _GROUPS * _RADIX ) // size of the histogram
+
+// maximal value of integers for the sort to be correct
+#define _MAXINT (1 << (_TOTALBITS-1))
+
+// change of changeTranspositionIndex for the transposition
+int changeTranspositionIndex(int i,int n)
 {
     int ip;
 	
@@ -53,7 +77,7 @@ __kernel void histogram(const __global int* d_Keys,
 
     for (int i= start; i< start + size;i++)
     {
-        key=d_Keys[index(i,n)];
+        key=d_Keys[changeTranspositionIndex(i,n)];
 
         // extract the group of _BITS bits of the pass
         // the result is in the range 0.._RADIX-1
@@ -86,11 +110,11 @@ __kernel void transpose(const __global int* invect,
                         __local int* blockperm)
 {
 
-    int i0 = get_global_id(0)*_GROUPS;  // first row index
-    int j = get_global_id(1);  // column index
+    int i0 = get_global_id(0)*_GROUPS;  // first row changeTranspositionIndex
+    int j = get_global_id(1);  // column changeTranspositionIndex
 
-    int iloc;  // first local row index
-    int jloc = get_local_id(1);  // local column index
+    int iloc;  // first local row changeTranspositionIndex
+    int jloc = get_local_id(1);  // local column changeTranspositionIndex
 
     // Fill the cache
     for(iloc = 0; iloc < _GROUPS;iloc++)
@@ -103,7 +127,7 @@ __kernel void transpose(const __global int* invect,
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // first row index in the transpose
+    // first row changeTranspositionIndex in the transpose
     int j0 = get_group_id(1)*_GROUPS;
 
     // put the cache at the good place
@@ -153,16 +177,16 @@ __kernel void reorder(const __global int* d_inKeys,
 
     for (int i= start; i< start + size;i++)
     {
-        key = d_inKeys[index(i,n)];
+        key = d_inKeys[changeTranspositionIndex(i,n)];
         shortkey=((key >> (pass * _BITS)) & (_RADIX-1));
         //ik= shortkey * groups * items + items * gr + it;
         //newpos=d_Histograms[ik];
         newpos=loc_histo[shortkey * items + it];
-        d_outKeys[index(newpos,n)]= key;  // killing line !!!
-        //d_outKeys[index(i)]= key;
+        d_outKeys[changeTranspositionIndex(newpos,n)]= key;  // killing line !!!
+        //d_outKeys[changeTranspositionIndex(i)]= key;
         if (PERMUT)
         {
-            d_outPermut[index(newpos,n)]=d_inPermut[index(i,n)];
+            d_outPermut[changeTranspositionIndex(newpos,n)]=d_inPermut[changeTranspositionIndex(i,n)];
         }
         newpos++;
         loc_histo[shortkey * items + it]=newpos;

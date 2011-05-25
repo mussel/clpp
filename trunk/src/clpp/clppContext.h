@@ -13,7 +13,6 @@ public:
 	cl_context clContext;			// OpenCL context
 	cl_device_id clDevice;			// OpenCL Device
 	cl_command_queue clQueue;		// OpenCL command queue 
-	cl_program clProgram;			// OpenCL program
 
 	// Default setup : use the default platform and default device
 	void setup();
