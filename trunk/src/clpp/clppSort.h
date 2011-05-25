@@ -9,13 +9,15 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "clpp/clppContext.h"
+
 using namespace std;
 
 // Base class to sort a set of datas with clpp
 class clppSort
 {
 public:
-	void sort(void* keys, void* values, size_t datasetSize, unsigned int keyBits);
+	void sort(clppContext* context, void* keys, void* values, size_t datasetSize, unsigned int keyBits);
 
 protected:
 	// Load the kernel source code

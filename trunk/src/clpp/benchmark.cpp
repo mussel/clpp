@@ -12,9 +12,14 @@ int main(int argc, const char **argv)
 	unsigned int* keys = (unsigned int*)malloc(datasetSize * sizeof(int));
 	makeRandomUintVector(keys, datasetSize, 32);
 
+	//---- Prepare a clpp Context
+	clppContext context;
+
+	context.setup();
+
 	//---- Blelloch
-	clppSort_Blelloch* sort01 = new clppSort_Blelloch("..");
-	sort01->sort(keys, keys, datasetSize, 32);
+	clppSort_Blelloch* sort01 = new clppSort_Blelloch("src/clpp/");
+	sort01->sort(&context, keys, keys, datasetSize, 32);
 
 	//---- Free
 	free(keys);
