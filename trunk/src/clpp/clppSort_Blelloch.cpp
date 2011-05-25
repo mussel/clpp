@@ -90,20 +90,20 @@ void clppSort_Blelloch::initializeCLBuffers(void* keys, void* values, size_t dat
 	cl_int clStatus;
 
 	//---- Construction of the initial permutation
-	for(size_t i = 0; i < datasetSize; i++)
+	for(size_t i = 0; i < _N; i++)
 		_permutations[i] = i;
 
 	//---- Create all the buffers
-	_clBuffer_inKeys  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* datasetSize, NULL, &clStatus);
+	_clBuffer_inKeys  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* _N, NULL, &clStatus);
 	checkCLStatus(clStatus);
 
-	_clBuffer_outKeys  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* datasetSize, NULL, &clStatus);
+	_clBuffer_outKeys  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* _N, NULL, &clStatus);
 	checkCLStatus(clStatus);
 
-	_clBuffer_inPermutations = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* datasetSize, NULL, &clStatus);
+	_clBuffer_inPermutations = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* _N, NULL, &clStatus);
 	checkCLStatus(clStatus);
 
-	_clBuffer_outPermutations = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* datasetSize, NULL, &clStatus);
+	_clBuffer_outPermutations = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* _N, NULL, &clStatus);
 	checkCLStatus(clStatus);
 
 	// copy on the GPU
@@ -121,10 +121,10 @@ void clppSort_Blelloch::initializeCLBuffers(void* keys, void* values, size_t dat
 	Resize(nkeys);
 
 	//---- Send the data
-	clStatus = clEnqueueWriteBuffer(_context->clQueue, _clBuffer_inKeys, CL_FALSE, 0, sizeof(int) * datasetSize, keys, 0, NULL, NULL);
+	clStatus = clEnqueueWriteBuffer(_context->clQueue, _clBuffer_inKeys, CL_FALSE, 0, sizeof(int) * _N, keys, 0, NULL, NULL);
 	checkCLStatus(clStatus);
 
-	clStatus = clEnqueueWriteBuffer(_context->clQueue, _clBuffer_inPermutations, CL_FALSE, 0, sizeof(int) * datasetSize, _permutations, 0, NULL, NULL);
+	clStatus = clEnqueueWriteBuffer(_context->clQueue, _clBuffer_inPermutations, CL_FALSE, 0, sizeof(int) * _N, _permutations, 0, NULL, NULL);
 	checkCLStatus(clStatus);
 }
 
