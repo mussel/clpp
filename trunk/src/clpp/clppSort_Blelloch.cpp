@@ -87,6 +87,8 @@ void clppSort_Blelloch::sort()
     //assert(nkeys_rounded <= _N);
     //assert(nkeys <= nkeys_rounded);
 
+	resize(1000);
+
     int nbcol = nkeys_rounded / (_GROUPS * _ITEMS);
     int nbrow = _GROUPS * _ITEMS;
 

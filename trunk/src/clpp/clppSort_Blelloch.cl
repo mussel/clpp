@@ -2,14 +2,14 @@
 int changeTranspositionIndex(int i,int n)
 {
     int ip;
-	
+
 #ifdef TRANSPOSE
-        int k, l;
-        k = i / (n/_GROUPS/_ITEMS);
-        l = i % (n/_GROUPS/_ITEMS);
-        ip = l * (_GROUPS*_ITEMS) + k;
+    int k, l;
+    k = i / (n/_GROUPS/_ITEMS);
+    l = i % (n/_GROUPS/_ITEMS);
+    ip = l * (_GROUPS*_ITEMS) + k;
 #else
-        ip = i;
+    ip = i;
 #endif
 
     return ip;
@@ -44,31 +44,28 @@ __kernel void histogram(const __global int* d_Keys,
 
 
     // range of keys that are analyzed by the work item
-    //int start= gr * n/groups + it * n/groups/items;
-    int start= ig *(n/groups/items);
-    int size= n/groups/items;
+    //int start= gr * n/groups + it * n/groups/items;    
+    int size = n / groups / items;
+	int start= ig * size;
 
-    int key,shortkey;
-
-    for (int i= start; i< start + size;i++)
+    int key, shortkey;
+    for(int i= start; i< start + size;i++)
     {
-        key=d_Keys[changeTranspositionIndex(i,n)];
+        key = d_Keys[changeTranspositionIndex(i,n)];
 
         // extract the group of _BITS bits of the pass
         // the result is in the range 0.._RADIX-1
         shortkey=((key >> (pass * _BITS)) & (_RADIX-1));
 
         //d_Histograms[shortkey * groups * items + items * gr + it]++;
-        loc_histo[shortkey *  items + it ]++;
+        loc_histo[shortkey * items + it ]++;
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // copy the local histogram to the global one
-    for (int ir=0;ir<_RADIX;ir++)
-    {
+    for(int ir = 0; ir < _RADIX; ir++)
         d_Histograms[ir * groups * items + items * gr + it]=loc_histo[ir * items + it];
-    }
 
     barrier(CLK_GLOBAL_MEM_FENCE);
 
@@ -85,19 +82,19 @@ __kernel void transpose(const __global int* invect,
                         __local int* blockperm)
 {
 
-    int i0 = get_global_id(0)*_GROUPS;  // first row changeTranspositionIndex
+    int i0 = get_global_id(0) * _GROUPS;  // first row changeTranspositionIndex
     int j = get_global_id(1);  // column changeTranspositionIndex
 
     int iloc;  // first local row changeTranspositionIndex
     int jloc = get_local_id(1);  // local column changeTranspositionIndex
 
     // Fill the cache
-    for(iloc = 0; iloc < _GROUPS;iloc++)
+    for (iloc = 0; iloc < _GROUPS;iloc++)
     {
         int k = (i0+iloc)*nbcol+j;  // position in the matrix
-        blockmat[iloc*_GROUPS+jloc]=invect[k];
+        blockmat[iloc*_GROUPS+jloc] = invect[k];
 #ifdef PERMUT
-            blockperm[iloc*_GROUPS+jloc]=inperm[k];
+        blockperm[iloc*_GROUPS+jloc] = inperm[k];
 #endif
     }
 
@@ -108,12 +105,12 @@ __kernel void transpose(const __global int* invect,
 
     // put the cache at the good place
     // loop on the rows
-    for (iloc = 0; iloc < _GROUPS; iloc++)
+    for(iloc = 0; iloc < _GROUPS; iloc++)
     {
         int kt=(j0+iloc)*nbrow+i0+jloc;  // position in the transpose
         outvect[kt]=blockmat[jloc*_GROUPS+iloc];
 #ifdef PERMUT
-            outperm[kt]=blockperm[jloc*_GROUPS+iloc];
+        outperm[kt]=blockperm[jloc*_GROUPS+iloc];
 #endif
     }
 
@@ -129,7 +126,6 @@ __kernel void reorder(const __global int* d_inKeys,
                       __local int* loc_histo,
                       const int n)
 {
-
     int it = get_local_id(0);
     int ig = get_global_id(0);
 
@@ -142,30 +138,25 @@ __kernel void reorder(const __global int* d_inKeys,
     int size= n/groups/items;
 
     // take the histograms in the cache
-    for (int ir=0;ir<_RADIX;ir++)
-    {
-        loc_histo[ir * items + it]=
-            d_Histograms[ir * groups * items + items * gr + it];
-    }
+    for(int ir=0;ir<_RADIX;ir++)
+        loc_histo[ir * items + it] = d_Histograms[ir * groups * items + items * gr + it];
     barrier(CLK_LOCAL_MEM_FENCE);
 
-
-    int newpos,ik,key,shortkey;
-
-    for (int i= start; i< start + size;i++)
+    int newpos, ik, key, shortkey;
+    for(int i = start; i < start + size; i++)
     {
         key = d_inKeys[changeTranspositionIndex(i,n)];
-        shortkey=((key >> (pass * _BITS)) & (_RADIX-1));
+        shortkey = ((key >> (pass * _BITS)) & (_RADIX-1));
         //ik= shortkey * groups * items + items * gr + it;
         //newpos=d_Histograms[ik];
-        newpos=loc_histo[shortkey * items + it];
-        d_outKeys[changeTranspositionIndex(newpos,n)]= key;  // killing line !!!
+        newpos = loc_histo[shortkey * items + it];
+        d_outKeys[changeTranspositionIndex(newpos,n)] = key;  // killing line !!!
         //d_outKeys[changeTranspositionIndex(i)]= key;
 #ifdef PERMUT
-            d_outPermut[changeTranspositionIndex(newpos,n)]=d_inPermut[changeTranspositionIndex(i,n)];
+        d_outPermut[changeTranspositionIndex(newpos,n)]=d_inPermut[changeTranspositionIndex(i,n)];
 #endif
         newpos++;
-        loc_histo[shortkey * items + it]=newpos;
+        loc_histo[shortkey * items + it] = newpos;
         //d_Histograms[ik]=newpos;
         //barrier(CLK_GLOBAL_MEM_FENCE);
     }
@@ -237,15 +228,12 @@ __kernel void scanhistograms(__global int* histo,__local int* temp,__global int*
     histo[2*ig+1] = temp[2*it+1];
 
     barrier(CLK_GLOBAL_MEM_FENCE);
-
 }
 
 // use the global sum for updating the local histograms
 // each work item updates two values
-__kernel void pastehistograms(__global int* histo,__global int* globsum)
+__kernel void pastehistograms(__global int* histo, __global int* globsum)
 {
-
-
     int ig = get_global_id(0);
     int gr=get_group_id(0);
 
