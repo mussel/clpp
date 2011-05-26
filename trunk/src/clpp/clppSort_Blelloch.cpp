@@ -105,11 +105,11 @@ void clppSort_Blelloch::initializeCLBuffers(void* keys, void* values, size_t dat
 	_clBuffer_outPermutations = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* _N, NULL, &clStatus);
 	checkCLStatus(clStatus);
 
-	// copy on the GPU
+	// copy on the device
 	_clBuffer_Histograms  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* _RADIX * _GROUPS * _ITEMS, NULL, &clStatus);
 	checkCLStatus(clStatus);
 
-	// copy on the GPU
+	// copy on the device
 	_clBuffer_globsum  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* _HISTOSPLIT, NULL, &clStatus);
 	checkCLStatus(clStatus);
 
@@ -141,8 +141,8 @@ void clppSort_Blelloch::resize(int nn)
     nkeys_rounded = nkeys;
     cl_int clStatus;
     unsigned int pad[_GROUPS * _ITEMS];
-    for (int ii=0;ii<_GROUPS * _ITEMS;ii++)
-        pad[ii]=_MAXINT - (unsigned int)1;
+    for (int ii = 0; ii < _GROUPS * _ITEMS; ii++)
+        pad[ii] = _MAXINT - (unsigned int)1;
 
     if (remainder != 0)
     {
@@ -365,46 +365,6 @@ void clppSort_Blelloch::scanHistogram()
 
 #pragma endregion
 
-/*
-// chekernel_ the computation at the end
-void clppSort_Blelloch::Chekernel_()
-{
-
-    cout << "Get the data from the GPU"<<endl;
-
-    RecupGPU();
-
-    cout << "Test order"<<endl;
-
-    // first see if the final list is ordered
-    for (int i=0;i<nkeys-1;i++)
-    {
-        if (!(h_Keys[i] <= h_Keys[i+1]))
-        {
-            cout <<"erreur tri "<< i<<" "<<h_Keys[i]<<" ,"<<i+1<<" "<<h_Keys[i+1]<<endl;
-        }
-        assert(h_Keys[i] <= h_Keys[i+1]);
-    }
-
-    if (PERMUT)
-    {
-        cout << "Chekernel_ the permutation"<<endl;
-        // chekernel_ if the permutation corresponds to the original list
-        for (int i=0;i<nkeys;i++)
-        {
-            if (!(h_Keys[i] == h_chekernel_Keys[h_Permut[i]]))
-            {
-                cout <<"erreur permut "<< i<<" "<<h_Keys[i]<<" ,"<<i+1<<" "<<h_Keys[i+1]<<endl;
-            }
-            //assert(h_Keys[i] == h_chekernel_Keys[h_Permut[i]]);
-        }
-    }
-
-    cout << "test OK !"<<endl;
-
-}
-*/
-
 #pragma region reorder
 
 void clppSort_Blelloch::reorder(int pass)
@@ -489,14 +449,12 @@ void clppSort_Blelloch::pushDatas(void* keys, void* values, size_t valueSize, si
 	//---- We set here the fixed arguments of the OpenCL kernels
 	// the changing arguments are modified elsewhere in the class
 	cl_int clStatus;
+
 	clStatus = clSetKernelArg(kernel_Histogram, 1, sizeof(cl_mem), &_clBuffer_Histograms);
 	checkCLStatus(clStatus);
 
 	clStatus = clSetKernelArg(kernel_Histogram, 3, sizeof(int)*_RADIX*_ITEMS, NULL);
 	checkCLStatus(clStatus);
-
-	// clStatus = clSetKernelArg(kernel_Histogram, 3, sizeof(int)*_ITEMS, NULL);
-	// checkCLStatus(clStatus);
 
 	clStatus = clSetKernelArg(kernel_PasteHistogram, 0, sizeof(cl_mem), &_clBuffer_Histograms);
 	checkCLStatus(clStatus);
