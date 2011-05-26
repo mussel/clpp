@@ -4,32 +4,41 @@
 #include<math.h>
 
 #include "clpp/clppSort.h"
+#include "clpp/clppSort_nvScan.h"
 
 class clppSort_nvRadixSort : public clppSort
 {
 public:
-	clppSort_nvRadixSort(clppContext* context, string basePath);
+	clppSort_nvRadixSort(clppContext* context, string basePath, unsigned int maxElements, const int ctaSize, bool keysOnly = true);
+	~clppSort_nvRadixSort();
 
-	// Returns the algorithm name
 	string getName() { return "NVidia Radix Sort"; }
 
-	// Sort the pushed data set 
 	void sort();
 
-	// Sorts input arrays of unsigned integer keys and (optional) values
-	void sort(cl_mem clBuffer_keys, unsigned int elementsCount, unsigned int keyBits);
+	void pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize, unsigned int keyBits);
 
-	// Push the data on the device
-	//
-	// clBuffer_keys    Array of keys for data to be sorted
-	// datasetSize		Number of elements to be sorted.  Must be <= maxElements passed to the constructor
-	// keyBits			The number of bits in each key to use for ordering
-	void pushDatas(cl_mem* clBuffer_keys, cl_mem* values, size_t datasetSize, unsigned int keyBits);
-
-	// Pop the data from the device
 	void popDatas();
 
 private:
+	cl_mem d_tempKeys;                   // Memory objects for original keys and work space
+	cl_mem mCounters;                    // Counter for each radix
+	cl_mem mCountersSum;                 // Prefix sum of radix counters
+	cl_mem mBlockOffsets;                // Global offsets of each radix in each block
+    cl_kernel ckRadixSortBlocksKeysOnly; // OpenCL kernels
+	cl_kernel ckFindRadixOffsets;
+	cl_kernel ckScanNaive;
+	cl_kernel ckReorderDataKeysOnly;
+
+	int CTA_SIZE; // Number of threads per block
+    static const unsigned int WARP_SIZE = 32;
+	static const unsigned int bitStep = 4;
+
+	unsigned int  mNumElements;     // Number of elements of temp storage allocated
+    unsigned int* mTempValues;      // Intermediate storage for values
+         
+	clppSort_nvScan scan;
+
 	cl_kernel kernel_RadixSortBlocksKeysOnly;
 	cl_kernel kernel_FindRadixOffsets;
 	cl_kernel kernel_ScanNaive;

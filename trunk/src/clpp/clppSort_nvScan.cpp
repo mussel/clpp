@@ -23,15 +23,6 @@ clppSort_nvScan::clppSort_nvScan(clppContext* context, string basePath, unsigned
         clppSort::checkCLStatus(clStatus);
     }
 
-    //shrLog("Create and build clppSort_nvScan program\n");
-    /*size_t szKernelLength; // Byte size of kernel code
-
-    char *SourceFile = "clppSort_nvScan_b.cl";
-    char *cSourcePath = shrFindFilePath(SourceFile, path);
-    shrCheckError(cSourcePath != NULL, shrTRUE);
-    char *cScan = oclLoadProgSource(cSourcePath, "// My comment\n", &szKernelLength);
-    //oclCheckError(cScan != NULL, shrTRUE);*/
-
 	if (!compile(context, basePath, "clppSort_nvScan_b.cl"))
 		return;
 
@@ -66,13 +57,6 @@ void clppSort_nvScan::scanExclusiveLarge(cl_mem d_Dst, cl_mem d_Src, unsigned in
     //Check power-of-two factorization
     unsigned int log2L;
     unsigned int factorizationRemainder = factorRadix2(log2L, arrayLength);
-    //oclCheckError(factorizationRemainder == 1, shrTRUE);
-
-    //Check supported size range
-    //oclCheckError((arrayLength >= MIN_LARGE_ARRAY_SIZE) && (arrayLength <= MAX_LARGE_ARRAY_SIZE), shrTRUE);
-
-    //Check total batch size limit
-    ////oclCheckError((batchSize * arrayLength) <= MAX_BATCH_ELEMENTS, shrTRUE);
 
     scanExclusiveLocal1(d_Dst, d_Src, (batchSize * arrayLength) / (4 * WORKGROUP_SIZE), 4 * WORKGROUP_SIZE);
 

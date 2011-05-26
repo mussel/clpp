@@ -20,11 +20,11 @@ void clppSort::pushDatas(void* keys, void* values, size_t keySize, size_t valueS
 
 	cl_int clStatus;
 
-	clBuffer_keys = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, keySize * datasetSize, NULL, &clStatus);
+	_clBuffer_keys = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, keySize * datasetSize, NULL, &clStatus);
 	checkCLStatus(clStatus);
 
-	clBuffer_values = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, valueSize * datasetSize, NULL, &clStatus);
+	_clBuffer_values = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, valueSize * datasetSize, NULL, &clStatus);
 	checkCLStatus(clStatus);
 
-	pushDatas(clBuffer_keys, clBuffer_values, datasetSize, keyBits);
+	pushDatas(_clBuffer_keys, _clBuffer_values, datasetSize, keyBits);
 }

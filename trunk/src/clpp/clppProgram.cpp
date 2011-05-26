@@ -36,7 +36,13 @@ bool clppProgram::compile(clppContext* context, string basePath, string fileName
 	_clProgram = clCreateProgramWithSource(context->clContext, 1, (const char **)&ptr, &len, &clStatus);
 	checkCLStatus(clStatus);
 
-	clStatus = clBuildProgram(_clProgram, 0, NULL, NULL, NULL, NULL);
+#ifdef MAC
+    char* buildOptions = "-DMAC -cl-fast-relaxed-math";
+#else
+    char* buildOptions = "-cl-fast-relaxed-math";
+#endif
+
+	clStatus = clBuildProgram(_clProgram, 0, NULL, buildOptions, NULL, NULL);
   
 	if (clStatus != CL_SUCCESS)
 	{

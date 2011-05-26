@@ -3,6 +3,7 @@
 
 #include "clpp/clppSort_Blelloch.h"
 #include "clpp/clppSort_CPU.h"
+#include "clpp/clppSort_nvRadixSort.h"
 
 using namespace std;
 
@@ -13,7 +14,8 @@ bool checkIsSorted(unsigned int* sorted, unsigned int* tocheck, size_t datasetSi
 
 int main(int argc, const char **argv)
 {
-	unsigned int datasetSize = 8192;
+	//unsigned int datasetSize = 8192;
+	unsigned int datasetSize = 100000;
 
 	//---- Create a new set of random datas
 	unsigned int* keys = (unsigned int*)malloc(datasetSize * sizeof(int));
@@ -39,10 +41,15 @@ int main(int argc, const char **argv)
 	// Brute fore
 	clppsort = new clppSort_CPU(&context, "");
 	benchmark(context, clppsort, keys, keysSorted, datasetSize);
-	memcpy(keys, keysCopy, datasetSize * sizeof(int));
 
 	// Blelloch
+	memcpy(keys, keysCopy, datasetSize * sizeof(int));
 	clppsort = new clppSort_Blelloch(&context, "src/clpp/");
+	benchmark(context, clppsort, keys, keysSorted, datasetSize);	
+
+	// NV
+	memcpy(keys, keysCopy, datasetSize * sizeof(int));
+	clppsort = new clppSort_nvRadixSort(&context, "src/clpp/", datasetSize, 128); // 128 = work group size
 	benchmark(context, clppsort, keys, keysSorted, datasetSize);
 
 	//---- Free
@@ -73,11 +80,11 @@ void makeRandomUint16Vector(unsigned short *a, unsigned int numElements, unsigne
     if (keybits < 16) keymask = (1 << keybits) - 1;
 
     srand(0);
-    for(unsigned int i=0; i < numElements; ++i)   
+    for(unsigned int i = 0; i < numElements; ++i)   
         a[i] = ((rand() & keyshiftmask)<<16); 
 }
 
-void makeRandomUint32Vector(unsigned int *a, unsigned int numElements, unsigned int keybits)
+void makeRandomUint32Vector(unsigned int* a, unsigned int numElements, unsigned int keybits)
 {
     // Fill up with some random data
     int keyshiftmask = 0;

@@ -1,48 +1,3 @@
-#include "clpp/clppSort_CPU.h"
-
-#include <algorithm>
-
-#pragma region Construsctor
-
-clppSort_CPU::clppSort_CPU(clppContext* context, string basePath)
-{
-}
-
-#pragma endregion
-
-#pragma region sort
-
-void clppSort_CPU::sort()
-{
-    //std::sort((char*)_keys, (char*)_keys + _datasetSize * (_keyBits/8));
-    std::sort((int*)_keys, ((int*)_keys) + _datasetSize);
-}
-
-#pragma endregion
-
-#pragma region pushDatas
-
-void clppSort_CPU::pushDatas(void* keys, void* values, size_t keySize, size_t valueSize, size_t datasetSize, unsigned int keyBits)
-{
-    _keys = keys;
-	_keySize = keySize;
-    _values = values;
-    _valueSize = valueSize;
-    _datasetSize = datasetSize;
-    _keyBits = keyBits;
-}
-
-#pragma endregion
-
-#pragma region popDatas
-
-void clppSort_CPU::popDatas()
-{
-}
-
-#pragma endregion
-
-
 /*
 * Copyright 1993-2010 NVIDIA Corporation.  All rights reserved.
 *
@@ -54,74 +9,50 @@ void clppSort_CPU::popDatas()
 *
 */
 
+#include "clpp/clppSort_CPU.h"
+
+#include <algorithm>
+
 #include "clppSort_nvRadixSort.h"
 
 extern double time1, time2, time3, time4;
 
-clppSort_nvRadixSort::clppSort_nvRadixSort(cl_context GPUContext,
-        cl_command_queue CommandQue,
-        unsigned int maxElements,
-        const char* path,
-        const int ctaSize,
-        bool keysOnly = true) :
+clppSort_nvRadixSort::clppSort_nvRadixSort(clppContext* context, string basePath, unsigned int maxElements, const int ctaSize, bool keysOnly) :
         mNumElements(0),
         mTempValues(0),
         mCounters(0),
         mCountersSum(0),
         mBlockOffsets(0),
-        cxGPUContext(GPUContext),
-        _context->clQueue(CommandQue),
         CTA_SIZE(ctaSize),
-        scan(GPUContext, CommandQue, maxElements/2/CTA_SIZE*16, path)
+        scan(context, basePath, maxElements/2/CTA_SIZE*16)
 {
+	cl_int clStatus;
 
     unsigned int numBlocks = ((maxElements % (CTA_SIZE * 4)) == 0) ?
                              (maxElements / (CTA_SIZE * 4)) : (maxElements / (CTA_SIZE * 4) + 1);
     unsigned int numBlocks2 = ((maxElements % (CTA_SIZE * 2)) == 0) ?
                               (maxElements / (CTA_SIZE * 2)) : (maxElements / (CTA_SIZE * 2) + 1);
 
-    cl_int clStatus;
-    d_tempKeys = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, sizeof(unsigned int) * maxElements, NULL, &clStatus);
-    mCounters = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, WARP_SIZE * numBlocks * sizeof(unsigned int), NULL, &clStatus);
-    mCountersSum = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, WARP_SIZE * numBlocks * sizeof(unsigned int), NULL, &clStatus);
-    mBlockOffsets = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, WARP_SIZE * numBlocks * sizeof(unsigned int), NULL, &clStatus);
+	d_tempKeys = clCreateBuffer(context->clContext, CL_MEM_READ_WRITE, sizeof(unsigned int) * maxElements, NULL, &clStatus);
+	mCounters = clCreateBuffer(context->clContext, CL_MEM_READ_WRITE, WARP_SIZE * numBlocks * sizeof(unsigned int), NULL, &clStatus);
+	mCountersSum = clCreateBuffer(context->clContext, CL_MEM_READ_WRITE, WARP_SIZE * numBlocks * sizeof(unsigned int), NULL, &clStatus);
+	mBlockOffsets = clCreateBuffer(context->clContext, CL_MEM_READ_WRITE, WARP_SIZE * numBlocks * sizeof(unsigned int), NULL, &clStatus); 
 
-    size_t szKernelLength; // Byte size of kernel code
-    char *cSourcePath = shrFindFilePath("clppSort_nvRadixSort.cl", path);
-    shrCheckError(cSourcePath != NULL, shrTRUE);
-    char *cRadixSort = oclLoadProgSource(cSourcePath, "// My comment\n", &szKernelLength);
-    oclCheckError(cRadixSort != NULL, shrTRUE);
-    cpProgram = clCreateProgramWithSource(cxGPUContext, 1, (const char **)&cRadixSort, &szKernelLength, &clStatus);
-    checkCLStatus(clStatus);
-#ifdef MAC
-    char *flags = "-DMAC -cl-fast-relaxed-math";
-#else
-    char *flags = "-cl-fast-relaxed-math";
-#endif
-    clStatus = clBuildProgram(cpProgram, 0, NULL, flags, NULL, NULL);
-    if (clStatus != CL_SUCCESS)
-    {
-        // write out standard ciErrNumor, Build Log and PTX, then cleanup and exit
-        shrLogEx(LOGBOTH | ERRORMSG, clStatus, STDERROR);
-        oclLogBuildInfo(cpProgram, oclGetFirstDev(cxGPUContext));
-        oclLogPtx(cpProgram, oclGetFirstDev(cxGPUContext), "clppSort_nvRadixSort.ptx");
-        checkCLStatus(clStatus);
-    }
+	if (!compile(context, basePath, "clppSort_nvRadixSort.cl"))
+		return;
 
-    kernel_RadixSortBlocksKeysOnly = clCreateKernel(cpProgram, "radixSortBlocksKeysOnly", &clStatus);
+	//---- Prepare all the kernels
+	kernel_RadixSortBlocksKeysOnly = clCreateKernel(_clProgram, "radixSortBlocksKeysOnly", &clStatus);
     checkCLStatus(clStatus);
 
-    kernel_FindRadixOffsets        = clCreateKernel(cpProgram, "findRadixOffsets",        &clStatus);
+    kernel_FindRadixOffsets = clCreateKernel(_clProgram, "findRadixOffsets", &clStatus);
     checkCLStatus(clStatus);
 
-    kernel_ScanNaive               = clCreateKernel(cpProgram, "scanNaive",               &clStatus);
+    kernel_ScanNaive = clCreateKernel(_clProgram, "scanNaive", &clStatus);
     checkCLStatus(clStatus);
 
-    kernel_ReorderDataKeysOnly     = clCreateKernel(cpProgram, "reorderDataKeysOnly",     &clStatus);
+    kernel_ReorderDataKeysOnly = clCreateKernel(_clProgram, "reorderDataKeysOnly", &clStatus);
     checkCLStatus(clStatus);
-
-    free(cRadixSort);
-    free(cSourcePath);
 }
 
 clppSort_nvRadixSort::~clppSort_nvRadixSort()
@@ -130,21 +61,37 @@ clppSort_nvRadixSort::~clppSort_nvRadixSort()
     clReleaseKernel(kernel_FindRadixOffsets);
     clReleaseKernel(kernel_ScanNaive);
     clReleaseKernel(kernel_ReorderDataKeysOnly);
-    clReleaseProgram(cpProgram);
+    
     clReleaseMemObject(d_tempKeys);
     clReleaseMemObject(mCounters);
     clReleaseMemObject(mCountersSum);
     clReleaseMemObject(mBlockOffsets);
 }
 
-// Sorts input arrays of unsigned integer keys and (optional) values
-//
-// clBuffer_keys    Array of keys for data to be sorted
-// elementsCount	Number of elements to be sorted.  Must be <= maxElements passed to the constructor
-// keyBits			The number of bits in each key to use for ordering
-void clppSort_nvRadixSort::sort(cl_mem clBuffer_keys, unsigned int elementsCount, unsigned int keyBits)
+void clppSort_nvRadixSort::pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize, unsigned int keyBits)
 {
-	radixSortKeysOnly(clBuffer_keys, elementsCount, keyBits);
+	cl_int clStatus;
+
+	if (_keys != 0)
+	{
+		clStatus = clEnqueueWriteBuffer(_context->clQueue, clBuffer_keys, CL_FALSE, 0, _keySize * _datasetSize, _keys, 0, NULL, NULL);
+		checkCLStatus(clStatus);
+	}
+}
+
+void clppSort_nvRadixSort::popDatas()
+{
+	cl_int clStatus;
+
+    clFinish(_context->clQueue);     // wait end of read
+
+	clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_keys, CL_TRUE, 0, _keySize * _datasetSize, _keys, 0, NULL, NULL);
+	checkCLStatus(clStatus);
+}
+
+void clppSort_nvRadixSort::sort()
+{
+	radixSortKeysOnly(_clBuffer_keys, _datasetSize, _keyBits);
 }
 
 void clppSort_nvRadixSort::radixSortKeysOnly(cl_mem d_keys, unsigned int numElements, unsigned int keyBits)

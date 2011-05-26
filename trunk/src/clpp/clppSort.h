@@ -36,11 +36,11 @@ public:
 protected:
 	
 	void* _keys;			// The set of key to sort
-	cl_mem clBuffer_keys;	// The cl buffers for the keys
+	cl_mem _clBuffer_keys;	// The cl buffers for the keys
 	size_t _keySize;		// The size of a key in bytes
 
 	void* _values;			// The associated data set to sort
-	cl_mem clBuffer_values;// The cl buffers for the values
+	cl_mem _clBuffer_values;// The cl buffers for the values
 	size_t _valueSize;		// The size of a value in bytes
 
 	size_t _datasetSize;	// The number of keys to sort

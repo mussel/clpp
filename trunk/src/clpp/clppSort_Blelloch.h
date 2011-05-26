@@ -36,16 +36,12 @@ public:
 
 	string compilePreprocess(string kernel);
 
-	// Returns the algorithm name
 	string getName() { return "Blelloch"; }
 
-	// Sort the pushed data set 
 	void sort();
 
-	// Push the data on the device
 	void pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize, unsigned int keyBits);
 
-	// Pop the data from the device
 	void popDatas();
 
 private:
