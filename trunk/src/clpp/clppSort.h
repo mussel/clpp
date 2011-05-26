@@ -18,7 +18,14 @@ using namespace std;
 class clppSort
 {
 public:
-	void sort(void* keys, void* values, size_t datasetSize, unsigned int keyBits);
+	// Sort the pushed data set 
+	virtual void sort() = 0;
+
+	// Push the data on the device
+	virtual void pushDatas(void* keys, void* values, size_t valueSize, size_t datasetSize, unsigned int keyBits) = 0;
+
+	// Pop the data from the device
+	virtual void popDatas() = 0;
 
 protected:
 	// Load the kernel source code
@@ -27,6 +34,12 @@ protected:
 	static void checkCLStatus(cl_int clStatus);
 
 	clppContext* _context;
+
+	void* _keys;			// The set of key to sort
+	void* _values;			// The associated data set to sort
+	size_t _valueSize;		// The size of a value in bytes
+	size_t _datasetSize;	// The number of keys to sort
+	unsigned int _keyBits;	// The bits used by the key
 };
 
 #endif

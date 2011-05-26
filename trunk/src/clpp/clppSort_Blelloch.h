@@ -34,7 +34,14 @@ class clppSort_Blelloch : public clppSort
 public:
 	clppSort_Blelloch(clppContext* context, string basePath);
 
-	void sort(void* keys, void* values, size_t datasetSize, unsigned int keyBits);
+	// Sort the pushed data set 
+	void sort();
+
+	// Push the data on the device
+	void pushDatas(void* keys, void* values, size_t valueSize, size_t datasetSize, unsigned int keyBits);
+
+	// Pop the data from the device
+	void popDatas();
 
 private:
 	string _kernelSource;
@@ -58,20 +65,18 @@ private:
 	cl_mem _clBuffer_globsum;
 	cl_mem _clBuffer_temp;
 
-	void Sort();
-
 	// Resize the sorted vector
-	void Resize(int nn);
+	void resize(int nn);
 
 	// Transpose the list for faster memory access
-	void Transpose(int nbrow, int nbcol);
+	void transpose(int nbrow, int nbcol);
 
-	void Histogram(int pass);
+	void histogram(int pass);
 
-	void ScanHistogram();
+	void scanHistogram();
 
 	// Reorder the data from the scanned histogram
-	void Reorder(int pass);
+	void reorder(int pass);
 
 	int nkeys;
 	int nkeys_rounded;

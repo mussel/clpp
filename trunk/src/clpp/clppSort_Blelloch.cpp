@@ -1,5 +1,7 @@
 #include "clpp/clppSort_Blelloch.h"
 
+#pragma region Construsctor
+
 clppSort_Blelloch::clppSort_Blelloch(clppContext* context, string basePath)
 {
 	_context = context;
@@ -27,7 +29,7 @@ clppSort_Blelloch::clppSort_Blelloch(clppContext* context, string basePath)
 		printf("Error: Failed to build program executable!\n");
 		clGetProgramBuildInfo(clProgram, context->clDevice, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
 
-		//printf("%s\n", buffer);
+		printf("%s\n", buffer);
 		printf("%s\n", getOpenCLErrorString(clStatus));
 
 		checkCLStatus(clStatus);
@@ -50,40 +52,37 @@ clppSort_Blelloch::clppSort_Blelloch(clppContext* context, string basePath)
 	checkCLStatus(clStatus);
 }
 
-void clppSort_Blelloch::sort(void* keys, void* values, size_t datasetSize, unsigned int keyBits)
+#pragma endregion
+
+#pragma region sort
+
+void clppSort_Blelloch::sort()
 {
-	//---- Send the data to the devices
-	initializeCLBuffers(keys, values, datasetSize);
+    //assert(nkeys_rounded <= _N);
+    //assert(nkeys <= nkeys_rounded);
 
-	//---- We set here the fixed arguments of the OpenCL kernels
-	// the changing arguments are modified elsewhere in the class
-	cl_int clStatus;
-	clStatus = clSetKernelArg(kernel_Histogram, 1, sizeof(cl_mem), &_clBuffer_Histograms);
-	checkCLStatus(clStatus);
+    int nbcol = nkeys_rounded / (_GROUPS * _ITEMS);
+    int nbrow = _GROUPS * _ITEMS;
 
-	clStatus = clSetKernelArg(kernel_Histogram, 3, sizeof(int)*_RADIX*_ITEMS, NULL);
-	checkCLStatus(clStatus);
+    if (TRANSPOSE)
+		transpose(nbrow, nbcol);
 
-	// clStatus = clSetKernelArg(kernel_Histogram, 3, sizeof(int)*_ITEMS, NULL);
-	// checkCLStatus(clStatus);
+    for(unsigned int pass = 0; pass < _PASS; pass++)
+    {
+        histogram(pass);
+        scanHistogram();
+        reorder(pass);
+    }
 
-	clStatus = clSetKernelArg(kernel_PasteHistogram, 0, sizeof(cl_mem), &_clBuffer_Histograms);
-	checkCLStatus(clStatus);
+    if (TRANSPOSE)
+        transpose(nbcol, nbrow);
 
-	clStatus = clSetKernelArg(kernel_PasteHistogram, 1, sizeof(cl_mem), &_clBuffer_globsum);
-	checkCLStatus(clStatus);
-
-	clStatus = clSetKernelArg(kernel_Reorder, 2, sizeof(cl_mem), &_clBuffer_Histograms);
-	checkCLStatus(clStatus);
-
-	clStatus  = clSetKernelArg(kernel_Reorder, 6, sizeof(int) * _RADIX * _ITEMS , NULL); // mem cache
-	checkCLStatus(clStatus);
-
-	//---- Sort
-	Sort();
-
-	//---- Retreive the data from the devices
+    _timerSort = _timerHisto + _timerScan + _timerReorder + _timerTranspose;
 }
+
+#pragma endregion
+
+#pragma region initializeCLBuffers
 
 void clppSort_Blelloch::initializeCLBuffers(void* keys, void* values, size_t datasetSize)
 {
@@ -118,7 +117,7 @@ void clppSort_Blelloch::initializeCLBuffers(void* keys, void* values, size_t dat
 	_clBuffer_temp  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* _HISTOSPLIT, NULL, &clStatus);
 	checkCLStatus(clStatus);
 
-	Resize(nkeys);
+	resize(nkeys);
 
 	//---- Send the data
 	clStatus = clEnqueueWriteBuffer(_context->clQueue, _clBuffer_inKeys, CL_FALSE, 0, sizeof(int) * _N, keys, 0, NULL, NULL);
@@ -128,8 +127,12 @@ void clppSort_Blelloch::initializeCLBuffers(void* keys, void* values, size_t dat
 	checkCLStatus(clStatus);
 }
 
+#pragma endregion
+
+#pragma region resize
+
 // resize the sorted vector
-void clppSort_Blelloch::Resize(int nn)
+void clppSort_Blelloch::resize(int nn)
 {
     nkeys = nn;
 
@@ -153,7 +156,11 @@ void clppSort_Blelloch::Resize(int nn)
     }
 }
 
-void clppSort_Blelloch::Transpose(int nbrow,int nbcol)
+#pragma endregion
+
+#pragma region transpose
+
+void clppSort_Blelloch::transpose(int nbrow,int nbcol)
 {
     cl_int clStatus;
 
@@ -225,31 +232,11 @@ void clppSort_Blelloch::Transpose(int nbrow,int nbcol)
 	_timerTranspose += (float)(end-beginning)/1e9;
 }
 
-void clppSort_Blelloch::Sort()
-{
-    //assert(nkeys_rounded <= _N);
-    //assert(nkeys <= nkeys_rounded);
+#pragma endregion
 
-    int nbcol = nkeys_rounded / (_GROUPS * _ITEMS);
-    int nbrow = _GROUPS * _ITEMS;
+#pragma region histogram
 
-    if (TRANSPOSE)
-		Transpose(nbrow, nbcol);
-
-    for(unsigned int pass = 0; pass < _PASS; pass++)
-    {
-        Histogram(pass);
-        ScanHistogram();
-        Reorder(pass);
-    }
-
-    if (TRANSPOSE)
-        Transpose(nbcol, nbrow);
-
-    _timerSort = _timerHisto + _timerScan + _timerReorder + _timerTranspose;
-}
-
-void clppSort_Blelloch::Histogram(int pass)
+void clppSort_Blelloch::histogram(int pass)
 {
     cl_int clStatus;
 
@@ -290,7 +277,11 @@ void clppSort_Blelloch::Histogram(int pass)
     _timerHisto += (float)(end-beginning)/1e9;
 }
 
-void clppSort_Blelloch::ScanHistogram()
+#pragma endregion
+
+#pragma region scanHistogram
+
+void clppSort_Blelloch::scanHistogram()
 {
     cl_int clStatus;
 
@@ -371,6 +362,9 @@ void clppSort_Blelloch::ScanHistogram()
 
     _timerScan += (float)(end-beginning)/1e9;
 }
+
+#pragma endregion
+
 /*
 // chekernel_ the computation at the end
 void clppSort_Blelloch::Chekernel_()
@@ -411,7 +405,9 @@ void clppSort_Blelloch::Chekernel_()
 }
 */
 
-void clppSort_Blelloch::Reorder(int pass)
+#pragma region reorder
+
+void clppSort_Blelloch::reorder(int pass)
 {
     cl_int clStatus;
 
@@ -436,16 +432,13 @@ void clppSort_Blelloch::Reorder(int pass)
     clStatus  = clSetKernelArg(kernel_Reorder, 5, sizeof(cl_mem), &_clBuffer_outPermutations);
     checkCLStatus(clStatus);
 
-    clStatus  = clSetKernelArg(kernel_Reorder, 6,
-                          sizeof(int)* _RADIX * _ITEMS ,
-                          NULL); // mem cache
+    clStatus  = clSetKernelArg(kernel_Reorder, 6, sizeof(int)* _RADIX * _ITEMS , NULL); // mem cache
     checkCLStatus(clStatus);
 
     assert(nkeys_rounded%(_GROUPS * _ITEMS) == 0);
 
     clStatus = clSetKernelArg(kernel_Reorder, 7, sizeof(int), &nkeys_rounded);
     checkCLStatus(clStatus);
-
 
     assert(_RADIX == pow(2.f, _BITS));
 
@@ -477,3 +470,76 @@ void clppSort_Blelloch::Reorder(int pass)
     _clBuffer_inPermutations=_clBuffer_outPermutations;
     _clBuffer_outPermutations=_clBuffer_temp;
 }
+
+#pragma endregion
+
+#pragma region pushDatas
+
+void clppSort_Blelloch::pushDatas(void* keys, void* values, size_t valueSize, size_t datasetSize, unsigned int keyBits)
+{
+	_keys = keys;
+	_values = values;
+	_valueSize = valueSize;
+	_datasetSize = datasetSize;
+	_keyBits = keyBits;
+
+	//---- Send the data to the devices
+	initializeCLBuffers(keys, values, datasetSize);
+
+	//---- We set here the fixed arguments of the OpenCL kernels
+	// the changing arguments are modified elsewhere in the class
+	cl_int clStatus;
+	clStatus = clSetKernelArg(kernel_Histogram, 1, sizeof(cl_mem), &_clBuffer_Histograms);
+	checkCLStatus(clStatus);
+
+	clStatus = clSetKernelArg(kernel_Histogram, 3, sizeof(int)*_RADIX*_ITEMS, NULL);
+	checkCLStatus(clStatus);
+
+	// clStatus = clSetKernelArg(kernel_Histogram, 3, sizeof(int)*_ITEMS, NULL);
+	// checkCLStatus(clStatus);
+
+	clStatus = clSetKernelArg(kernel_PasteHistogram, 0, sizeof(cl_mem), &_clBuffer_Histograms);
+	checkCLStatus(clStatus);
+
+	clStatus = clSetKernelArg(kernel_PasteHistogram, 1, sizeof(cl_mem), &_clBuffer_globsum);
+	checkCLStatus(clStatus);
+
+	clStatus = clSetKernelArg(kernel_Reorder, 2, sizeof(cl_mem), &_clBuffer_Histograms);
+	checkCLStatus(clStatus);
+
+	clStatus  = clSetKernelArg(kernel_Reorder, 6, sizeof(int) * _RADIX * _ITEMS , NULL); // mem cache
+	checkCLStatus(clStatus);
+}
+
+#pragma endregion
+
+#pragma region popDatas
+
+void clppSort_Blelloch::popDatas()
+{
+    cl_int clStatus;
+
+    //clFinish(CommandQueue);     // wait end of read
+
+	clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_inKeys, CL_FALSE, 0, sizeof(int) * _N, _keys, 0, NULL, NULL);
+	checkCLStatus(clStatus);
+
+	/*
+    clFinish(_context->clQueue);     // wait end of read
+
+    status = clEnqueueReadBuffer(_context->clQueue, _clBuffer_inPermutations, CL_TRUE, 0, sizeof(int) * _N, h_Permut, 0, NULL, NULL);
+	checkCLStatus(clStatus);
+
+    clFinish(_context->clQueue);     // wait end of read
+
+    status = clEnqueueReadBuffer(_context->clQueue, _clBuffer_Histograms, CL_TRUE, 0, sizeof(int) * _RADIX * _GROUPS * _ITEMS, h_Histograms, 0, NULL, NULL);
+    checkCLStatus(clStatus);
+
+    status = clEnqueueReadBuffer(_context->clQueue, _clBuffer_globsum, CL_TRUE, 0, sizeof(int) * _HISTOSPLIT, h_globsum, 0, NULL, NULL);
+    checkCLStatus(clStatus);
+	*/
+
+    clFinish(_context->clQueue);     // wait end of read
+}
+
+#pragma endregion
