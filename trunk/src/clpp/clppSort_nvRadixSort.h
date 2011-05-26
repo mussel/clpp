@@ -48,14 +48,14 @@ private:
 	// arrays, but uses the other device arrays as temporary storage.  All pointer
 	// parameters are device pointers.  Uses cudppScan() for the prefix sum of
 	// radix counters.
-	void radixSortKeysOnly(cl_mem d_keys, unsigned int numElements, unsigned int keyBits);
+	void radixSortKeysOnly();
 
 	// Perform one step of the radix sort.  Sorts by nbits key bits per step, starting at startbit.
-	void radixSortStepKeysOnly(cl_mem d_keys, unsigned int nbits, unsigned int startbit, unsigned int numElements);
-	void radixSortBlocksKeysOnlyOCL(cl_mem d_keys, unsigned int nbits, unsigned int startbit, unsigned int numElements);
-	void findRadixOffsetsOCL(unsigned int startbit, unsigned int numElements);
-	void scanNaiveOCL(unsigned int numElements);
-	void reorderDataKeysOnlyOCL(cl_mem d_keys, unsigned int startbit, unsigned int numElements);
+	void radixSortStepKeysOnly(unsigned int nbits, unsigned int startbit);
+	void radixSortBlocksKeysOnlyOCL(unsigned int nbits, unsigned int startbit);
+	void findRadixOffsetsOCL(unsigned int startbit);
+	//void scanNaiveOCL(unsigned int numElements);
+	void reorderDataKeysOnlyOCL(unsigned int startbit);
 };
 
 #endif

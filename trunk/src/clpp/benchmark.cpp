@@ -9,6 +9,7 @@ using namespace std;
 
 void makeRandomUint16Vector(unsigned short *a, unsigned int numElements, unsigned int keybits);
 void makeRandomUint32Vector(unsigned int *a, unsigned int numElements, unsigned int keybits);
+void makeRandomUint32Vector_i(unsigned int *a, unsigned int numElements, unsigned int keybits);
 void benchmark(clppContext context, clppSort* sort, unsigned int* keys, unsigned int* keysSorted, unsigned int datasetSize);
 bool checkIsSorted(unsigned int* sorted, unsigned int* tocheck, size_t datasetSize, string algorithmName);
 
@@ -19,7 +20,7 @@ int main(int argc, const char **argv)
 
 	//---- Create a new set of random datas
 	unsigned int* keys = (unsigned int*)malloc(datasetSize * sizeof(int));
-	makeRandomUint32Vector(keys, datasetSize, 32);
+	makeRandomUint32Vector_i(keys, datasetSize, 32);
 
 	unsigned int* keysCopy = (unsigned int*)malloc(datasetSize * sizeof(int));
 	memcpy(keysCopy, keys, datasetSize * sizeof(int));
@@ -33,19 +34,19 @@ int main(int argc, const char **argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(1, 0);
+	context.setup(0, 0);
 
 	//---- Start the benchmark
 	clppSort* clppsort;
 
 	// Brute fore
-	clppsort = new clppSort_CPU(&context, "");
-	benchmark(context, clppsort, keys, keysSorted, datasetSize);
+	//clppsort = new clppSort_CPU(&context, "");
+	//benchmark(context, clppsort, keys, keysSorted, datasetSize);
 
-	// Blelloch
-	memcpy(keys, keysCopy, datasetSize * sizeof(int));
-	clppsort = new clppSort_Blelloch(&context, "src/clpp/");
-	benchmark(context, clppsort, keys, keysSorted, datasetSize);	
+	//// Blelloch
+	//memcpy(keys, keysCopy, datasetSize * sizeof(int));
+	//clppsort = new clppSort_Blelloch(&context, "src/clpp/");
+	//benchmark(context, clppsort, keys, keysSorted, datasetSize);	
 
 	// NV
 	memcpy(keys, keysCopy, datasetSize * sizeof(int));
@@ -95,6 +96,12 @@ void makeRandomUint32Vector(unsigned int* a, unsigned int numElements, unsigned 
     srand(95123);
     for(unsigned int i=0; i < numElements; ++i)   
         a[i] = ((rand() & keyshiftmask)<<16) | (rand() & keymask); 
+}
+
+void makeRandomUint32Vector_i(unsigned int* a, unsigned int numElements, unsigned int keybits)
+{
+    for(unsigned int i=0; i < numElements; ++i)   
+        a[i] = numElements - i; 
 }
 
 bool checkIsSorted(unsigned int* sorted, unsigned int* tocheck, size_t datasetSize, string algorithmName)
