@@ -34,6 +34,9 @@ class clppSort_Blelloch : public clppSort
 public:
 	clppSort_Blelloch(clppContext* context, string basePath);
 
+	// Returns the algorithm name
+	string getName() { return "Blelloch"; }
+
 	// Sort the pushed data set 
 	void sort();
 

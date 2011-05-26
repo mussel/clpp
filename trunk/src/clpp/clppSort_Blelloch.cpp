@@ -519,7 +519,7 @@ void clppSort_Blelloch::popDatas()
 {
     cl_int clStatus;
 
-    //clFinish(CommandQueue);     // wait end of read
+    clFinish(_context->clQueue);     // wait end of read
 
 	clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_inKeys, CL_FALSE, 0, sizeof(int) * _N, _keys, 0, NULL, NULL);
 	checkCLStatus(clStatus);

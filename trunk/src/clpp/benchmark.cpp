@@ -1,8 +1,13 @@
 #include <stdlib.h>
+#include <algorithm>
 
 #include "clpp/clppSort_Blelloch.h"
 
+using namespace std;
+
 void makeRandomUintVector(unsigned int *a, unsigned int numElements, unsigned int keybits);
+void benchmark(clppContext context, clppSort* sort, unsigned int* keys, unsigned int* keysSorted, unsigned int datasetSize);
+bool checkIsSorted(unsigned int* sorted, unsigned int* tocheck, size_t datasetSize, string algorithmName);
 
 int main(int argc, const char **argv)
 {
@@ -12,20 +17,38 @@ int main(int argc, const char **argv)
 	unsigned int* keys = (unsigned int*)malloc(datasetSize * sizeof(int));
 	makeRandomUintVector(keys, datasetSize, 32);
 
+	// Create a copy
+	unsigned int* keysSorted = (unsigned int*)malloc(datasetSize * sizeof(int));
+	memcpy(keysSorted, keys, datasetSize * sizeof(int));
+
+	// use standard sort
+	sort(keysSorted, keysSorted + datasetSize);
+
 	//---- Prepare a clpp Context
 	clppContext context;
-
 	context.setup();
 
-	//---- Blelloch
+	//---- Start the benchmark
 	clppSort* sort = new clppSort_Blelloch(&context, "src/clpp/");
-
-	sort->pushDatas(keys, keys, 4, datasetSize, 32);
-	sort->sort();
-	sort->popDatas();
+	benchmark(context, sort, keys, keysSorted, datasetSize);
 
 	//---- Free
 	free(keys);
+}
+
+void benchmark(clppContext context, clppSort* sort, unsigned int* keys, unsigned int* keysSorted, unsigned int datasetSize)
+{
+	sort->pushDatas(keys, keys, 4, datasetSize, 32);
+
+	double start = sort->ClockTime();
+	sort->sort();
+	double delta = sort->ClockTime() - start;
+
+	cout << "Performance for [" << sort->getName() << "] : data-set size[" << datasetSize << "] time (ms): " << delta << endl;
+
+	sort->popDatas();
+
+	checkIsSorted(keysSorted, keys, datasetSize, sort->getName());
 }
 
 void makeRandomUintVector(unsigned int *a, unsigned int numElements, unsigned int keybits)
@@ -39,4 +62,16 @@ void makeRandomUintVector(unsigned int *a, unsigned int numElements, unsigned in
     srand(95123);
     for(unsigned int i=0; i < numElements; ++i)   
         a[i] = ((rand() & keyshiftmask)<<16) | (rand() & keymask); 
+}
+
+bool checkIsSorted(unsigned int* sorted, unsigned int* tocheck, size_t datasetSize, string algorithmName)
+{
+	for(size_t i = 0; i < datasetSize; i++)
+		if (sorted[i] != tocheck[i])
+		{
+			cout << "Algorithm FAILED : " << algorithmName << endl;
+			return false;
+		}
+
+	return true;
 }

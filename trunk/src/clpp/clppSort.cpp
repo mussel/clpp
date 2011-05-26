@@ -1,5 +1,9 @@
 #include "clpp/clppSort.h"
 
+#ifdef WIN32
+#include <windows.h>
+#endif
+
 string clppSort::loadKernelSource(string path)
 {
 	string kernel = "";
@@ -78,4 +82,18 @@ void clppSort::checkCLStatus(cl_int clStatus)
 {
 	const char* e = getOpenCLErrorString(clStatus);
 	assert(clStatus == CL_SUCCESS);
+}
+
+double clppSort::ClockTime()
+{
+#if defined(__linux__) || defined(__APPLE__)
+    struct timeval t;
+    gettimeofday(&t, 0);
+
+    return t.tv_sec + t.tv_usec / 1000000.0;
+#elif defined (WIN32)
+    return GetTickCount() / 1000.0;
+#else
+    Unsupported Platform !!!
+#endif
 }

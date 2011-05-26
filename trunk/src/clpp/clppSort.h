@@ -18,6 +18,10 @@ using namespace std;
 class clppSort
 {
 public:
+
+	// Returns the algorithm name
+	virtual string getName() = 0;
+
 	// Sort the pushed data set 
 	virtual void sort() = 0;
 
@@ -26,6 +30,9 @@ public:
 
 	// Pop the data from the device
 	virtual void popDatas() = 0;
+
+	// Helper method : use to retreive the current time
+	double ClockTime();
 
 protected:
 	// Load the kernel source code
