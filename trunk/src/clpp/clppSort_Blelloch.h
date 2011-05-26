@@ -5,12 +5,13 @@
 
 #include "clpp/clppSort.h"
 
+#define _TOTALBITS 32  // number of bits for the integer in the list (max=32)
+#define _BITS 8  // number of bits in the radix
+
 // these parameters can be changed
 #define _ITEMS  32 // number of items in a group
 #define _GROUPS 16 // the number of virtual processors is _ITEMS * _GROUPS
 #define  _HISTOSPLIT 128 // number of splits of the histogram
-#define _TOTALBITS 32  // number of bits for the integer in the list (max=32)
-#define _BITS 8  // number of bits in the radix
 
 // max size of the sorted vector
 // it has to be divisible by  _ITEMS * _GROUPS
@@ -33,6 +34,8 @@ class clppSort_Blelloch : public clppSort
 public:
 	clppSort_Blelloch(clppContext* context, string basePath);
 
+	string compilePreprocess(string kernel);
+
 	// Returns the algorithm name
 	string getName() { return "Blelloch"; }
 
@@ -40,26 +43,20 @@ public:
 	void sort();
 
 	// Push the data on the device
-	void pushDatas(void* keys, void* values, size_t valueSize, size_t datasetSize, unsigned int keyBits);
+	void pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize, unsigned int keyBits);
 
 	// Pop the data from the device
 	void popDatas();
 
 private:
-	string _kernelSource;
-
-	cl_program clProgram;
 	cl_kernel kernel_Histogram;
 	cl_kernel kernel_ScanHistogram;
 	cl_kernel kernel_PasteHistogram;
 	cl_kernel kernel_Reorder;
 	cl_kernel kernel_Transpose;
 
-	void initializeCLBuffers(void* keys, void* values, size_t datasetSize);
-
 	int _permutations[_N];
 
-	cl_mem _clBuffer_inKeys;
 	cl_mem _clBuffer_outKeys;
 	cl_mem _clBuffer_inPermutations;
 	cl_mem _clBuffer_outPermutations;

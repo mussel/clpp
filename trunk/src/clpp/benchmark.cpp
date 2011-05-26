@@ -13,7 +13,7 @@ bool checkIsSorted(unsigned int* sorted, unsigned int* tocheck, size_t datasetSi
 
 int main(int argc, const char **argv)
 {
-	unsigned int datasetSize = 1000;
+	unsigned int datasetSize = 8192;
 
 	//---- Create a new set of random datas
 	unsigned int* keys = (unsigned int*)malloc(datasetSize * sizeof(int));
@@ -31,7 +31,7 @@ int main(int argc, const char **argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup();
+	context.setup(1, 0);
 
 	//---- Start the benchmark
 	clppSort* clppsort;
@@ -51,7 +51,7 @@ int main(int argc, const char **argv)
 
 void benchmark(clppContext context, clppSort* sort, unsigned int* keys, unsigned int* keysSorted, unsigned int datasetSize)
 {
-	sort->pushDatas(keys, keys, 4, datasetSize, 32);
+	sort->pushDatas(keys, keys, 4, 4, datasetSize, 32);
 
 	double start = sort->ClockTime();
 	sort->sort();

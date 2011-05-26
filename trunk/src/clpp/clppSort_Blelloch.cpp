@@ -2,15 +2,37 @@
 
 #define TRANSPOSE // transpose the initial vector (faster memory access)
 
-#pragma region Construsctor
+#pragma region Constructor
 
 clppSort_Blelloch::clppSort_Blelloch(clppContext* context, string basePath)
 {
-	_context = context;
-
 	nkeys = _N;
 	nkeys_rounded = _N;
 
+	if (!compile(context, basePath, "clppSort_Blelloch.cl"))
+		return;
+
+	//---- Prepare all the kernels
+	cl_int clStatus;
+
+	kernel_Histogram = clCreateKernel(_clProgram, "histogram", &clStatus);
+	checkCLStatus(clStatus);
+	
+	kernel_ScanHistogram = clCreateKernel(_clProgram, "scanhistograms", &clStatus);
+	checkCLStatus(clStatus);
+
+	kernel_PasteHistogram = clCreateKernel(_clProgram, "pastehistograms", &clStatus);
+	checkCLStatus(clStatus);
+
+	kernel_Reorder = clCreateKernel(_clProgram, "reorder", &clStatus);
+	checkCLStatus(clStatus);
+
+	kernel_Transpose = clCreateKernel(_clProgram, "transpose", &clStatus);
+	checkCLStatus(clStatus);
+}
+
+string clppSort_Blelloch::compilePreprocess(string kernel)
+{
 	//---- Read the source code
 	string definitions = "";
 	char buffer[500];
@@ -35,47 +57,7 @@ clppSort_Blelloch::clppSort_Blelloch(clppContext* context, string basePath)
 	sprintf(buffer, "#define _RADIX %d\n", _RADIX);
 	definitions += buffer;
 
-	_kernelSource = loadKernelSource(basePath + "clppSort_Blelloch.cl");
-	_kernelSource = definitions + _kernelSource;
-
-	cl_int clStatus;
-	const char* ptr = _kernelSource.c_str();
-	size_t len = _kernelSource.length();
-
-	//---- Build the program
-	clProgram = clCreateProgramWithSource(context->clContext, 1, (const char **)&ptr, &len, &clStatus);
-	checkCLStatus(clStatus);
-
-	clStatus = clBuildProgram(clProgram, 0, NULL, NULL, NULL, NULL);
-  
-	if (clStatus != CL_SUCCESS)
-	{
-		size_t len;
-		char buffer[5000];
-		printf("Error: Failed to build program executable!\n");
-		clGetProgramBuildInfo(clProgram, context->clDevice, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
-
-		printf("%s\n", buffer);
-		printf("%s\n", getOpenCLErrorString(clStatus));
-
-		checkCLStatus(clStatus);
-	}
-
-	//---- Prepare all the kernels
-	kernel_Histogram = clCreateKernel(clProgram, "histogram", &clStatus);
-	checkCLStatus(clStatus);
-	
-	kernel_ScanHistogram = clCreateKernel(clProgram, "scanhistograms", &clStatus);
-	checkCLStatus(clStatus);
-
-	kernel_PasteHistogram = clCreateKernel(clProgram, "pastehistograms", &clStatus);
-	checkCLStatus(clStatus);
-
-	kernel_Reorder = clCreateKernel(clProgram, "reorder", &clStatus);
-	checkCLStatus(clStatus);
-
-	kernel_Transpose = clCreateKernel(clProgram, "transpose", &clStatus);
-	checkCLStatus(clStatus);
+	return definitions + kernel;
 }
 
 #pragma endregion
@@ -87,7 +69,7 @@ void clppSort_Blelloch::sort()
     //assert(nkeys_rounded <= _N);
     //assert(nkeys <= nkeys_rounded);
 
-	resize(1000);
+	//resize(1000);
 
     int nbcol = nkeys_rounded / (_GROUPS * _ITEMS);
     int nbrow = _GROUPS * _ITEMS;
@@ -108,53 +90,6 @@ void clppSort_Blelloch::sort()
 #endif
 
     _timerSort = _timerHisto + _timerScan + _timerReorder + _timerTranspose;
-}
-
-#pragma endregion
-
-#pragma region initializeCLBuffers
-
-void clppSort_Blelloch::initializeCLBuffers(void* keys, void* values, size_t datasetSize)
-{
-	cl_int clStatus;
-
-	//---- Construction of the initial permutation
-	for(size_t i = 0; i < _N; i++)
-		_permutations[i] = i;
-
-	//---- Create all the buffers
-	_clBuffer_inKeys  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* _N, NULL, &clStatus);
-	checkCLStatus(clStatus);
-
-	_clBuffer_outKeys  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* _N, NULL, &clStatus);
-	checkCLStatus(clStatus);
-
-	_clBuffer_inPermutations = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* _N, NULL, &clStatus);
-	checkCLStatus(clStatus);
-
-	_clBuffer_outPermutations = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* _N, NULL, &clStatus);
-	checkCLStatus(clStatus);
-
-	// copy on the device
-	_clBuffer_Histograms  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* _RADIX * _GROUPS * _ITEMS, NULL, &clStatus);
-	checkCLStatus(clStatus);
-
-	// copy on the device
-	_clBuffer_globsum  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* _HISTOSPLIT, NULL, &clStatus);
-	checkCLStatus(clStatus);
-
-	// temporary vector when the sum is not needed
-	_clBuffer_temp  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int)* _HISTOSPLIT, NULL, &clStatus);
-	checkCLStatus(clStatus);
-
-	resize(nkeys);
-
-	//---- Send the data
-	clStatus = clEnqueueWriteBuffer(_context->clQueue, _clBuffer_inKeys, CL_FALSE, 0, sizeof(int) * _N, keys, 0, NULL, NULL);
-	checkCLStatus(clStatus);
-
-	clStatus = clEnqueueWriteBuffer(_context->clQueue, _clBuffer_inPermutations, CL_FALSE, 0, sizeof(int) * _N, _permutations, 0, NULL, NULL);
-	checkCLStatus(clStatus);
 }
 
 #pragma endregion
@@ -180,7 +115,7 @@ void clppSort_Blelloch::resize(int nn)
 
         // pad the vector with big values
         assert(nkeys_rounded <= _N);
-        clStatus = clEnqueueWriteBuffer(_context->clQueue, _clBuffer_inKeys, CL_TRUE, sizeof(int) * nkeys, sizeof(int) * (_GROUPS * _ITEMS - remainder), pad, 0, NULL, NULL);
+        clStatus = clEnqueueWriteBuffer(_context->clQueue, clBuffer_keys, CL_TRUE, sizeof(int) * nkeys, sizeof(int) * (_GROUPS * _ITEMS - remainder), pad, 0, NULL, NULL);
         
         checkCLStatus(clStatus);
     }
@@ -194,7 +129,7 @@ void clppSort_Blelloch::transpose(int nbrow,int nbcol)
 {
     cl_int clStatus;
 
-    clStatus  = clSetKernelArg(kernel_Transpose, 0, sizeof(cl_mem), &_clBuffer_inKeys);
+    clStatus  = clSetKernelArg(kernel_Transpose, 0, sizeof(cl_mem), &clBuffer_keys);
     checkCLStatus(clStatus);
 
     clStatus  = clSetKernelArg(kernel_Transpose, 1, sizeof(cl_mem), &_clBuffer_outKeys);
@@ -239,8 +174,8 @@ void clppSort_Blelloch::transpose(int nbrow,int nbcol)
 
     // swap the old and new vectors of keys
     cl_mem _clBuffer_temp;
-    _clBuffer_temp = _clBuffer_inKeys;
-    _clBuffer_inKeys = _clBuffer_outKeys;
+    _clBuffer_temp = clBuffer_keys;
+    clBuffer_keys = _clBuffer_outKeys;
     _clBuffer_outKeys = _clBuffer_temp;
 
     // swap the old and new permutations
@@ -275,7 +210,7 @@ void clppSort_Blelloch::histogram(int pass)
 
     assert(_RADIX == pow(2.f,_BITS));
 
-    clStatus  = clSetKernelArg(kernel_Histogram, 0, sizeof(cl_mem), &_clBuffer_inKeys);
+    clStatus  = clSetKernelArg(kernel_Histogram, 0, sizeof(cl_mem), &clBuffer_keys);
     checkCLStatus(clStatus);
 
     clStatus = clSetKernelArg(kernel_Histogram, 2, sizeof(int), &pass);
@@ -407,7 +342,7 @@ void clppSort_Blelloch::reorder(int pass)
 
     clFinish(_context->clQueue);
 
-    clStatus  = clSetKernelArg(kernel_Reorder, 0, sizeof(cl_mem), &_clBuffer_inKeys);
+    clStatus  = clSetKernelArg(kernel_Reorder, 0, sizeof(cl_mem), &clBuffer_keys);
     checkCLStatus(clStatus);
 
     clStatus  = clSetKernelArg(kernel_Reorder, 1, sizeof(cl_mem), &_clBuffer_outKeys);
@@ -451,8 +386,8 @@ void clppSort_Blelloch::reorder(int pass)
 
     // swap the old and new vectors of keys
     cl_mem _clBuffer_temp;
-    _clBuffer_temp=_clBuffer_inKeys;
-    _clBuffer_inKeys=_clBuffer_outKeys;
+    _clBuffer_temp=clBuffer_keys;
+    clBuffer_keys=_clBuffer_outKeys;
     _clBuffer_outKeys=_clBuffer_temp;
 
     // swap the old and new permutations
@@ -465,21 +400,49 @@ void clppSort_Blelloch::reorder(int pass)
 
 #pragma region pushDatas
 
-void clppSort_Blelloch::pushDatas(void* keys, void* values, size_t valueSize, size_t datasetSize, unsigned int keyBits)
+void clppSort_Blelloch::pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize, unsigned int keyBits)
 {
-	_keys = keys;
-	_values = values;
-	_valueSize = valueSize;
-	_datasetSize = datasetSize;
-	_keyBits = keyBits;
-
-	//---- Send the data to the devices
-	initializeCLBuffers(keys, values, datasetSize);
-
-	//---- We set here the fixed arguments of the OpenCL kernels
-	// the changing arguments are modified elsewhere in the class
 	cl_int clStatus;
 
+	//---- Construction of the initial permutation
+	for(size_t i = 0; i < _N; i++)
+		_permutations[i] = i;
+
+	//---- Create the buffers
+	_clBuffer_outKeys  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * _N, NULL, &clStatus);
+	checkCLStatus(clStatus);
+
+	_clBuffer_inPermutations = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * _N, NULL, &clStatus);
+	checkCLStatus(clStatus);
+
+	_clBuffer_outPermutations = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * _N, NULL, &clStatus);
+	checkCLStatus(clStatus);
+
+	// copy on the device
+	_clBuffer_Histograms  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * _RADIX * _GROUPS * _ITEMS, NULL, &clStatus);
+	checkCLStatus(clStatus);
+
+	// copy on the device
+	_clBuffer_globsum  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * _HISTOSPLIT, NULL, &clStatus);
+	checkCLStatus(clStatus);
+
+	// temporary vector when the sum is not needed
+	_clBuffer_temp  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * _HISTOSPLIT, NULL, &clStatus);
+	checkCLStatus(clStatus);
+
+	resize(nkeys);
+
+	//---- Send the data
+	if (_keys != 0)
+	{
+		clStatus = clEnqueueWriteBuffer(_context->clQueue, clBuffer_keys, CL_FALSE, 0, sizeof(int) * _N, _keys, 0, NULL, NULL);
+		checkCLStatus(clStatus);
+	}
+
+	clStatus = clEnqueueWriteBuffer(_context->clQueue, _clBuffer_inPermutations, CL_FALSE, 0, sizeof(int) * _N, _permutations, 0, NULL, NULL);
+	checkCLStatus(clStatus);
+
+	//---- We set here the fixed arguments of the OpenCL kernels
 	clStatus = clSetKernelArg(kernel_Histogram, 1, sizeof(cl_mem), &_clBuffer_Histograms);
 	checkCLStatus(clStatus);
 
@@ -509,7 +472,7 @@ void clppSort_Blelloch::popDatas()
 
     clFinish(_context->clQueue);     // wait end of read
 
-	clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_inKeys, CL_FALSE, 0, sizeof(int) * _N, _keys, 0, NULL, NULL);
+	clStatus = clEnqueueReadBuffer(_context->clQueue, clBuffer_keys, CL_FALSE, 0, sizeof(int) * _N, _keys, 0, NULL, NULL);
 	checkCLStatus(clStatus);
 
 	/*

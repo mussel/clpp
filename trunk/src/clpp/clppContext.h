@@ -11,11 +11,15 @@ class clppContext
 {
 public:
 	cl_context clContext;			// OpenCL context
+	cl_platform_id clPlatform;		// OpenCL Platform
 	cl_device_id clDevice;			// OpenCL Device
 	cl_command_queue clQueue;		// OpenCL command queue 
 
 	// Default setup : use the default platform and default device
 	void setup();
+
+	// Setup with a specific platform and device
+	void setup(unsigned int platformId, unsigned int deviceId);
 };
 
 #endif

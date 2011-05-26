@@ -341,6 +341,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\clpp\clppProgram.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\clpp\clppSort.cpp"
 				>
 			</File>
@@ -350,6 +354,10 @@
 			</File>
 			<File
 				RelativePath=".\src\clpp\clppSort_CPU.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\src\clpp\clppSort_nvScan.cpp"
 				>
 			</File>
 		</Filter>
@@ -367,6 +375,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\clpp\clppProgram.h"
+				>
+			</File>
+			<File
 				RelativePath=".\src\clpp\clppSort.h"
 				>
 			</File>
@@ -376,6 +388,10 @@
 			</File>
 			<File
 				RelativePath=".\src\clpp\clppSort_CPU.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\clpp\clppSort_nvScan.h"
 				>
 			</File>
 		</Filter>
