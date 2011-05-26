@@ -17,7 +17,8 @@ int main(int argc, const char **argv)
 {
 	//unsigned int datasetSize = 8192;
 	//unsigned int datasetSize = 128000;
-	unsigned int datasetSize = 1048576;
+  //unsigned int datasetSize = (1<<19);
+  unsigned int datasetSize = (1<<23);  // has to match _N for Blelloch ?
 
 	//---- Create a new set of random datas
 	unsigned int* keys = (unsigned int*)malloc(datasetSize * sizeof(int));
@@ -37,6 +38,7 @@ int main(int argc, const char **argv)
 	clppContext context;
 	context.setup(0, 0);
 
+
 	//---- Start the benchmark
 	clppSort* clppsort;
 
@@ -45,14 +47,14 @@ int main(int argc, const char **argv)
 	//benchmark(context, clppsort, keys, keysSorted, datasetSize);
 
 	//// Blelloch
-	//memcpy(keys, keysCopy, datasetSize * sizeof(int));
-	//clppsort = new clppSort_Blelloch(&context, "src/clpp/");
-	//benchmark(context, clppsort, keys, keysSorted, datasetSize);	
+	memcpy(keys, keysCopy, datasetSize * sizeof(int));
+	clppsort = new clppSort_Blelloch(&context, "src/clpp/");
+	benchmark(context, clppsort, keys, keysSorted, datasetSize);	
 
 	// NV
-	memcpy(keys, keysCopy, datasetSize * sizeof(int));
-	clppsort = new clppSort_nvRadixSort(&context, "src/clpp/", datasetSize, 128); // 128 = work group size
-	benchmark(context, clppsort, keys, keysSorted, datasetSize);
+	// memcpy(keys, keysCopy, datasetSize * sizeof(int));
+	// clppsort = new clppSort_nvRadixSort(&context, "src/clpp/", datasetSize, 128); // 128 = work group size
+	// benchmark(context, clppsort, keys, keysSorted, datasetSize);
 
 	//---- Free
 	free(keys);
@@ -60,7 +62,8 @@ int main(int argc, const char **argv)
 
 void benchmark(clppContext context, clppSort* sort, unsigned int* keys, unsigned int* keysSorted, unsigned int datasetSize)
 {
-	sort->pushDatas(keys, keys, 4, 4, datasetSize, 32);
+
+ 	sort->pushDatas(keys, keys, 4, 4, datasetSize, 32);
 
 	double start = sort->ClockTime();
 	sort->sort();

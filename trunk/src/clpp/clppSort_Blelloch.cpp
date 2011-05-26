@@ -9,8 +9,9 @@ clppSort_Blelloch::clppSort_Blelloch(clppContext* context, string basePath)
 	nkeys = _N;
 	nkeys_rounded = _N;
 
-	if (!compile(context, basePath, "clppSort_Blelloch.cl"))
+	if (!compile(context, basePath, "clppSort_Blelloch.cl")){
 		return;
+	}
 
 	//---- Prepare all the kernels
 	cl_int clStatus;
@@ -78,9 +79,10 @@ void clppSort_Blelloch::sort()
 		transpose(nbrow, nbcol);
 #endif
 
-    for(unsigned int pass = 0; pass < _PASS; pass++)
+	    for(unsigned int pass = 0; pass < _PASS; pass++)
     {
         histogram(pass);
+
         scanHistogram();
         reorder(pass);
     }
@@ -90,7 +92,7 @@ void clppSort_Blelloch::sort()
 #endif
 
     _timerSort = _timerHisto + _timerScan + _timerReorder + _timerTranspose;
-}
+ }
 
 #pragma endregion
 

@@ -36,7 +36,7 @@ void clppContext::setup(unsigned int platformId, unsigned int deviceId)
 	assert(clStatus == CL_SUCCESS);
 
 	clDevice = devices[max(deviceId, devicesCount - 1)];
-
+	clDevice = devices[0];
 	//---- Context
 	clContext = clCreateContext(0, 1, &clDevice, NULL, NULL, &clStatus);
 	assert(clStatus == CL_SUCCESS);

@@ -4,6 +4,8 @@
 #include <windows.h>
 #endif
 
+#include <sys/time.h>
+
 clppProgram::clppProgram()
 {
 	_clProgram =0;
