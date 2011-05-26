@@ -21,14 +21,10 @@ public:
 	void popDatas();
 
 private:
-	cl_mem d_tempKeys;                   // Memory objects for original keys and work space
-	cl_mem mCounters;                    // Counter for each radix
-	cl_mem mCountersSum;                 // Prefix sum of radix counters
-	cl_mem mBlockOffsets;                // Global offsets of each radix in each block
-    cl_kernel ckRadixSortBlocksKeysOnly; // OpenCL kernels
-	cl_kernel ckFindRadixOffsets;
-	cl_kernel ckScanNaive;
-	cl_kernel ckReorderDataKeysOnly;
+	cl_mem _clBuffer_TempKeys;                   // Memory objects for original keys and work space
+	cl_mem _clBuffer_Counters;                    // Counter for each radix
+	cl_mem _clBuffer_CountersSum;                 // Prefix sum of radix counters
+	cl_mem _clBuffer_BlockOffsets;                // Global offsets of each radix in each block
 
 	int CTA_SIZE; // Number of threads per block
     static const unsigned int WARP_SIZE = 32;
@@ -39,10 +35,10 @@ private:
          
 	clppSort_nvScan scan;
 
-	cl_kernel kernel_RadixSortBlocksKeysOnly;
-	cl_kernel kernel_FindRadixOffsets;
-	cl_kernel kernel_ScanNaive;
-	cl_kernel kernel_ReorderDataKeysOnly;
+	cl_kernel _kernel_RadixSortBlocksKeysOnly;
+	cl_kernel _kernel_FindRadixOffsets;
+	cl_kernel _kernel_ScanNaive;
+	cl_kernel _kernel_ReorderDataKeysOnly;
 
 	// Main key-only radix sort function.  Sorts in place in the keys and values
 	// arrays, but uses the other device arrays as temporary storage.  All pointer

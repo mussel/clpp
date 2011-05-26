@@ -15,19 +15,19 @@ clppSort_Blelloch::clppSort_Blelloch(clppContext* context, string basePath)
 	//---- Prepare all the kernels
 	cl_int clStatus;
 
-	kernel_Histogram = clCreateKernel(_clProgram, "histogram", &clStatus);
+	_kernel_Histogram = clCreateKernel(_clProgram, "histogram", &clStatus);
 	checkCLStatus(clStatus);
 	
-	kernel_ScanHistogram = clCreateKernel(_clProgram, "scanhistograms", &clStatus);
+	_kernel_ScanHistogram = clCreateKernel(_clProgram, "scanhistograms", &clStatus);
 	checkCLStatus(clStatus);
 
-	kernel_PasteHistogram = clCreateKernel(_clProgram, "pastehistograms", &clStatus);
+	_kernel_PasteHistogram = clCreateKernel(_clProgram, "pastehistograms", &clStatus);
 	checkCLStatus(clStatus);
 
-	kernel_Reorder = clCreateKernel(_clProgram, "reorder", &clStatus);
+	_kernel_Reorder = clCreateKernel(_clProgram, "reorder", &clStatus);
 	checkCLStatus(clStatus);
 
-	kernel_Transpose = clCreateKernel(_clProgram, "transpose", &clStatus);
+	_kernel_Transpose = clCreateKernel(_clProgram, "transpose", &clStatus);
 	checkCLStatus(clStatus);
 }
 
@@ -129,28 +129,28 @@ void clppSort_Blelloch::transpose(int nbrow,int nbcol)
 {
     cl_int clStatus;
 
-    clStatus  = clSetKernelArg(kernel_Transpose, 0, sizeof(cl_mem), &_clBuffer_keys);
+    clStatus  = clSetKernelArg(_kernel_Transpose, 0, sizeof(cl_mem), &_clBuffer_keys);
     checkCLStatus(clStatus);
 
-    clStatus  = clSetKernelArg(kernel_Transpose, 1, sizeof(cl_mem), &_clBuffer_outKeys);
+    clStatus  = clSetKernelArg(_kernel_Transpose, 1, sizeof(cl_mem), &_clBuffer_outKeys);
     checkCLStatus(clStatus);
 
-    clStatus = clSetKernelArg(kernel_Transpose, 2, sizeof(int), &nbcol);
+    clStatus = clSetKernelArg(_kernel_Transpose, 2, sizeof(int), &nbcol);
     checkCLStatus(clStatus);
 
-    clStatus = clSetKernelArg(kernel_Transpose, 3, sizeof(int), &nbrow);
+    clStatus = clSetKernelArg(_kernel_Transpose, 3, sizeof(int), &nbrow);
     checkCLStatus(clStatus);
 
-    clStatus  = clSetKernelArg(kernel_Transpose, 4, sizeof(cl_mem), &_clBuffer_inPermutations);
+    clStatus  = clSetKernelArg(_kernel_Transpose, 4, sizeof(cl_mem), &_clBuffer_inPermutations);
     checkCLStatus(clStatus);
 
-    clStatus  = clSetKernelArg(kernel_Transpose, 5, sizeof(cl_mem), &_clBuffer_outPermutations);
+    clStatus  = clSetKernelArg(_kernel_Transpose, 5, sizeof(cl_mem), &_clBuffer_outPermutations);
     checkCLStatus(clStatus);
 
-    clStatus  = clSetKernelArg(kernel_Transpose, 6, sizeof(int)*_GROUPS*_GROUPS, NULL);
+    clStatus  = clSetKernelArg(_kernel_Transpose, 6, sizeof(int)*_GROUPS*_GROUPS, NULL);
     checkCLStatus(clStatus);
 
-    clStatus  = clSetKernelArg(kernel_Transpose, 7, sizeof(int)*_GROUPS*_GROUPS, NULL);
+    clStatus  = clSetKernelArg(_kernel_Transpose, 7, sizeof(int)*_GROUPS*_GROUPS, NULL);
     checkCLStatus(clStatus);
 
     cl_event eve;
@@ -167,7 +167,7 @@ void clppSort_Blelloch::transpose(int nbrow,int nbcol)
     local_work_size[1]=_GROUPS;
 
 	// two dimensions: rows and columns
-	clStatus = clEnqueueNDRangeKernel(_context->clQueue, kernel_Transpose, 2, NULL, global_work_size, local_work_size, 0, NULL, &eve);
+	clStatus = clEnqueueNDRangeKernel(_context->clQueue, _kernel_Transpose, 2, NULL, global_work_size, local_work_size, 0, NULL, &eve);
 	checkCLStatus(clStatus);
 
     // exchange the pointers
@@ -210,21 +210,21 @@ void clppSort_Blelloch::histogram(int pass)
 
     assert(_RADIX == pow(2.f,_BITS));
 
-    clStatus  = clSetKernelArg(kernel_Histogram, 0, sizeof(cl_mem), &_clBuffer_keys);
+    clStatus  = clSetKernelArg(_kernel_Histogram, 0, sizeof(cl_mem), &_clBuffer_keys);
     checkCLStatus(clStatus);
 
-    clStatus = clSetKernelArg(kernel_Histogram, 2, sizeof(int), &pass);
+    clStatus = clSetKernelArg(_kernel_Histogram, 2, sizeof(int), &pass);
     checkCLStatus(clStatus);
 
     assert(nkeys_rounded%(_GROUPS * _ITEMS) == 0);
     assert(nkeys_rounded <= _N);
 
-    clStatus = clSetKernelArg(kernel_Histogram, 4, sizeof(int), &nkeys_rounded);
+    clStatus = clSetKernelArg(_kernel_Histogram, 4, sizeof(int), &nkeys_rounded);
     checkCLStatus(clStatus);
 
     cl_event eve;
 
-    clStatus = clEnqueueNDRangeKernel(_context->clQueue, kernel_Histogram, 1, NULL, &nbitems, &nblocitems, 0, NULL, &eve);
+    clStatus = clEnqueueNDRangeKernel(_context->clQueue, _kernel_Histogram, 1, NULL, &nbitems, &nblocitems, 0, NULL, &eve);
 
     //cout << clStatus<<" , "<<CL_OUT_OF_RESOURCES<<endl;
     checkCLStatus(clStatus);
@@ -261,16 +261,16 @@ void clppSort_Blelloch::scanHistogram()
     // scan locally the histogram (the histogram is split into several
     // parts that fit into the local memory)
 
-    clStatus = clSetKernelArg(kernel_ScanHistogram, 0, sizeof(cl_mem), &_clBuffer_Histograms);
+    clStatus = clSetKernelArg(_kernel_ScanHistogram, 0, sizeof(cl_mem), &_clBuffer_Histograms);
     checkCLStatus(clStatus);
 
-    clStatus  = clSetKernelArg(kernel_ScanHistogram, 1, sizeof(int)* maxmemcache , NULL); // mem cache
+    clStatus  = clSetKernelArg(_kernel_ScanHistogram, 1, sizeof(int)* maxmemcache , NULL); // mem cache
 
-    clStatus = clSetKernelArg(kernel_ScanHistogram, 2, sizeof(cl_mem), &_clBuffer_globsum);
+    clStatus = clSetKernelArg(_kernel_ScanHistogram, 2, sizeof(cl_mem), &_clBuffer_globsum);
     checkCLStatus(clStatus);
 
     cl_event eve;
-    clStatus = clEnqueueNDRangeKernel(_context->clQueue, kernel_ScanHistogram, 1, NULL, &nbitems, &nblocitems, 0, NULL, &eve);
+    clStatus = clEnqueueNDRangeKernel(_context->clQueue, _kernel_ScanHistogram, 1, NULL, &nbitems, &nblocitems, 0, NULL, &eve);
 
     // cout << clStatus<<","<< CL_INVALID_WORK_ITEM_SIZE<< " "<<nbitems<<" "<<nblocitems<<endl;
     // cout <<CL_DEVICE_MAX_WORK_ITEM_SIZES<<endl;
@@ -288,16 +288,16 @@ void clppSort_Blelloch::scanHistogram()
     _timerScan += (float)(end-beginning)/1e9;
 
     // second scan for the globsum
-    clStatus = clSetKernelArg(kernel_ScanHistogram, 0, sizeof(cl_mem), &_clBuffer_globsum);
+    clStatus = clSetKernelArg(_kernel_ScanHistogram, 0, sizeof(cl_mem), &_clBuffer_globsum);
     checkCLStatus(clStatus);
 
-    clStatus = clSetKernelArg(kernel_ScanHistogram, 2, sizeof(cl_mem), &_clBuffer_temp);
+    clStatus = clSetKernelArg(_kernel_ScanHistogram, 2, sizeof(cl_mem), &_clBuffer_temp);
     checkCLStatus(clStatus);
 
     nbitems= _HISTOSPLIT / 2;
     nblocitems=nbitems;
 
-    clStatus = clEnqueueNDRangeKernel(_context->clQueue, kernel_ScanHistogram, 1, NULL, &nbitems, &nblocitems, 0, NULL, &eve);
+    clStatus = clEnqueueNDRangeKernel(_context->clQueue, _kernel_ScanHistogram, 1, NULL, &nbitems, &nblocitems, 0, NULL, &eve);
 
     checkCLStatus(clStatus);
     clFinish(_context->clQueue);
@@ -314,7 +314,7 @@ void clppSort_Blelloch::scanHistogram()
     nbitems = _RADIX* _GROUPS*_ITEMS/2;
     nblocitems=nbitems/_HISTOSPLIT;
 
-    clStatus = clEnqueueNDRangeKernel(_context->clQueue, kernel_PasteHistogram, 1, NULL, &nbitems, &nblocitems, 0, NULL, &eve);
+    clStatus = clEnqueueNDRangeKernel(_context->clQueue, _kernel_PasteHistogram, 1, NULL, &nbitems, &nblocitems, 0, NULL, &eve);
 
     checkCLStatus(clStatus);
     clFinish(_context->clQueue);
@@ -342,34 +342,34 @@ void clppSort_Blelloch::reorder(int pass)
 
     clFinish(_context->clQueue);
 
-    clStatus  = clSetKernelArg(kernel_Reorder, 0, sizeof(cl_mem), &_clBuffer_keys);
+    clStatus  = clSetKernelArg(_kernel_Reorder, 0, sizeof(cl_mem), &_clBuffer_keys);
     checkCLStatus(clStatus);
 
-    clStatus  = clSetKernelArg(kernel_Reorder, 1, sizeof(cl_mem), &_clBuffer_outKeys);
+    clStatus  = clSetKernelArg(_kernel_Reorder, 1, sizeof(cl_mem), &_clBuffer_outKeys);
     checkCLStatus(clStatus);
 
-    clStatus = clSetKernelArg(kernel_Reorder, 3, sizeof(int), &pass);
+    clStatus = clSetKernelArg(_kernel_Reorder, 3, sizeof(int), &pass);
     checkCLStatus(clStatus);
 
-    clStatus  = clSetKernelArg(kernel_Reorder, 4, sizeof(cl_mem), &_clBuffer_inPermutations);
+    clStatus  = clSetKernelArg(_kernel_Reorder, 4, sizeof(cl_mem), &_clBuffer_inPermutations);
     checkCLStatus(clStatus);
 
-    clStatus  = clSetKernelArg(kernel_Reorder, 5, sizeof(cl_mem), &_clBuffer_outPermutations);
+    clStatus  = clSetKernelArg(_kernel_Reorder, 5, sizeof(cl_mem), &_clBuffer_outPermutations);
     checkCLStatus(clStatus);
 
-    clStatus  = clSetKernelArg(kernel_Reorder, 6, sizeof(int)* _RADIX * _ITEMS , NULL); // mem cache
+    clStatus  = clSetKernelArg(_kernel_Reorder, 6, sizeof(int)* _RADIX * _ITEMS , NULL); // mem cache
     checkCLStatus(clStatus);
 
     assert(nkeys_rounded%(_GROUPS * _ITEMS) == 0);
 
-    clStatus = clSetKernelArg(kernel_Reorder, 7, sizeof(int), &nkeys_rounded);
+    clStatus = clSetKernelArg(_kernel_Reorder, 7, sizeof(int), &nkeys_rounded);
     checkCLStatus(clStatus);
 
     assert(_RADIX == pow(2.f, _BITS));
 
     cl_event eve;
 
-    clStatus = clEnqueueNDRangeKernel(_context->clQueue, kernel_Reorder, 1, NULL, &nbitems, &nblocitems, 0, NULL, &eve);
+    clStatus = clEnqueueNDRangeKernel(_context->clQueue, _kernel_Reorder, 1, NULL, &nbitems, &nblocitems, 0, NULL, &eve);
 
     checkCLStatus(clStatus);
     clFinish(_context->clQueue);
@@ -443,22 +443,22 @@ void clppSort_Blelloch::pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, 
 	checkCLStatus(clStatus);
 
 	//---- We set here the fixed arguments of the OpenCL kernels
-	clStatus = clSetKernelArg(kernel_Histogram, 1, sizeof(cl_mem), &_clBuffer_Histograms);
+	clStatus = clSetKernelArg(_kernel_Histogram, 1, sizeof(cl_mem), &_clBuffer_Histograms);
 	checkCLStatus(clStatus);
 
-	clStatus = clSetKernelArg(kernel_Histogram, 3, sizeof(int)*_RADIX*_ITEMS, NULL);
+	clStatus = clSetKernelArg(_kernel_Histogram, 3, sizeof(int)*_RADIX*_ITEMS, NULL);
 	checkCLStatus(clStatus);
 
-	clStatus = clSetKernelArg(kernel_PasteHistogram, 0, sizeof(cl_mem), &_clBuffer_Histograms);
+	clStatus = clSetKernelArg(_kernel_PasteHistogram, 0, sizeof(cl_mem), &_clBuffer_Histograms);
 	checkCLStatus(clStatus);
 
-	clStatus = clSetKernelArg(kernel_PasteHistogram, 1, sizeof(cl_mem), &_clBuffer_globsum);
+	clStatus = clSetKernelArg(_kernel_PasteHistogram, 1, sizeof(cl_mem), &_clBuffer_globsum);
 	checkCLStatus(clStatus);
 
-	clStatus = clSetKernelArg(kernel_Reorder, 2, sizeof(cl_mem), &_clBuffer_Histograms);
+	clStatus = clSetKernelArg(_kernel_Reorder, 2, sizeof(cl_mem), &_clBuffer_Histograms);
 	checkCLStatus(clStatus);
 
-	clStatus  = clSetKernelArg(kernel_Reorder, 6, sizeof(int) * _RADIX * _ITEMS , NULL); // mem cache
+	clStatus  = clSetKernelArg(_kernel_Reorder, 6, sizeof(int) * _RADIX * _ITEMS , NULL); // mem cache
 	checkCLStatus(clStatus);
 }
 

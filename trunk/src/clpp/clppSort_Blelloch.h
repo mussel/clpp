@@ -45,11 +45,11 @@ public:
 	void popDatas();
 
 private:
-	cl_kernel kernel_Histogram;
-	cl_kernel kernel_ScanHistogram;
-	cl_kernel kernel_PasteHistogram;
-	cl_kernel kernel_Reorder;
-	cl_kernel kernel_Transpose;
+	cl_kernel _kernel_Histogram;
+	cl_kernel _kernel_ScanHistogram;
+	cl_kernel _kernel_PasteHistogram;
+	cl_kernel _kernel_Reorder;
+	cl_kernel _kernel_Transpose;
 
 	int _permutations[_N];
 
