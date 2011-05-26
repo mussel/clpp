@@ -30,8 +30,6 @@ clppSort_nvRadixSort::clppSort_nvRadixSort(clppContext* context, string basePath
 
     unsigned int numBlocks = ((maxElements % (CTA_SIZE * 4)) == 0) ?
                              (maxElements / (CTA_SIZE * 4)) : (maxElements / (CTA_SIZE * 4) + 1);
-    unsigned int numBlocks2 = ((maxElements % (CTA_SIZE * 2)) == 0) ?
-                              (maxElements / (CTA_SIZE * 2)) : (maxElements / (CTA_SIZE * 2) + 1);
 
 	_clBuffer_TempKeys = clCreateBuffer(context->clContext, CL_MEM_READ_WRITE, sizeof(unsigned int) * maxElements, NULL, &clStatus);
 	_clBuffer_Counters = clCreateBuffer(context->clContext, CL_MEM_READ_WRITE, WARP_SIZE * numBlocks * sizeof(unsigned int), NULL, &clStatus);
@@ -109,7 +107,6 @@ void clppSort_nvRadixSort::radixSortKeysOnly()
 
 void clppSort_nvRadixSort::radixSortStepKeysOnly(unsigned int nbits, unsigned int startbit)
 {
-    // Four step algorithms from Satish, Harris & Garland
     radixSortBlocksKeysOnlyOCL(nbits, startbit);
 
     findRadixOffsetsOCL(startbit);

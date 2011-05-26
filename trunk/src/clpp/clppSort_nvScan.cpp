@@ -60,7 +60,7 @@ void clppSort_nvScan::scanExclusiveLarge(cl_mem d_Dst, cl_mem d_Src, unsigned in
 
     scanExclusiveLocal1(d_Dst, d_Src, (batchSize * arrayLength) / (4 * WORKGROUP_SIZE), 4 * WORKGROUP_SIZE);
 
-    scanExclusiveLocal2( d_Buffer, d_Dst, d_Src, batchSize, arrayLength / (4 * WORKGROUP_SIZE));
+    scanExclusiveLocal2(d_Buffer, d_Dst, d_Src, batchSize, arrayLength / (4 * WORKGROUP_SIZE));
 
     uniformUpdate(d_Dst, d_Buffer, (batchSize * arrayLength) / (4 * WORKGROUP_SIZE));
 }

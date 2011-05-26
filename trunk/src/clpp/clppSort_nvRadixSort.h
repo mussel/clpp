@@ -1,3 +1,5 @@
+// Four step algorithms from Satish, Harris & Garland
+
 #ifndef __CLPP_SORT_NVRADIXSORT_H__
 #define __CLPP_SORT_NVRADIXSORT_H__
 
@@ -21,10 +23,10 @@ public:
 	void popDatas();
 
 private:
-	cl_mem _clBuffer_TempKeys;                   // Memory objects for original keys and work space
-	cl_mem _clBuffer_Counters;                    // Counter for each radix
-	cl_mem _clBuffer_CountersSum;                 // Prefix sum of radix counters
-	cl_mem _clBuffer_BlockOffsets;                // Global offsets of each radix in each block
+	cl_mem _clBuffer_TempKeys;						// Memory objects for original keys and work space
+	cl_mem _clBuffer_Counters;						// Counter for each radix
+	cl_mem _clBuffer_CountersSum;					// Prefix sum of radix counters
+	cl_mem _clBuffer_BlockOffsets;					// Global offsets of each radix in each block
 
 	int CTA_SIZE; // Number of threads per block
     static const unsigned int WARP_SIZE = 32;
