@@ -18,7 +18,6 @@
 #define _N (_ITEMS * _GROUPS * 16)  
 //#define _N (1<<21)  // maximal size of the list  
 
-#define TRANSPOSE 1  // transpose the initial vector (faster memory access)
 #define PERMUT 1  // store the final permutation
 
 // the following parameters are computed from the previous

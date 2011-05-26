@@ -1,41 +1,16 @@
-// these parameters can be changed
-#define _ITEMS  32 // number of items in a group
-#define _GROUPS 16 // the number of virtual processors is _ITEMS * _GROUPS
-#define  _HISTOSPLIT 128 // number of splits of the histogram
-#define _TOTALBITS 16  // number of bits for the integer in the list (max=32)
-#define _BITS 4  // number of bits in the radix
-
-// max size of the sorted vector
-// it has to be divisible by  _ITEMS * _GROUPS
-// (for other sizes, pad the list with big values)
-//#define _N (_ITEMS * _GROUPS * 16)  
-#define _N (1<<21)  // maximal size of the list  
-#define VERBOSE 1
-#define TRANSPOSE 1  // transpose the initial vector (faster memory access)
-#define PERMUT 1  // store the final permutation
-
-// the following parameters are computed from the previous
-#define _RADIX (1 << _BITS) //  radix  = 2^_BITS
-#define _PASS (_TOTALBITS/_BITS) // number of needed passes to sort the list
-#define _HISTOSIZE (_ITEMS * _GROUPS * _RADIX ) // size of the histogram
-
-// maximal value of integers for the sort to be correct
-#define _MAXINT (1 << (_TOTALBITS-1))
-
 // change of changeTranspositionIndex for the transposition
 int changeTranspositionIndex(int i,int n)
 {
     int ip;
 	
-    if (TRANSPOSE)
-    {
+#ifdef TRANSPOSE
         int k, l;
         k = i / (n/_GROUPS/_ITEMS);
         l = i % (n/_GROUPS/_ITEMS);
         ip = l * (_GROUPS*_ITEMS) + k;
-    }
-    else
+#else
         ip = i;
+#endif
 
     return ip;
 }
@@ -121,8 +96,9 @@ __kernel void transpose(const __global int* invect,
     {
         int k = (i0+iloc)*nbcol+j;  // position in the matrix
         blockmat[iloc*_GROUPS+jloc]=invect[k];
-        if (PERMUT)
+#ifdef PERMUT
             blockperm[iloc*_GROUPS+jloc]=inperm[k];
+#endif
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -136,8 +112,9 @@ __kernel void transpose(const __global int* invect,
     {
         int kt=(j0+iloc)*nbrow+i0+jloc;  // position in the transpose
         outvect[kt]=blockmat[jloc*_GROUPS+iloc];
-        if (PERMUT)
+#ifdef PERMUT
             outperm[kt]=blockperm[jloc*_GROUPS+iloc];
+#endif
     }
 
 }
@@ -184,10 +161,9 @@ __kernel void reorder(const __global int* d_inKeys,
         newpos=loc_histo[shortkey * items + it];
         d_outKeys[changeTranspositionIndex(newpos,n)]= key;  // killing line !!!
         //d_outKeys[changeTranspositionIndex(i)]= key;
-        if (PERMUT)
-        {
+#ifdef PERMUT
             d_outPermut[changeTranspositionIndex(newpos,n)]=d_inPermut[changeTranspositionIndex(i,n)];
-        }
+#endif
         newpos++;
         loc_histo[shortkey * items + it]=newpos;
         //d_Histograms[ik]=newpos;

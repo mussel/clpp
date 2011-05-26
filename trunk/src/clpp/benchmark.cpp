@@ -36,10 +36,12 @@ int main(int argc, const char **argv)
 	//---- Start the benchmark
 	clppSort* clppsort;
 
+	// Brute fore
 	clppsort = new clppSort_CPU(&context, "");
 	benchmark(context, clppsort, keys, keysSorted, datasetSize);
 	memcpy(keys, keysCopy, datasetSize * sizeof(int));
 
+	// Blelloch
 	clppsort = new clppSort_Blelloch(&context, "src/clpp/");
 	benchmark(context, clppsort, keys, keysSorted, datasetSize);
 

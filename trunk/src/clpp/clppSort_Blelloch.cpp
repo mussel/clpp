@@ -1,5 +1,7 @@
 #include "clpp/clppSort_Blelloch.h"
 
+#define TRANSPOSE // transpose the initial vector (faster memory access)
+
 #pragma region Construsctor
 
 clppSort_Blelloch::clppSort_Blelloch(clppContext* context, string basePath)
@@ -10,7 +12,31 @@ clppSort_Blelloch::clppSort_Blelloch(clppContext* context, string basePath)
 	nkeys_rounded = _N;
 
 	//---- Read the source code
+	string definitions = "";
+	char buffer[500];
+
+	sprintf(buffer, "#define _ITEMS %d\n", _ITEMS);
+	definitions += buffer;
+
+	sprintf(buffer, "#define _GROUPS %d\n", _GROUPS);
+	definitions += buffer;
+
+	sprintf(buffer, "#define _BITS %d\n", _BITS);
+	definitions += buffer;
+
+#ifdef TRANSPOSE
+	definitions += "#define TRANSPOSE\n";
+#endif
+
+#ifdef PERMUT
+	definitions += "#define PERMUT\n";
+#endif
+
+	sprintf(buffer, "#define _RADIX %d\n", _RADIX);
+	definitions += buffer;
+
 	_kernelSource = loadKernelSource(basePath + "clppSort_Blelloch.cl");
+	_kernelSource = definitions + _kernelSource;
 
 	cl_int clStatus;
 	const char* ptr = _kernelSource.c_str();
@@ -64,8 +90,9 @@ void clppSort_Blelloch::sort()
     int nbcol = nkeys_rounded / (_GROUPS * _ITEMS);
     int nbrow = _GROUPS * _ITEMS;
 
-    if (TRANSPOSE)
+#ifdef TRANSPOSE
 		transpose(nbrow, nbcol);
+#endif
 
     for(unsigned int pass = 0; pass < _PASS; pass++)
     {
@@ -74,8 +101,9 @@ void clppSort_Blelloch::sort()
         reorder(pass);
     }
 
-    if (TRANSPOSE)
-        transpose(nbcol, nbrow);
+#ifdef TRANSPOSE
+	transpose(nbcol, nbrow);
+#endif
 
     _timerSort = _timerHisto + _timerScan + _timerReorder + _timerTranspose;
 }
