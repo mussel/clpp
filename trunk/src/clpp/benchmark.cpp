@@ -6,7 +6,8 @@
 
 using namespace std;
 
-void makeRandomUintVector(unsigned int *a, unsigned int numElements, unsigned int keybits);
+void makeRandomUint16Vector(unsigned short *a, unsigned int numElements, unsigned int keybits);
+void makeRandomUint32Vector(unsigned int *a, unsigned int numElements, unsigned int keybits);
 void benchmark(clppContext context, clppSort* sort, unsigned int* keys, unsigned int* keysSorted, unsigned int datasetSize);
 bool checkIsSorted(unsigned int* sorted, unsigned int* tocheck, size_t datasetSize, string algorithmName);
 
@@ -16,7 +17,7 @@ int main(int argc, const char **argv)
 
 	//---- Create a new set of random datas
 	unsigned int* keys = (unsigned int*)malloc(datasetSize * sizeof(int));
-	makeRandomUintVector(keys, datasetSize, 32);
+	makeRandomUint32Vector(keys, datasetSize, 32);
 
 	unsigned int* keysCopy = (unsigned int*)malloc(datasetSize * sizeof(int));
 	memcpy(keysCopy, keys, datasetSize * sizeof(int));
@@ -61,7 +62,20 @@ void benchmark(clppContext context, clppSort* sort, unsigned int* keys, unsigned
 	checkIsSorted(keysSorted, keys, datasetSize, sort->getName());
 }
 
-void makeRandomUintVector(unsigned int *a, unsigned int numElements, unsigned int keybits)
+void makeRandomUint16Vector(unsigned short *a, unsigned int numElements, unsigned int keybits)
+{
+    // Fill up with some random data
+    int keyshiftmask = 0;
+    if (keybits > 16) keyshiftmask = (1 << (keybits - 16)) - 1;
+    int keymask = 0xffff;
+    if (keybits < 16) keymask = (1 << keybits) - 1;
+
+    srand(0);
+    for(unsigned int i=0; i < numElements; ++i)   
+        a[i] = ((rand() & keyshiftmask)<<16); 
+}
+
+void makeRandomUint32Vector(unsigned int *a, unsigned int numElements, unsigned int keybits)
 {
     // Fill up with some random data
     int keyshiftmask = 0;
