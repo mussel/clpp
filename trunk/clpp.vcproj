@@ -348,6 +348,10 @@
 				RelativePath=".\src\clpp\clppSort_Blelloch.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\src\clpp\clppSort_CPU.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -368,6 +372,10 @@
 			</File>
 			<File
 				RelativePath=".\src\clpp\clppSort_Blelloch.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\clpp\clppSort_CPU.h"
 				>
 			</File>
 		</Filter>

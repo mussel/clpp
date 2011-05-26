@@ -2,6 +2,7 @@
 #include <algorithm>
 
 #include "clpp/clppSort_Blelloch.h"
+#include "clpp/clppSort_CPU.h"
 
 using namespace std;
 
@@ -17,6 +18,9 @@ int main(int argc, const char **argv)
 	unsigned int* keys = (unsigned int*)malloc(datasetSize * sizeof(int));
 	makeRandomUintVector(keys, datasetSize, 32);
 
+	unsigned int* keysCopy = (unsigned int*)malloc(datasetSize * sizeof(int));
+	memcpy(keysCopy, keys, datasetSize * sizeof(int));
+
 	// Create a copy
 	unsigned int* keysSorted = (unsigned int*)malloc(datasetSize * sizeof(int));
 	memcpy(keysSorted, keys, datasetSize * sizeof(int));
@@ -29,7 +33,13 @@ int main(int argc, const char **argv)
 	context.setup();
 
 	//---- Start the benchmark
-	clppSort* clppsort = new clppSort_Blelloch(&context, "src/clpp/");
+	clppSort* clppsort;
+
+	clppsort = new clppSort_CPU(&context, "");
+	benchmark(context, clppsort, keys, keysSorted, datasetSize);
+	memcpy(keys, keysCopy, datasetSize * sizeof(int));
+
+	clppsort = new clppSort_Blelloch(&context, "src/clpp/");
 	benchmark(context, clppsort, keys, keysSorted, datasetSize);
 
 	//---- Free
