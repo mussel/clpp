@@ -16,7 +16,8 @@ bool checkIsSorted(unsigned int* sorted, unsigned int* tocheck, size_t datasetSi
 int main(int argc, const char **argv)
 {
 	//unsigned int datasetSize = 8192;
-	unsigned int datasetSize = 128000;
+	//unsigned int datasetSize = 128000;
+	unsigned int datasetSize = 1048576;
 
 	//---- Create a new set of random datas
 	unsigned int* keys = (unsigned int*)malloc(datasetSize * sizeof(int));
