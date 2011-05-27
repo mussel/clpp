@@ -36,25 +36,24 @@ int main(int argc, const char **argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(0, 0);
-
+	context.setup(2, 0);
 
 	//---- Start the benchmark
 	clppSort* clppsort;
 
 	// Brute fore
-	//clppsort = new clppSort_CPU(&context, "");
-	//benchmark(context, clppsort, keys, keysSorted, datasetSize);
+	clppsort = new clppSort_CPU(&context, "");
+	benchmark(context, clppsort, keys, keysSorted, datasetSize);
 
-	//// Blelloch
+	// Blelloch
 	memcpy(keys, keysCopy, datasetSize * sizeof(int));
 	clppsort = new clppSort_Blelloch(&context, "src/clpp/");
 	benchmark(context, clppsort, keys, keysSorted, datasetSize);	
 
 	// NV
-	// memcpy(keys, keysCopy, datasetSize * sizeof(int));
-	// clppsort = new clppSort_nvRadixSort(&context, "src/clpp/", datasetSize, 128); // 128 = work group size
-	// benchmark(context, clppsort, keys, keysSorted, datasetSize);
+	memcpy(keys, keysCopy, datasetSize * sizeof(int));
+	clppsort = new clppSort_nvRadixSort(&context, "src/clpp/", datasetSize, 128); // 128 = work group size
+	benchmark(context, clppsort, keys, keysSorted, datasetSize);
 
 	//---- Free
 	free(keys);

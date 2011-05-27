@@ -4,7 +4,9 @@
 #include <windows.h>
 #endif
 
+#if defined(__linux__) || defined(__APPLE__)
 #include <sys/time.h>
+#endif
 
 clppProgram::clppProgram()
 {
@@ -38,7 +40,7 @@ bool clppProgram::compile(clppContext* context, string basePath, string fileName
 	_clProgram = clCreateProgramWithSource(context->clContext, 1, (const char **)&ptr, &len, &clStatus);
 	checkCLStatus(clStatus);
 
-#ifdef MAC
+#ifdef __APPLE__
     char* buildOptions = "-DMAC -cl-fast-relaxed-math";
 #else
     char* buildOptions = "-cl-fast-relaxed-math";
