@@ -16,19 +16,19 @@ clppSort_Blelloch::clppSort_Blelloch(clppContext* context, string basePath)
 	//---- Prepare all the kernels
 	cl_int clStatus;
 
-	_kernel_Histogram = clCreateKernel(_clProgram, "histogram", &clStatus);
+	_kernel_Histogram = clCreateKernel(_clProgram, "kernel_Histogram", &clStatus);
 	checkCLStatus(clStatus);
 	
-	_kernel_ScanHistogram = clCreateKernel(_clProgram, "scanhistograms", &clStatus);
+	_kernel_ScanHistogram = clCreateKernel(_clProgram, "kernel_ScanHistograms", &clStatus);
 	checkCLStatus(clStatus);
 
-	_kernel_PasteHistogram = clCreateKernel(_clProgram, "pastehistograms", &clStatus);
+	_kernel_PasteHistogram = clCreateKernel(_clProgram, "kernel_PasteHistograms", &clStatus);
 	checkCLStatus(clStatus);
 
-	_kernel_Reorder = clCreateKernel(_clProgram, "reorder", &clStatus);
+	_kernel_Reorder = clCreateKernel(_clProgram, "kernel_Reorder", &clStatus);
 	checkCLStatus(clStatus);
 
-	_kernel_Transpose = clCreateKernel(_clProgram, "transpose", &clStatus);
+	_kernel_Transpose = clCreateKernel(_clProgram, "kernel_Transpose", &clStatus);
 	checkCLStatus(clStatus);
 }
 

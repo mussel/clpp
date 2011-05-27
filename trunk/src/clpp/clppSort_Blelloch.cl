@@ -1,5 +1,5 @@
 // change of changeTranspositionIndex for the transposition
-int changeTranspositionIndex(int i,int n)
+inline int changeTranspositionIndex(int i,int n)
 {
     int ip;
 
@@ -15,23 +15,28 @@ int changeTranspositionIndex(int i,int n)
     return ip;
 }
 
+//------------------------------------------------------------
+// kernel_Histogram
+//
+// Purpose : compute the histogram for each radix and each virtual processor for the pass
+//------------------------------------------------------------
 
-// compute the histogram for each radix and each virtual processor for the pass
-__kernel void histogram(const __global int* d_Keys,
-                        __global int* d_Histograms,
-                        const int pass,
-                        __local int* loc_histo,
-                        const int n)
+__kernel
+void kernel_Histogram(
+	const __global int* d_Keys,
+	__global int* d_Histograms,
+	const int pass,
+	__local int* loc_histo,
+	const int n
+	)
 {
+    size_t it = get_local_id(0);
+    size_t ig = get_global_id(0);
 
+    size_t gr = get_group_id(0);
 
-    int it = get_local_id(0);
-    int ig = get_global_id(0);
-
-    int gr = get_group_id(0);
-
-    int groups=get_num_groups(0);
-    int items=get_local_size(0);
+    size_t groups=get_num_groups(0);
+    size_t items=get_local_size(0);
 
     // set the local histograms to zero
     for (int ir=0;ir<_RADIX;ir++)
@@ -44,12 +49,12 @@ __kernel void histogram(const __global int* d_Keys,
 
 
     // range of keys that are analyzed by the work item
-    //int start= gr * n/groups + it * n/groups/items;    
+    //int start= gr * n/groups + it * n/groups/items;
     int size = n / groups / items;
-	int start= ig * size;
+    int start= ig * size;
 
     int key, shortkey;
-    for(int i= start; i< start + size;i++)
+    for (int i= start; i< start + size;i++)
     {
         key = d_Keys[changeTranspositionIndex(i,n)];
 
@@ -64,32 +69,38 @@ __kernel void histogram(const __global int* d_Keys,
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // copy the local histogram to the global one
-    for(int ir = 0; ir < _RADIX; ir++)
+    for (int ir = 0; ir < _RADIX; ir++)
         d_Histograms[ir * groups * items + items * gr + it]=loc_histo[ir * items + it];
 
     barrier(CLK_GLOBAL_MEM_FENCE);
-
-
 }
 
-__kernel void transpose(const __global int* invect,
-                        __global int* outvect,
-                        const int nbcol,
-                        const int nbrow,
-                        const __global int* inperm,
-                        __global int* outperm,
-                        __local int* blockmat,
-                        __local int* blockperm)
-{
+//------------------------------------------------------------
+// kernel_Transpose
+//
+// Purpose : Transpose a set of int
+//------------------------------------------------------------
 
-    int i0 = get_global_id(0) * _GROUPS;  // first row changeTranspositionIndex
-    int j = get_global_id(1);  // column changeTranspositionIndex
+__kernel
+void kernel_Transpose(
+	const __global int* invect,
+	__global int* outvect,
+	const int nbcol,
+	const int nbrow,
+	const __global int* inperm,
+	__global int* outperm,
+	__local int* blockmat,
+	__local int* blockperm
+	)
+{
+    size_t i0 = get_global_id(0) * _GROUPS;  // first row changeTranspositionIndex
+    size_t j = get_global_id(1);  // column changeTranspositionIndex
 
     int iloc;  // first local row changeTranspositionIndex
-    int jloc = get_local_id(1);  // local column changeTranspositionIndex
+    size_t jloc = get_local_id(1);  // local column changeTranspositionIndex
 
     // Fill the cache
-    for (iloc = 0; iloc < _GROUPS;iloc++)
+    for(iloc = 0; iloc < _GROUPS;iloc++)
     {
         int k = (i0+iloc)*nbcol+j;  // position in the matrix
         blockmat[iloc*_GROUPS+jloc] = invect[k];
@@ -105,7 +116,7 @@ __kernel void transpose(const __global int* invect,
 
     // put the cache at the good place
     // loop on the rows
-    for(iloc = 0; iloc < _GROUPS; iloc++)
+    for (iloc = 0; iloc < _GROUPS; iloc++)
     {
         int kt=(j0+iloc)*nbrow+i0+jloc;  // position in the transpose
         outvect[kt]=blockmat[jloc*_GROUPS+iloc];
@@ -116,34 +127,42 @@ __kernel void transpose(const __global int* invect,
 
 }
 
-// each virtual processor reorders its data using the scanned histogram
-__kernel void reorder(const __global int* d_inKeys,
-                      __global int* d_outKeys,
-                      __global int* d_Histograms,
-                      const int pass,
-                      __global int* d_inPermut,
-                      __global int* d_outPermut,
-                      __local int* loc_histo,
-                      const int n)
-{
-    int it = get_local_id(0);
-    int ig = get_global_id(0);
+//------------------------------------------------------------
+// kernel_Reorder
+//
+// Purpose : Each virtual processor reorders its data using the scanned histogram
+//------------------------------------------------------------
 
-    int gr = get_group_id(0);
-    int groups=get_num_groups(0);
-    int items=get_local_size(0);
+__kernel
+void kernel_Reorder(
+	const __global int* d_inKeys,
+	__global int* d_outKeys,
+	__global int* d_Histograms,
+	const int pass,
+	__global int* d_inPermut,
+	__global int* d_outPermut,
+	__local int* loc_histo,
+	const int n
+	)
+{
+    size_t it = get_local_id(0);
+    size_t ig = get_global_id(0);
+
+    size_t gr = get_group_id(0);
+    size_t groups = get_num_groups(0);
+    size_t items = get_local_size(0);
 
     //int start= gr * n/groups + it * n/groups/items;
-    int start= ig *(n/groups/items);
-    int size= n/groups/items;
+    int start = ig *(n/groups/items);
+    int size = n/groups/items;
 
     // take the histograms in the cache
-    for(int ir=0;ir<_RADIX;ir++)
+    for (int ir=0;ir<_RADIX;ir++)
         loc_histo[ir * items + it] = d_Histograms[ir * groups * items + items * gr + it];
     barrier(CLK_LOCAL_MEM_FENCE);
 
     int newpos, ik, key, shortkey;
-    for(int i = start; i < start + size; i++)
+    for (int i = start; i < start + size; i++)
     {
         key = d_inKeys[changeTranspositionIndex(i,n)];
         shortkey = ((key >> (pass * _BITS)) & (_RADIX-1));
@@ -162,19 +181,27 @@ __kernel void reorder(const __global int* d_inKeys,
     }
 }
 
-
+//------------------------------------------------------------
+// kernel_ScanHistograms
+//
+// Purpose :
 // perform a parallel prefix sum (a scan) on the local histograms
 // (see Blelloch 1990) each workitem worries about two memories
 // see also http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html
-__kernel void scanhistograms(__global int* histo,__local int* temp,__global int* globsum)
+//------------------------------------------------------------
+
+__kernel
+void kernel_ScanHistograms(
+	__global int* histo,
+	__local int* temp,
+	__global int* globsum
+	)
 {
-
-
-    int it = get_local_id(0);
-    int ig = get_global_id(0);
+    size_t it = get_local_id(0);
+    size_t ig = get_global_id(0);
     int decale = 1;
-    int n=get_local_size(0) * 2 ;
-    int gr=get_group_id(0);
+    size_t n = get_local_size(0) * 2 ;
+    size_t gr = get_group_id(0);
 
     // load input into local memory
     // up sweep phase
@@ -182,7 +209,7 @@ __kernel void scanhistograms(__global int* histo,__local int* temp,__global int*
     temp[2*it+1] = histo[2*ig+1];
 
     // parallel prefix sum (algorithm of Blelloch 1990)
-    for (int d = n>>1; d > 0; d >>= 1)
+    for(int d = n>>1; d > 0; d >>= 1)
     {
         barrier(CLK_LOCAL_MEM_FENCE);
         if (it < d)
@@ -204,7 +231,7 @@ __kernel void scanhistograms(__global int* histo,__local int* temp,__global int*
     }
 
     // down sweep phase
-    for (int d = 1; d < n; d *= 2)
+    for(int d = 1; d < n; d *= 2)
     {
         decale >>= 1;
         barrier(CLK_LOCAL_MEM_FENCE);
@@ -230,16 +257,23 @@ __kernel void scanhistograms(__global int* histo,__local int* temp,__global int*
     barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
+//------------------------------------------------------------
+// kernel_PasteHistograms
+//
+// Purpose :
 // use the global sum for updating the local histograms
 // each work item updates two values
-__kernel void pastehistograms(__global int* histo, __global int* globsum)
+//------------------------------------------------------------
+
+__kernel
+void kernel_PasteHistograms(__global int* histo, __global int* globsum)
 {
-    int ig = get_global_id(0);
-    int gr=get_group_id(0);
+    size_t ig = get_global_id(0);
+    size_t gr = get_group_id(0);
 
     int s;
 
-    s=globsum[gr];
+    s = globsum[gr];
 
     // write results to device memory
     histo[2*ig] += s;
