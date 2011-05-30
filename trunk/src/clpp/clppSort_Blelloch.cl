@@ -1,3 +1,7 @@
+// References :
+//
+// http://hal.archives-ouvertes.fr/docs/00/59/67/30/PDF/ocl-radix-sort.pdf
+
 // change of changeTranspositionIndex for the transposition
 inline int changeTranspositionIndex(int i,int n)
 {

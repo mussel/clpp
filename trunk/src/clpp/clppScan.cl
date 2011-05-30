@@ -1,3 +1,8 @@
+// References :
+//
+// http://developer.download.nvidia.com/compute/cuda/1_1/Website/projects/scan/doc/scan.pdf
+// http://developer.nvidia.com/node/57
+
 #pragma OPENCL EXTENSION cl_amd_printf : enable
 #define T int
 
@@ -12,6 +17,7 @@ __kernel
 void kernel__ExclusivePrefixScan(
 	__global const T* values,
 	__global T* valuesOut,
+	//__global T* shared,
 	__local T* shared,
 	__global T* blockSums,
 	const uint N
@@ -47,7 +53,7 @@ void kernel__ExclusivePrefixScan(
     barrier(CLK_LOCAL_MEM_FENCE);
     if (tid == 0)
 	{
-        blockSums[groupId] = shared[blockSize-1];
+        //blockSums[groupId] = shared[blockSize-1];
         shared[blockSize-1] = 0;
     }
 	

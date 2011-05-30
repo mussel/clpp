@@ -54,13 +54,13 @@ void clppScan::scan()
 	cl_int clStatus;
 
 	// Intel SDK problem
-	//	clStatus  = clSetKernelArg(_kernel_Scan, 2, _workgroupSize * 2 * sizeof(int), 0);
-	//	checkCLStatus(clStatus);
-	_temp = new unsigned int[_workgroupSize * 2];
-	_clBuffer_Temp  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _workgroupSize * 2 * sizeof(int), _temp, &clStatus);
+	clStatus  = clSetKernelArg(_kernel_Scan, 2, _workgroupSize * 2 * sizeof(int), 0);
 	checkCLStatus(clStatus);
-	clStatus  = clSetKernelArg(_kernel_Scan, 2, sizeof(cl_mem), &_clBuffer_Temp);
-	checkCLStatus(clStatus);
+	//_temp = new unsigned int[_workgroupSize * 2];
+	//_clBuffer_Temp  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _workgroupSize * 2 * sizeof(int), _temp, &clStatus);
+	//checkCLStatus(clStatus);
+	//clStatus  = clSetKernelArg(_kernel_Scan, 2, sizeof(cl_mem), &_clBuffer_Temp);
+	//checkCLStatus(clStatus);
 
 	//----
     size_t globalWorkSize = {toMultipleOf(_datasetSize, _workgroupSize / 2)};
@@ -85,11 +85,11 @@ void clppScan::scan()
 		clStatus = clEnqueueNDRangeKernel(_context->clQueue, _kernel_Scan, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
 		checkCLStatus(clStatus);
 
+					//clStatus = clFinish(_context->clQueue);     // wait end of read
+					//checkCLStatus(clStatus);
+
 		clValues = clValuesOut = _clBuffer_BlockSums[i];
     }
-
-			clStatus = clFinish(_context->clQueue);     // wait end of read
-			checkCLStatus(clStatus);
 
 	//----
 
@@ -107,8 +107,8 @@ void clppScan::scan()
 		clStatus = clEnqueueNDRangeKernel(_context->clQueue, _kernel_UniformAdd, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
 		checkCLStatus(clStatus);
 
-			cl_int clStatus = clFinish(_context->clQueue);     // wait end of read
-			checkCLStatus(clStatus);
+			//cl_int clStatus = clFinish(_context->clQueue);     // wait end of read
+			//checkCLStatus(clStatus);
     }
 }
 
