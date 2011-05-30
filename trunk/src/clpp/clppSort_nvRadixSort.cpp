@@ -17,14 +17,14 @@
 
 extern double time1, time2, time3, time4;
 
-clppSort_nvRadixSort::clppSort_nvRadixSort(clppContext* context, string basePath, unsigned int maxElements, const int ctaSize, bool keysOnly) :
+clppSort_nvRadixSort::clppSort_nvRadixSort(clppContext* context, unsigned int maxElements, const int ctaSize, bool keysOnly) :
         mNumElements(0),
         mTempValues(0),
         _clBuffer_Counters(0),
         _clBuffer_CountersSum(0),
         _clBuffer_BlockOffsets(0),
         CTA_SIZE(ctaSize),
-        scan(context, basePath, maxElements/2/CTA_SIZE*16)
+        scan(context, maxElements/2/CTA_SIZE*16)
 {
 	cl_int clStatus;
 
@@ -36,7 +36,7 @@ clppSort_nvRadixSort::clppSort_nvRadixSort(clppContext* context, string basePath
 	_clBuffer_CountersSum = clCreateBuffer(context->clContext, CL_MEM_READ_WRITE, WARP_SIZE * numBlocks * sizeof(unsigned int), NULL, &clStatus);
 	_clBuffer_BlockOffsets = clCreateBuffer(context->clContext, CL_MEM_READ_WRITE, WARP_SIZE * numBlocks * sizeof(unsigned int), NULL, &clStatus); 
 
-	if (!compile(context, basePath, "clppSort_nvRadixSort.cl"))
+	if (!compile(context, "clppSort_nvRadixSort.cl"))
 		return;
 
 	//---- Prepare all the kernels

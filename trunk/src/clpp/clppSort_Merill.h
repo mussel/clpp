@@ -1,14 +1,16 @@
-#ifndef __CLPP_SORT_CPU_H__
-#define __CLPP_SORT_CPU_H__
+// http://code.google.com/p/back40computing/wiki/RadixSorting
+
+#ifndef __CLPP_SORT_MERILL_H__
+#define __CLPP_SORT_MERILL_H__
 
 #include "clpp/clppSort.h"
 
-class clppSort_CPU : public clppSort
+class clppSort_Merill : public clppSort
 {
 public:
-	clppSort_CPU(clppContext* context);
+	clppSort_Merill(clppContext* context, unsigned int maxElements);
 
-	string getName() { return "CPU Brute force"; }
+	string getName() { return "Merill"; }
 
 	void sort();
 

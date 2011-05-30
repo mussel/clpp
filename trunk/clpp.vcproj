@@ -345,6 +345,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\clpp\clppScan.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\clpp\clppSort.cpp"
 				>
 			</File>
@@ -354,6 +358,10 @@
 			</File>
 			<File
 				RelativePath=".\src\clpp\clppSort_CPU.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\src\clpp\clppSort_Merill.cpp"
 				>
 			</File>
 			<File
@@ -383,6 +391,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\clpp\clppScan.h"
+				>
+			</File>
+			<File
 				RelativePath=".\src\clpp\clppSort.h"
 				>
 			</File>
@@ -392,6 +404,10 @@
 			</File>
 			<File
 				RelativePath=".\src\clpp\clppSort_CPU.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\clpp\clppSort_Merill.h"
 				>
 			</File>
 			<File

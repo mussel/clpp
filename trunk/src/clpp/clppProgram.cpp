@@ -8,6 +8,8 @@
 #include <sys/time.h>
 #endif
 
+string clppProgram::_basePath;
+
 clppProgram::clppProgram()
 {
 	_clProgram =0;
@@ -23,13 +25,23 @@ clppProgram::~clppProgram()
     checkCLStatus(clStatus);
 }
 
-bool clppProgram::compile(clppContext* context, string basePath, string fileName)
+string clppProgram::getBasePath()
+{
+	return _basePath;
+}
+
+void clppProgram::setBasePath(string basePath)
+{
+	_basePath = basePath;
+}
+
+bool clppProgram::compile(clppContext* context, string fileName)
 {
 	cl_int clStatus;
 
 	_context = context;
 
-	string programSource = loadSource(basePath + fileName);
+	string programSource = loadSource(_basePath + fileName);
 
 	//---- Some preprocessing
 	programSource = compilePreprocess(programSource);

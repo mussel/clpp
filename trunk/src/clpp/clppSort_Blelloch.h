@@ -33,7 +33,7 @@
 class clppSort_Blelloch : public clppSort
 {
 public:
-	clppSort_Blelloch(clppContext* context, string basePath);
+	clppSort_Blelloch(clppContext* context);
 
 	string compilePreprocess(string kernel);
 

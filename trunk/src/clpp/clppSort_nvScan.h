@@ -32,7 +32,7 @@ using namespace std;
 class clppSort_nvScan : public clppProgram
 {
 public:
-	clppSort_nvScan(clppContext* context, string basePath, unsigned int numElements);
+	clppSort_nvScan(clppContext* context, unsigned int numElements);
 	~clppSort_nvScan();
 
 	void scanExclusiveLarge(cl_mem d_Dst, cl_mem d_Src,	unsigned int batchSize,	unsigned int arrayLength);

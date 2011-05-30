@@ -4,7 +4,7 @@
 
 #pragma region Construsctor
 
-clppSort_CPU::clppSort_CPU(clppContext* context, string basePath)
+clppSort_CPU::clppSort_CPU(clppContext* context)
 {
 }
 

@@ -1,24 +1,71 @@
 #include <stdlib.h>
 #include <algorithm>
 
+#include "clpp/clppScan.h"
 #include "clpp/clppSort_Blelloch.h"
 #include "clpp/clppSort_CPU.h"
 #include "clpp/clppSort_nvRadixSort.h"
+#include "clpp/clppSort_Merill.h"
 
 using namespace std;
 
+void makeOneVector(unsigned int* a, unsigned int numElements);
 void makeRandomUint16Vector(unsigned short *a, unsigned int numElements, unsigned int keybits);
 void makeRandomUint32Vector(unsigned int *a, unsigned int numElements, unsigned int keybits);
 void makeRandomUint32Vector_i(unsigned int *a, unsigned int numElements, unsigned int keybits);
 void benchmark(clppContext context, clppSort* sort, unsigned int* keys, unsigned int* keysSorted, unsigned int datasetSize);
 bool checkIsSorted(unsigned int* sorted, unsigned int* tocheck, size_t datasetSize, string algorithmName);
+void benchmark_Scan(clppContext* context);
+void benchmark_Sort(clppContext* context);
 
 int main(int argc, const char **argv)
 {
+	clppProgram::setBasePath("src/clpp/");
+	//---- Prepare a clpp Context
+	clppContext context;
+	context.setup(2, 0);
+
+	benchmark_Scan(&context);
+	benchmark_Sort(&context);
+}
+
+void benchmark_Scan(clppContext* context)
+{
+	//---- Create a set of data
+	unsigned int datasetSize = 128000;
+	unsigned int* values = (unsigned int*)malloc(datasetSize * sizeof(int));
+	makeOneVector(values, datasetSize);
+
+	//--- Scan
+	clppScan* scan = new clppScan(context);
+	scan->pushDatas(values, sizeof(int), datasetSize);
+
+	double start = scan->ClockTime();
+	scan->scan();
+	double delta = scan->ClockTime() - start;
+
+	scan->popDatas();
+
+	//---- Check the scan
+	for(int i = 0; i < datasetSize; i++)
+		if (values[i] != i)
+		{
+			cout << "Algorithm FAILED : Scan" << endl;
+			break;
+		}
+
+	cout << "Performance for [Scan] : data-set size[" << datasetSize << "] time (ms): " << delta << endl;
+
+	//---- Free
+	free(values);
+}
+
+void benchmark_Sort(clppContext* context)
+{
 	//unsigned int datasetSize = 8192;
 	//unsigned int datasetSize = 128000;
-  //unsigned int datasetSize = (1<<19);
-  unsigned int datasetSize = (1<<23);  // has to match _N for Blelloch ?
+	//unsigned int datasetSize = (1<<19);
+	unsigned int datasetSize = (1<<23);  // has to match _N for Blelloch ?
 
 	//---- Create a new set of random datas
 	unsigned int* keys = (unsigned int*)malloc(datasetSize * sizeof(int));
@@ -34,26 +81,27 @@ int main(int argc, const char **argv)
 	// use standard sort
 	sort(keysSorted, keysSorted + datasetSize);
 
-	//---- Prepare a clpp Context
-	clppContext context;
-	context.setup(2, 0);
-
 	//---- Start the benchmark
 	clppSort* clppsort;
 
 	// Brute fore
-	clppsort = new clppSort_CPU(&context, "");
-	benchmark(context, clppsort, keys, keysSorted, datasetSize);
+	//clppsort = new clppSort_CPU(context);
+	//benchmark(*context, clppsort, keys, keysSorted, datasetSize);
 
-	// Blelloch
-	memcpy(keys, keysCopy, datasetSize * sizeof(int));
-	clppsort = new clppSort_Blelloch(&context, "src/clpp/");
-	benchmark(context, clppsort, keys, keysSorted, datasetSize);	
+	//// Blelloch
+	//memcpy(keys, keysCopy, datasetSize * sizeof(int));
+	//clppsort = new clppSort_Blelloch(context);
+	//benchmark(*context, clppsort, keys, keysSorted, datasetSize);	
 
-	// NV
+	//// NV
+	//memcpy(keys, keysCopy, datasetSize * sizeof(int));
+	//clppsort = new clppSort_nvRadixSort(context, datasetSize, 128); // 128 = work group size
+	//benchmark(*context, clppsort, keys, keysSorted, datasetSize);
+
+	// Merill
 	memcpy(keys, keysCopy, datasetSize * sizeof(int));
-	clppsort = new clppSort_nvRadixSort(&context, "src/clpp/", datasetSize, 128); // 128 = work group size
-	benchmark(context, clppsort, keys, keysSorted, datasetSize);
+	clppsort = new clppSort_Merill(context, datasetSize); // 128 = work group size
+	benchmark(*context, clppsort, keys, keysSorted, datasetSize);
 
 	//---- Free
 	free(keys);
@@ -61,7 +109,6 @@ int main(int argc, const char **argv)
 
 void benchmark(clppContext context, clppSort* sort, unsigned int* keys, unsigned int* keysSorted, unsigned int datasetSize)
 {
-
  	sort->pushDatas(keys, keys, 4, 4, datasetSize, 32);
 
 	double start = sort->ClockTime();
@@ -73,6 +120,12 @@ void benchmark(clppContext context, clppSort* sort, unsigned int* keys, unsigned
 	sort->popDatas();
 
 	checkIsSorted(keysSorted, keys, datasetSize, sort->getName());
+}
+
+void makeOneVector(unsigned int* a, unsigned int numElements)
+{
+    for(unsigned int i = 0; i < numElements; ++i)   
+        a[i] = 1; 
 }
 
 void makeRandomUint16Vector(unsigned short *a, unsigned int numElements, unsigned int keybits)

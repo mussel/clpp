@@ -23,7 +23,8 @@ void clppContext::setup(unsigned int platformId, unsigned int deviceId)
 	clStatus = clGetPlatformIDs(platformsCount, platforms, NULL);
 	assert(clStatus == CL_SUCCESS);
 
-	clPlatform = platforms[max(platformId, platformsCount - 1)];
+	platformId = min(platformId, platformsCount - 1);
+	clPlatform = platforms[platformId];
 
 	//---- Devices
 	cl_uint devicesCount;
@@ -32,10 +33,10 @@ void clppContext::setup(unsigned int platformId, unsigned int deviceId)
 	assert(devicesCount > 0);
 	
 	cl_device_id* devices = new cl_device_id[devicesCount];
-	clStatus = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_ALL, devicesCount, devices, NULL);
+	clStatus = clGetDeviceIDs(clPlatform, CL_DEVICE_TYPE_ALL, devicesCount, devices, NULL);
 	assert(clStatus == CL_SUCCESS);
 
-	clDevice = devices[max(deviceId, devicesCount - 1)];
+	clDevice = devices[min(deviceId, devicesCount - 1)];
 	clDevice = devices[0];
 	//---- Context
 	clContext = clCreateContext(0, 1, &clDevice, NULL, NULL, &clStatus);

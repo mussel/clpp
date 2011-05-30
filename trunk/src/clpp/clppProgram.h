@@ -27,7 +27,7 @@ public:
 	clppProgram();
 	virtual ~clppProgram();
 
-	bool compile(clppContext* context, string basePath, string fileName);
+	bool compile(clppContext* context, string fileName);
 	virtual string compilePreprocess(string programSource) { return programSource; }
 
 	// Helper method : use to retreive the current time
@@ -39,9 +39,15 @@ public:
 	// Load the cl source code
 	static string loadSource(string path);
 
+	// Set/Get the base path for all the OpenCL kernels.
+	static string getBasePath();
+	static void setBasePath(string basePath);
+
 protected:
 	cl_program _clProgram;
 	clppContext* _context;
+
+	static string _basePath;
 
 protected:
 	static const char* getOpenCLErrorString(cl_int err);

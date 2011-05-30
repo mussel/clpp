@@ -11,7 +11,7 @@
 class clppSort_nvRadixSort : public clppSort
 {
 public:
-	clppSort_nvRadixSort(clppContext* context, string basePath, unsigned int maxElements, const int ctaSize, bool keysOnly = true);
+	clppSort_nvRadixSort(clppContext* context, unsigned int maxElements, const int ctaSize, bool keysOnly = true);
 	~clppSort_nvRadixSort();
 
 	string getName() { return "NVidia Radix Sort"; }

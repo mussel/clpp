@@ -12,7 +12,7 @@
 #include "clpp/clppSort_nvScan.h"
 #include "clpp/clppSort.h"
 
-clppSort_nvScan::clppSort_nvScan(clppContext* context, string basePath, unsigned int numElements) : mNumElements(numElements)
+clppSort_nvScan::clppSort_nvScan(clppContext* context, unsigned int numElements) : mNumElements(numElements)
 {
 	_context = context;
 
@@ -23,7 +23,7 @@ clppSort_nvScan::clppSort_nvScan(clppContext* context, string basePath, unsigned
         clppSort::checkCLStatus(clStatus);
     }
 
-	if (!compile(context, basePath, "clppSort_nvScan_b.cl"))
+	if (!compile(context, "clppSort_nvScan_b.cl"))
 		return;
 
 	// Prepare the kernels

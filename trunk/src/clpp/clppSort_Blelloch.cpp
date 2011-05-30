@@ -4,12 +4,12 @@
 
 #pragma region Constructor
 
-clppSort_Blelloch::clppSort_Blelloch(clppContext* context, string basePath)
+clppSort_Blelloch::clppSort_Blelloch(clppContext* context)
 {
 	nkeys = _N;
 	nkeys_rounded = _N;
 
-	if (!compile(context, basePath, "clppSort_Blelloch.cl")){
+	if (!compile(context, "clppSort_Blelloch.cl")){
 		return;
 	}
 
