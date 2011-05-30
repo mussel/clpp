@@ -102,7 +102,6 @@ void clppSort_Blelloch::sort()
 void clppSort_Blelloch::resize(int nn)
 {
     nkeys = nn;
-
     // length of the vector has to be divisible by (_GROUPS * _ITEMS)
     int remainder = nkeys % (_GROUPS * _ITEMS);
     nkeys_rounded = nkeys;
@@ -114,7 +113,6 @@ void clppSort_Blelloch::resize(int nn)
     if (remainder != 0)
     {
         nkeys_rounded = nkeys - remainder + (_GROUPS * _ITEMS);
-
         // pad the vector with big values
         assert(nkeys_rounded <= _N);
         clStatus = clEnqueueWriteBuffer(_context->clQueue, _clBuffer_keys, CL_TRUE, sizeof(int) * nkeys, sizeof(int) * (_GROUPS * _ITEMS - remainder), pad, 0, NULL, NULL);
@@ -432,7 +430,9 @@ void clppSort_Blelloch::pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, 
 	_clBuffer_temp  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * _HISTOSPLIT, NULL, &clStatus);
 	checkCLStatus(clStatus);
 
-	resize(nkeys);
+	
+	resize(datasetSize);
+	cout <<"nkeys="<<nkeys<<" "<<nkeys_rounded<<endl;
 
 	//---- Send the data
 	if (_keys != 0)

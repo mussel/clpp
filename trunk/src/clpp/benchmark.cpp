@@ -20,7 +20,8 @@ void benchmark_Sort(clppContext* context);
 
 //unsigned int datasetSize = 1280000;
 //unsigned int datasetSize = 8192;
-unsigned int datasetSize = 128000;
+//unsigned int datasetSize = 131072;
+unsigned int datasetSize = 1 << 17;
 //unsigned int datasetSize = (1<<19);
 //unsigned int datasetSize = (1<<23);  // has to match _N for Blelloch ?
 
@@ -32,7 +33,7 @@ int main(int argc, const char **argv)
 	clppContext context;
 	context.setup(0, 0);
 
-	benchmark_Scan(&context);
+	//benchmark_Scan(&context);
 	benchmark_Sort(&context);
 }
 

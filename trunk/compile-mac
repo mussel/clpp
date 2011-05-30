@@ -1,0 +1,2 @@
+cd ~/clpp/
+g++ src/clpp/*.cpp -I./src/ -framework opencl
