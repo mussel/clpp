@@ -116,9 +116,10 @@ void clppScan::scan()
 
 #pragma region pushDatas
 
-void clppScan::pushDatas(void* values, size_t valueSize, size_t datasetSize)
+void clppScan::pushDatas(void* values, void* valuesOut, size_t valueSize, size_t datasetSize)
 {
 	_values = values;
+	_valuesOut = valuesOut;
 	_valueSize = valueSize;
 	_datasetSize = datasetSize;
 
@@ -130,8 +131,10 @@ void clppScan::pushDatas(void* values, size_t valueSize, size_t datasetSize)
 	_clBuffer_values  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _valueSize * _datasetSize, _values, &clStatus);
 	checkCLStatus(clStatus);
 
-	_clBuffer_valuesOut  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _valueSize * _datasetSize, _values, &clStatus);
+	_clBuffer_valuesOut  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _valueSize * _datasetSize, _valuesOut, &clStatus);
 	checkCLStatus(clStatus);
+
+	//clEnqueueWriteBuffer(_context->clQueue, _clBuffer_values, CL_TRUE, 0, _valueSize * _datasetSize, _values, 0, 0, 0);
 }
 
 void clppScan::pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize)

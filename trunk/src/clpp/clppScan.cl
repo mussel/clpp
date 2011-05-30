@@ -13,7 +13,8 @@
 // Prefix sum or prefix scan is an operation where each output element contains the sum of all input elements preceding it.
 //------------------------------------------------------------
 
-__kernel void kernel__ExclusivePrefixScan(
+__kernel
+void kernel__ExclusivePrefixScan(
 	__global const T* values,
 	__global T* valuesOut,
 	//__global T* shared,

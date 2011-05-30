@@ -30,6 +30,9 @@ public:
 	bool compile(clppContext* context, string fileName);
 	virtual string compilePreprocess(string programSource) { return programSource; }
 
+	// Wait for the end of the program
+	void waitCompletion();
+
 	// Helper method : use to retreive the current time
 	double ClockTime();
 

@@ -170,3 +170,8 @@ double clppProgram::ClockTime()
     Unsupported Platform !!!
 #endif
 }
+
+void clppProgram::waitCompletion()
+{
+	clFinish(_context->clQueue);
+}
