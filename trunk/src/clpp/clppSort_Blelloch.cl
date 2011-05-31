@@ -57,18 +57,26 @@ void kernel_Histogram(
     int size = n / groups / items;
     int start= ig * size;
 
-    int key, shortkey;
-    for (int i= start; i< start + size;i++)
-    {
-        key = d_Keys[changeTranspositionIndex(i,n)];
+  int key,shortkey,k;
 
-        // extract the group of _BITS bits of the pass
-        // the result is in the range 0.._RADIX-1
-        shortkey=((key >> (pass * _BITS)) & (_RADIX-1));
+  // compute the index
+  // the computation depends on the transposition
+  for(int j= 0; j< size;j++){
+#ifdef TRANSPOSE
+    k= groups * items * j + ig;
+#else
+    k=j+start;
+#endif
+      
+    key=d_Keys[k];   
 
-        //d_Histograms[shortkey * groups * items + items * gr + it]++;
-        loc_histo[shortkey * items + it ]++;
-    }
+    // extract the group of _BITS bits of the pass
+    // the result is in the range 0.._RADIX-1
+    shortkey=(( key >> (pass * _BITS)) & (_RADIX-1));  
+
+    // increment the local histogram
+    loc_histo[shortkey *  items + it ]++;
+  }
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -165,23 +173,39 @@ void kernel_Reorder(
         loc_histo[ir * items + it] = d_Histograms[ir * groups * items + items * gr + it];
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    int newpos, ik, key, shortkey;
-    for (int i = start; i < start + size; i++)
-    {
-        key = d_inKeys[changeTranspositionIndex(i,n)];
-        shortkey = ((key >> (pass * _BITS)) & (_RADIX-1));
-        //ik= shortkey * groups * items + items * gr + it;
-        //newpos=d_Histograms[ik];
-        newpos = loc_histo[shortkey * items + it];
-        d_outKeys[changeTranspositionIndex(newpos,n)] = key;  // killing line !!!
-        //d_outKeys[changeTranspositionIndex(i)]= key;
-#ifdef PERMUT
-        d_outPermut[changeTranspositionIndex(newpos,n)]=d_inPermut[changeTranspositionIndex(i,n)];
+
+  int newpos,key,shortkey,k,newpost;
+
+  for(int j= 0; j< size;j++){
+#ifdef TRANSPOSE
+      k= groups * items * j + ig;
+#else
+      k=j+start;
 #endif
-        newpos++;
-        loc_histo[shortkey * items + it] = newpos;
-        //d_Histograms[ik]=newpos;
-        //barrier(CLK_GLOBAL_MEM_FENCE);
+    key = d_inKeys[k];   
+    shortkey=((key >> (pass * _BITS)) & (_RADIX-1)); 
+
+    newpos=loc_histo[shortkey * items + it];
+
+
+#ifdef TRANSPOSE
+    int ignew,jnew;
+    ignew= newpos/(n/groups/items);
+    jnew = newpos%(n/groups/items);
+    newpost = jnew * (groups*items) + ignew;
+#else
+    newpost=newpos;
+#endif
+
+    d_outKeys[newpost]= key;  // killing line !!!
+
+#ifdef PERMUT 
+      d_outPermut[newpost]=d_inPermut[k]; 
+#endif
+
+    newpos++;
+    loc_histo[shortkey * items + it]=newpos;
+
     }
 }
 

@@ -7,6 +7,8 @@
 #include "clpp/clppSort_nvRadixSort.h"
 #include "clpp/clppSort_Merill.h"
 
+#include <string.h>
+
 using namespace std;
 
 void makeOneVector(unsigned int* a, unsigned int numElements);
@@ -25,7 +27,7 @@ void benchmark_Sort(clppContext* context);
 //unsigned int datasetSize = 1<<10;
 //unsigned int datasetSize = 1<<17;
 //unsigned int datasetSize = 1<<19;
-unsigned int datasetSize = 1<<21;
+unsigned int datasetSize = _N;
 //unsigned int datasetSize = 1<<23;  // has to match _N for Blelloch ?
 
 int main(int argc, const char** argv)
@@ -37,7 +39,7 @@ int main(int argc, const char** argv)
 	context.setup(0, 0);
 
 	benchmark_Scan(&context);
-	//benchmark_Sort(&context);
+	benchmark_Sort(&context);
 }
 
 void benchmark_Scan(clppContext* context)
@@ -76,7 +78,8 @@ void benchmark_Sort(clppContext* context)
 {
 	//---- Create a new set of random datas
 	unsigned int* keys = (unsigned int*)malloc(datasetSize * sizeof(int));
-	makeRandomUint32Vector_i(keys, datasetSize, 32);
+	//makeRandomUint32Vector_i(keys, datasetSize, 16);
+	makeRandomUint32Vector(keys, datasetSize, 32);   
 
 	unsigned int* keysCopy = (unsigned int*)malloc(datasetSize * sizeof(int));
 	memcpy(keysCopy, keys, datasetSize * sizeof(int));
@@ -152,14 +155,17 @@ void makeRandomUint16Vector(unsigned short *a, unsigned int numElements, unsigne
 void makeRandomUint32Vector(unsigned int* a, unsigned int numElements, unsigned int keybits)
 {
     // Fill up with some random data
-    int keyshiftmask = 0;
-    if (keybits > 16) keyshiftmask = (1 << (keybits - 16)) - 1;
-    int keymask = 0xffff;
-    if (keybits < 16) keymask = (1 << keybits) - 1;
+    // int keyshiftmask = 0;
+    // if (keybits > 16) keyshiftmask = (1 << (keybits - 16)) - 1;
+    // int keymask = 0xffff;
+    // if (keybits < 16) keymask = (1 << keybits) - 1;
 
     srand(95123);
-    for(unsigned int i=0; i < numElements; ++i)   
-        a[i] = ((rand() & keyshiftmask)<<16) | (rand() & keymask); 
+    cout << "Warning, max int = "<< (1<<_TOTALBITS)<<endl;
+    for(unsigned int i=0; i < numElements; ++i)  { 
+      // a[i] = ((rand() & keyshiftmask)<<16) | (rand() & keymask); 
+      a[i] = (rand()%(1<<_TOTALBITS));   // peut-être qu'il fallait pas :-)
+    }
 }
 
 void makeRandomUint32Vector_i(unsigned int* a, unsigned int numElements, unsigned int keybits)

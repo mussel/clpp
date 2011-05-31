@@ -5,23 +5,23 @@
 
 #include "clpp/clppSort.h"
 
-#define _TOTALBITS 32  // number of bits for the integer in the list (max=32)
-#define _BITS 4  // number of bits in the radix
+#define _TOTALBITS 20  // number of bits for the integer in the list (max=32)
+#define _BITS 5  // number of bits in the radix
 
 // these parameters can be changed
-#define _ITEMS  32 // number of items in a group
-#define _GROUPS 16 // the number of virtual processors is _ITEMS * _GROUPS
-#define  _HISTOSPLIT 128 // number of splits of the histogram
+#define _ITEMS  64 // number of items in a group
+#define _GROUPS 32 // the number of virtual processors is _ITEMS * _GROUPS
+#define  _HISTOSPLIT 512 // number of splits of the histogram
 
 // max size of the sorted vector
 // it has to be divisible by  _ITEMS * _GROUPS
 // (for other sizes, pad the list with big values)
 //#define _N (_ITEMS * _GROUPS * 16)  
 //#define _N (1<<23)  // maximal size of the list  
-#define _N (1 << 17)  // maximal size of the list  
+#define _N (1 << 18)  // maximal size of the list  
 
 #define PERMUT 0  // store the final permutation
-//#define TRANSPOSE
+#define TRANSPOSE
 
 // the following parameters are computed from the previous
 #define _RADIX (1 << _BITS) //  radix  = 2^_BITS

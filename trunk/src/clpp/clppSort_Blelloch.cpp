@@ -432,7 +432,7 @@ void clppSort_Blelloch::pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, 
 
 	
 	resize(datasetSize);
-	cout <<"nkeys="<<nkeys<<" "<<nkeys_rounded<<endl;
+	//cout <<"nkeys="<<nkeys<<" "<<nkeys_rounded<<endl;
 
 	//---- Send the data
 	if (_keys != 0)
