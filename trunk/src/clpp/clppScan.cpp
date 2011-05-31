@@ -26,7 +26,7 @@ clppScan::clppScan(clppContext* context, unsigned int maxElements)
 
 	//---- Get the workgroup size
 	clGetKernelWorkGroupInfo(_kernel_Scan, _context->clDevice, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &_workgroupSize, 0);
-	_workgroupSize = 128;
+	//_workgroupSize = 128;
 
 	//---- Prepare all the buffers
 	allocateBlockSums(maxElements);

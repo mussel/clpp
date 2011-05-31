@@ -34,7 +34,7 @@
 class clppSort_Blelloch : public clppSort
 {
 public:
-	clppSort_Blelloch(clppContext* context);
+	clppSort_Blelloch(clppContext* context, unsigned int maxElements);
 
 	string compilePreprocess(string kernel);
 

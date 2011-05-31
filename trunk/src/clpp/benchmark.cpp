@@ -33,10 +33,10 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(0, 0);
+	context.setup(2, 0);
 
 	benchmark_Scan(&context);
-	//benchmark_Sort(&context);
+	benchmark_Sort(&context);
 }
 
 void benchmark_Scan(clppContext* context)
@@ -96,7 +96,7 @@ void benchmark_Sort(clppContext* context)
 
 	// Blelloch
 	memcpy(keys, keysCopy, datasetSize * sizeof(int));
-	clppsort = new clppSort_Blelloch(context);
+	clppsort = new clppSort_Blelloch(context, datasetSize);
 	benchmark(*context, clppsort, keys, keysSorted, datasetSize);	
 
 	// NV

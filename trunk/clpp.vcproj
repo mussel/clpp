@@ -337,6 +337,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\clpp\clpp.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\clpp\clppContext.cpp"
 				>
 			</File>
@@ -380,6 +384,10 @@
 			>
 			<File
 				RelativePath=".\src\clpp\benchmark.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\clpp\clpp.h"
 				>
 			</File>
 			<File

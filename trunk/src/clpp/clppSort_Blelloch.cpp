@@ -4,7 +4,7 @@
 
 #pragma region Constructor
 
-clppSort_Blelloch::clppSort_Blelloch(clppContext* context)
+clppSort_Blelloch::clppSort_Blelloch(clppContext* context, unsigned int maxElements)
 {
 	nkeys = _N;
 	nkeys_rounded = _N;
