@@ -33,7 +33,7 @@ int main(int argc, const char **argv)
 	clppContext context;
 	context.setup(0, 0);
 
-	//benchmark_Scan(&context);
+	benchmark_Scan(&context);
 	benchmark_Sort(&context);
 }
 
