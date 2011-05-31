@@ -33,7 +33,7 @@ public:
 	// Wait for the end of the program
 	void waitCompletion();
 
-	// Helper method : use to retreive the current time
+	// Helper method : Retrieves the number of milliseconds that have elapsed since the system was started.
 	double ClockTime();
 
 	// Helper method : use to retreive textual error message

@@ -163,9 +163,9 @@ double clppProgram::ClockTime()
     struct timeval t;
     gettimeofday(&t, 0);
 
-    return t.tv_sec + t.tv_usec / 1000000.0;
+    return t.tv_sec + t.tv_usec / 1000.0;
 #elif defined (WIN32)
-    return GetTickCount() / 1000.0;
+    return GetTickCount();
 #else
     Unsupported Platform !!!
 #endif

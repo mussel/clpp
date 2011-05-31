@@ -19,13 +19,15 @@ void benchmark_Scan(clppContext* context);
 void benchmark_Sort(clppContext* context);
 
 //unsigned int datasetSize = 1280000;
+//unsigned int datasetSize = 128000;
 //unsigned int datasetSize = 8192;
 //unsigned int datasetSize = 131072;
-unsigned int datasetSize = 1 << 17;
-//unsigned int datasetSize = (1<<19);
-//unsigned int datasetSize = (1<<23);  // has to match _N for Blelloch ?
+unsigned int datasetSize = 1<<17;
+//unsigned int datasetSize = 1<<19;
+//unsigned int datasetSize = 1<<21;
+//unsigned int datasetSize = 1<<23;  // has to match _N for Blelloch ?
 
-int main(int argc, const char **argv)
+int main(int argc, const char** argv)
 {
 	clppProgram::setBasePath("src/clpp/");
 
@@ -34,7 +36,7 @@ int main(int argc, const char **argv)
 	context.setup(0, 0);
 
 	benchmark_Scan(&context);
-	benchmark_Sort(&context);
+	//benchmark_Sort(&context);
 }
 
 void benchmark_Scan(clppContext* context)
@@ -45,7 +47,7 @@ void benchmark_Scan(clppContext* context)
 	makeOneVector(values, datasetSize);
 
 	//--- Scan
-	clppScan* scan = new clppScan(context);
+	clppScan* scan = new clppScan(context, datasetSize);
 	scan->pushDatas(values, valuesOut, sizeof(int), datasetSize);
 
 	double start = scan->ClockTime();

@@ -6,7 +6,9 @@
 class clppScan : public clppProgram
 {
 public:
-	clppScan(clppContext* context);
+	// Create a new scan.
+	// maxElements : the maximum number of elements to scan.
+	clppScan(clppContext* context, unsigned int maxElements);
 	~clppScan();
 
 	string getName() { return "Prefix sum (exclusive)"; }
@@ -40,7 +42,7 @@ private:
 	cl_mem* _clBuffer_BlockSums;
 	unsigned int* _blockSumsSizes;
 
-	void allocateBlockSums();
+	void allocateBlockSums(unsigned int maxElements);
 	void freeBlockSums();
 };
 

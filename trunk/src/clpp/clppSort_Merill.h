@@ -1,4 +1,5 @@
 // http://code.google.com/p/back40computing/wiki/RadixSorting
+// http://techresearch.intel.com/spaw2/uploads/files/FASTsort_CPUsGPUs_IntelMICarchitectures.pdf
 
 #ifndef __CLPP_SORT_MERILL_H__
 #define __CLPP_SORT_MERILL_H__
