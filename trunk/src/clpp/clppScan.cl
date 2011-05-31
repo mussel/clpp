@@ -5,7 +5,7 @@
 //
 // Algorithm :
 // -----------
-// The parallel prefix sum has two principal parts.
+// The parallel prefix sum has two principal parts, the reduce phase (also known as the up-sweep phase) and the down-sweep phase.
 //
 // In the up-sweep reduction phase we traverse the computation tree from bottom to top, computing partial sums.
 // After this phase, the last element of the array contains the total sum.
@@ -48,14 +48,11 @@ __kernel
 void kernel__ExclusivePrefixScan(
 	__global const T* values,
 	__global T* valuesOut,
-	//__global T* shared,
-	__local T* shared,
+	__local T* localBuffer,
 	__global T* blockSums,
 	const uint N
 	)
 {
-	//__local T shared[1024];
-	
     const uint tid = get_local_id(0);
     const uint groupSize = get_local_size(0);
     const uint blockSize = groupSize << 1;
@@ -65,9 +62,9 @@ void kernel__ExclusivePrefixScan(
     const int tid2_0 = tid << 1; // 2 * tid
     const int tid2_1 = tid2_0 + 1;
 
-	shared[tid2_0] = (tid2_0 + globalOffset < N) ? values[tid2_0 + globalOffset] : 0;
-	shared[tid2_1] = (tid2_1 + globalOffset < N) ? values[tid2_1 + globalOffset] : 0;
-
+	localBuffer[tid2_0] = (tid2_0 + globalOffset < N) ? values[tid2_0 + globalOffset] : 0;
+	localBuffer[tid2_1] = (tid2_1 + globalOffset < N) ? values[tid2_1 + globalOffset] : 0;
+	
     // bottom-up
     for(uint d = groupSize; d > 0; d >>= 1)
 	{
@@ -76,16 +73,16 @@ void kernel__ExclusivePrefixScan(
 		{
             const uint ai = mad24(offset, (tid2_1+0), -1);	// offset*(tid2_0+1)-1 = offset*(tid2_1+0)-1
             const uint bi = mad24(offset, (tid2_1+1), -1);	// offset*(tid2_1+1)-1;
-            shared[bi] += shared[ai];
+            localBuffer[bi] += localBuffer[ai];
         }
         offset <<= 1;
     }
 
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if (tid == 0)
+    //barrier(CLK_LOCAL_MEM_FENCE);
+    if (tid < 1)
 	{
-        blockSums[groupId] = shared[blockSize-1];
-        shared[blockSize-1] = 0;
+        blockSums[groupId] = localBuffer[blockSize-1];
+        localBuffer[blockSize-1] = 0;
     }
 
     // top-down
@@ -96,10 +93,10 @@ void kernel__ExclusivePrefixScan(
         if(tid < d)
 		{
             const uint ai = mad24(offset, (tid2_1+0), -1); // offset*(tid2_0+1)-1 = offset*(tid2_1+0)-1
-            const uint bi = mad24(offset, (tid2_1+1), -1); //offset*(tid2_1+1)-1;
-            float tmp = shared[ai];
-            shared[ai] = shared[bi];
-            shared[bi] += tmp;
+            const uint bi = mad24(offset, (tid2_1+1), -1); // offset*(tid2_1+1)-1;
+            T tmp = localBuffer[ai];
+            localBuffer[ai] = localBuffer[bi];
+            localBuffer[bi] += tmp;
         }
     }
 
@@ -107,10 +104,10 @@ void kernel__ExclusivePrefixScan(
 
     // Write out
     if (tid2_0 + globalOffset < N)
-        valuesOut[tid2_0 + globalOffset] = shared[tid2_0];
+        valuesOut[tid2_0 + globalOffset] = localBuffer[tid2_0];
 		
     if (tid2_1 + globalOffset < N)
-        valuesOut[tid2_1 + globalOffset] = shared[tid2_1];
+        valuesOut[tid2_1 + globalOffset] = localBuffer[tid2_1];
 }
 
 __kernel
@@ -124,16 +121,16 @@ void kernel__UniformAdd(
     const uint tid = get_local_id(0);
     const uint blockId = get_group_id(0);
 
-    __local T shared[1];
+    __local T localBuffer[1];
 
     if (tid == 0)
-        shared[0] = blockSums[blockId];
+        localBuffer[0] = blockSums[blockId];
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
     if (gid < N)
-        memOut[gid] += shared[0];
+        memOut[gid] += localBuffer[0];
 		
     if (gid + 1 < N)
-        memOut[gid + 1] += shared[0];
+        memOut[gid + 1] += localBuffer[0];
 }

@@ -161,7 +161,7 @@ void clppScan::popDatas()
     cl_int clStatus = clFinish(_context->clQueue);     // wait end of read
 	checkCLStatus(clStatus);
 
-	clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_valuesOut, CL_TRUE, 0, _valueSize * _datasetSize, _values, 0, NULL, NULL);
+	clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_valuesOut, CL_TRUE, 0, _valueSize * _datasetSize, _valuesOut, 0, NULL, NULL);
 	checkCLStatus(clStatus);
 }
 

@@ -22,9 +22,10 @@ void benchmark_Sort(clppContext* context);
 //unsigned int datasetSize = 128000;
 //unsigned int datasetSize = 8192;
 //unsigned int datasetSize = 131072;
-unsigned int datasetSize = 1<<17;
+//unsigned int datasetSize = 1<<10;
+//unsigned int datasetSize = 1<<17;
 //unsigned int datasetSize = 1<<19;
-//unsigned int datasetSize = 1<<21;
+unsigned int datasetSize = 1<<21;
 //unsigned int datasetSize = 1<<23;  // has to match _N for Blelloch ?
 
 int main(int argc, const char** argv)
@@ -33,10 +34,10 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(2, 0);
+	context.setup(0, 0);
 
 	benchmark_Scan(&context);
-	benchmark_Sort(&context);
+	//benchmark_Sort(&context);
 }
 
 void benchmark_Scan(clppContext* context)
@@ -59,7 +60,7 @@ void benchmark_Scan(clppContext* context)
 
 	//---- Check the scan
 	for(int i = 0; i < datasetSize; i++)
-		if (values[i] != i)
+		if (valuesOut[i] != i)
 		{
 			cout << "Algorithm FAILED : Scan" << endl;
 			break;
@@ -91,8 +92,8 @@ void benchmark_Sort(clppContext* context)
 	clppSort* clppsort;
 
 	// Brute fore
-	//clppsort = new clppSort_CPU(context);
-	//benchmark(*context, clppsort, keys, keysSorted, datasetSize);
+	clppsort = new clppSort_CPU(context);
+	benchmark(*context, clppsort, keys, keysSorted, datasetSize);
 
 	// Blelloch
 	memcpy(keys, keysCopy, datasetSize * sizeof(int));

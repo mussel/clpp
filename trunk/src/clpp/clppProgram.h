@@ -31,7 +31,7 @@ public:
 	virtual string compilePreprocess(string programSource) { return programSource; }
 
 	// Wait for the end of the program
-	void waitCompletion();
+	virtual void waitCompletion();
 
 	// Helper method : Retrieves the number of milliseconds that have elapsed since the system was started.
 	double ClockTime();
