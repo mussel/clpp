@@ -79,6 +79,7 @@ void kernel__ExclusivePrefixScan(
     }
 
     //barrier(CLK_LOCAL_MEM_FENCE);
+	//barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
     if (tid < 1)
 	{
         blockSums[groupId] = localBuffer[blockSize-1];

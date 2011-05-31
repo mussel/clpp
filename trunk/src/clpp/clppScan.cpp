@@ -124,8 +124,6 @@ void clppScan::pushDatas(void* values, void* valuesOut, size_t valueSize, size_t
 	_clBuffer_valuesOut  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _valueSize * _datasetSize, _valuesOut, &clStatus);
 	checkCLStatus(clStatus);
 
-	//clEnqueueWriteBuffer(_context->clQueue, _clBuffer_values, CL_TRUE, 0, _valueSize * _datasetSize, _values, 0, 0, 0);
-
 	//---- Compute the size of the different block we can use for '_datasetSize' (can be < maxElements)
 
 	// Compute the number of levels requested to do the scan
@@ -138,7 +136,7 @@ void clppScan::pushDatas(void* values, void* valuesOut, size_t valueSize, size_t
 	}
 	while(n > 1);
 
-	// Compute the max-size of the blocks
+	// Compute the blocks sizez
 	n = _datasetSize;
 	for(unsigned int i = 0; i < _blockSumsLevels; i++)
 	{
@@ -146,6 +144,11 @@ void clppScan::pushDatas(void* values, void* valuesOut, size_t valueSize, size_t
 		n = (n + _workgroupSize - 1) / _workgroupSize; // round up
 	}
 	_blockSumsSizes[_blockSumsLevels] = n;
+
+	//// Compute the max-size of each blocks
+	//for(unsigned int pass = 0; pass < _blockSumsLevels; pass++)
+	//	_blockSumsSizes[pass] = (int)(_datasetSize / pow((float)_workgroupSize, (float)pass));
+	//_blockSumsSizes[_blockSumsLevels] = 1;
 }
 
 void clppScan::pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize)
