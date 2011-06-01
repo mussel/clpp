@@ -1,3 +1,4 @@
+#script scons pour compiler sous unix
 import os
 import socket
 import distutils.util
@@ -11,7 +12,7 @@ env = Environment()
 if platform[:6] == 'macosx':
  	print "Nous sommes sur un mac!"
  	env.Replace(LIBS  = '',
- 	            CPPFLAGS= '-D_MACOSX')
+ 	            CPPFLAGS= '-I./src/')
 
 if platform[:5] == 'linux':
  	print "Nous sommes sur linux!"
