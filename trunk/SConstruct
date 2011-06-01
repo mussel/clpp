@@ -8,15 +8,15 @@ hostname = socket.gethostname()
 print platform
 print hostname
 src = [Glob('src/clpp/*.cpp')]
-env = Environment()
+env = Environment(CPPPATH='./src/')
 if platform[:6] == 'macosx':
  	print "Nous sommes sur un mac!"
  	env.Replace(LIBS  = '',
- 	            CPPFLAGS= '-I./src/')
+ 	            CPPFLAGS= '')
 
 if platform[:5] == 'linux':
  	print "Nous sommes sur linux!"
- 	env.Replace(CPPFLAGS='-I/usr/local/cuda/include/ -I./src/',LIBS  = ['OpenCL',''])
+ 	env.Replace(CPPFLAGS='-I/usr/local/cuda/include/',LIBS  = ['OpenCL',''])
 
 env.Program('go',src,CXXPATH='.',FRAMEWORKS='opencl')
 

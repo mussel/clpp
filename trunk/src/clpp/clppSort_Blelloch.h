@@ -5,7 +5,7 @@
 
 #include "clpp/clppSort.h"
 
-#define _TOTALBITS 20  // number of bits for the integer in the list (max=32)
+#define _TOTALBITS 25  // number of bits for the integer in the list (max=32)
 #define _BITS 5  // number of bits in the radix
 
 // these parameters can be changed
