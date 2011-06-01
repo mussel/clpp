@@ -28,6 +28,7 @@ private:
 	size_t _valueSize;		// The size of a value in bytes
 
 	cl_kernel _kernel_Scan;
+	cl_kernel _kernel_ScanSmall;
 	cl_kernel _kernel_UniformAdd;
 
 	cl_mem _clBuffer_values;
@@ -38,7 +39,7 @@ private:
 
 	unsigned int* _temp;
 
-	int _blockSumsLevels;
+	int _pass;
 	cl_mem* _clBuffer_BlockSums;
 	unsigned int* _blockSumsSizes;
 

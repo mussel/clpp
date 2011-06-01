@@ -31,58 +31,150 @@
 //
 // Other references :
 // ------------------
-// http://developer.download.nvidia.com/compute/cuda/1_1/Website/projects/scan/doc/scan.pdf
 // http://developer.nvidia.com/node/57
 //------------------------------------------------------------
 
-//#pragma OPENCL EXTENSION cl_amd_printf : enable
+#pragma OPENCL EXTENSION cl_amd_printf : enable
 #define T int
 
 //------------------------------------------------------------
-// kernel__Scan
+// kernel__ExclusivePrefixScanSmall
 //
-// Purpose : do a scan 
+// Purpose : do a fast scan on a small chunck of data.
 //------------------------------------------------------------
+
+__kernel 
+void kernel__ExclusivePrefixScanSmall(
+	__global T* input,
+	__global T* output,
+	__local  T* block,
+	const uint length)
+{
+	int tid = get_local_id(0);
+	
+	int offset = 1;
+
+    /* Cache the computational window in shared memory */
+	block[2*tid]     = input[2*tid];
+	block[2*tid + 1] = input[2*tid + 1];	
+
+    /* build the sum in place up the tree */
+	for(int d = length>>1; d > 0; d >>=1)
+	{
+		barrier(CLK_LOCAL_MEM_FENCE);
+		
+		if(tid<d)
+		{
+			int ai = offset*(2*tid + 1) - 1;
+			int bi = offset*(2*tid + 2) - 1;
+			
+			block[bi] += block[ai];
+		}
+		offset *= 2;
+	}
+
+    /* scan back down the tree */
+
+    /* clear the last element */
+	if(tid == 0)
+	{
+		block[length - 1] = 0;
+	}
+
+    /* traverse down the tree building the scan in the place */
+	for(int d = 1; d < length ; d *= 2)
+	{
+		offset >>=1;
+		barrier(CLK_LOCAL_MEM_FENCE);
+		
+		if(tid < d)
+		{
+			int ai = offset*(2*tid + 1) - 1;
+			int bi = offset*(2*tid + 2) - 1;
+			
+			float t = block[ai];
+			block[ai] = block[bi];
+			block[bi] += t;
+		}
+	}
+	
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+    /*write the results back to global memory */
+	output[2*tid]     = block[2*tid];
+	output[2*tid + 1] = block[2*tid + 1];
+}
+
+//------------------------------------------------------------
+// kernel__ExclusivePrefixScan
+//
+// Purpose : do a scan on a chunck of data.
+//------------------------------------------------------------
+
+#define NUM_BANKS 16 
+#define LOG_NUM_BANKS 4 
+#ifdef ZERO_BANK_CONFLICTS 
+#define CONFLICT_FREE_OFFSET(n) ((n) >> NUM_BANKS + (n) >> (2 * LOG_NUM_BANKS)) 
+#else 
+#define CONFLICT_FREE_OFFSET(n) ((n) >> LOG_NUM_BANKS) 
+#endif
 
 __kernel
 void kernel__ExclusivePrefixScan(
 	__global const T* values,
 	__global T* valuesOut,
 	__local T* localBuffer,
+	//const uint localBufferSize,
 	__global T* blockSums,
-	const uint N
+	const uint blockSumsSize
 	)
 {
-    const uint tid = get_local_id(0);
-    const uint groupSize = get_local_size(0);
-    const uint blockSize = groupSize << 1;
-	const uint groupId = get_group_id(0);
-    const uint globalOffset = groupId * blockSize;	
+	const uint gid = get_global_id(0);
+	const uint tid = get_local_id(0);
+	const uint bid = get_group_id(0);
+	
+    const uint localBufferSize = get_local_size(0); // Size for 1 scans
+    const uint blockSize = localBufferSize << 1;	// Size for the 2 scans	
     int offset = 1;
+	
+	//512 & 1024
+	//printf("%d %d\n", localBufferSize, blockSize);
+	
+	// We do a scan on 2 values at a time	
     const int tid2_0 = tid << 1; // 2 * tid
     const int tid2_1 = tid2_0 + 1;
+	
+	const int gid2_0 = gid << 1;
+    const int gid2_1 = gid2_0 + 1;
 
-	localBuffer[tid2_0] = (tid2_0 + globalOffset < N) ? values[tid2_0 + globalOffset] : 0;
-	localBuffer[tid2_1] = (tid2_1 + globalOffset < N) ? values[tid2_1 + globalOffset] : 0;
+	// Cache the datas in local memory
+	localBuffer[tid2_0] = (gid2_0 < blockSumsSize) ? values[gid2_0] : 0;
+	localBuffer[tid2_1] = (gid2_1 < blockSumsSize) ? values[gid2_1] : 0;
 	
     // bottom-up
-    for(uint d = groupSize; d > 0; d >>= 1)
+    for(uint d = localBufferSize; d > 0; d >>= 1)
 	{
         barrier(CLK_LOCAL_MEM_FENCE);
-        if(tid < d)
+		
+        if (tid < d)
 		{
             const uint ai = mad24(offset, (tid2_1+0), -1);	// offset*(tid2_0+1)-1 = offset*(tid2_1+0)-1
             const uint bi = mad24(offset, (tid2_1+1), -1);	// offset*(tid2_1+1)-1;
+			
             localBuffer[bi] += localBuffer[ai];
         }
         offset <<= 1;
     }
 
-    //barrier(CLK_LOCAL_MEM_FENCE);
-	//barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+    barrier(CLK_LOCAL_MEM_FENCE);
     if (tid < 1)
 	{
-        blockSums[groupId] = localBuffer[blockSize-1];
+		// Store the value in blockSums buffer before making it to 0
+        blockSums[bid] = localBuffer[blockSize-1];
+		
+		//barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+		
+		// Clear the last element
         localBuffer[blockSize-1] = 0;
     }
 
@@ -91,10 +183,11 @@ void kernel__ExclusivePrefixScan(
 	{
         offset >>= 1;
         barrier(CLK_LOCAL_MEM_FENCE);
-        if(tid < d)
+        if (tid < d)
 		{
             const uint ai = mad24(offset, (tid2_1+0), -1); // offset*(tid2_0+1)-1 = offset*(tid2_1+0)-1
             const uint bi = mad24(offset, (tid2_1+1), -1); // offset*(tid2_1+1)-1;
+			
             T tmp = localBuffer[ai];
             localBuffer[ai] = localBuffer[bi];
             localBuffer[bi] += tmp;
@@ -104,12 +197,19 @@ void kernel__ExclusivePrefixScan(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // Write out
-    if (tid2_0 + globalOffset < N)
-        valuesOut[tid2_0 + globalOffset] = localBuffer[tid2_0];
+    if (gid2_0 < blockSumsSize)
+        valuesOut[gid2_0] = localBuffer[tid2_0];
 		
-    if (tid2_1 + globalOffset < N)
-        valuesOut[tid2_1 + globalOffset] = localBuffer[tid2_1];
+    if (gid2_1 < blockSumsSize)
+        valuesOut[gid2_1] = localBuffer[tid2_1];
 }
+
+//------------------------------------------------------------
+// kernel__ExclusivePrefixScan
+//
+// Purpose :
+// Final step of large-array scan: combine basic inclusive scan with exclusive scan of top elements of input arrays.
+//------------------------------------------------------------
 
 __kernel
 void kernel__UniformAdd(
