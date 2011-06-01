@@ -125,7 +125,7 @@ void kernel__ExclusivePrefixScan(
 	__global T* valuesOut,
 	
 	__local T* localBuffer,
-	const uint localSizePerScan,	// The reserved size for a scan
+	const uint localWorkSize,	// The number of work-items to be processed
 	
 	__global T* blockSums,
 	const uint blockSumsSize
@@ -135,14 +135,12 @@ void kernel__ExclusivePrefixScan(
 	const uint tid = get_local_id(0);
 	const uint bid = get_group_id(0);
 	
-    const uint localBufferFullSize = localSizePerScan << 1;	// Size for the 2 scans	we do together
+	// The local buffer has 2x the size of the local-work-size, because we manage 2 scans at a time.
+    const uint localBufferSize = localWorkSize << 1;
     int offset = 1;
 	
-	//512 & 1024
-	//printf("%d %d\n", localSizePerScan, localBufferFullSize);
-	
 	// We do a scan on 2 values at a time	
-    const int tid2_0 = tid << 1; // 2 * tid
+    const int tid2_0 = tid << 1;
     const int tid2_1 = tid2_0 + 1;
 	
 	const int gid2_0 = gid << 1;
@@ -153,8 +151,7 @@ void kernel__ExclusivePrefixScan(
 	localBuffer[tid2_1] = (gid2_1 < blockSumsSize) ? values[gid2_1] : 0;
 	
     // bottom-up
-    for(uint d = localSizePerScan; d > 0; d >>= 1)
-	//for(uint d = 128; d > 0; d >>= 1)
+    for(uint d = localWorkSize; d > 0; d >>= 1)
 	{
         barrier(CLK_LOCAL_MEM_FENCE);
 		
@@ -172,17 +169,16 @@ void kernel__ExclusivePrefixScan(
     if (tid < 1)
 	{
 		// Store the value in blockSums buffer before making it to 0
-        blockSums[bid] = localBuffer[localBufferFullSize-1];
+        blockSums[bid] = localBuffer[localBufferSize-1];
 		
 		//barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 		
 		// Clear the last element
-        localBuffer[localBufferFullSize - 1] = 0;
+        localBuffer[localBufferSize - 1] = 0;
     }
 
     // top-down
-    for(uint d = 1; d < localBufferFullSize; d <<= 1)
-	//for(uint d = 1; d < 256; d <<= 1)
+    for(uint d = 1; d < localBufferSize; d <<= 1)
 	{
         offset >>= 1;
         barrier(CLK_LOCAL_MEM_FENCE);

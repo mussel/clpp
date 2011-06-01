@@ -140,7 +140,7 @@ void clppScan::pushDatas(void* values, void* valuesOut, size_t valueSize, size_t
 	}
 	while(n > 1);
 
-	// Compute the blocks sizes
+	// Compute the block-sum sizes
 	n = _datasetSize;
 	for(unsigned int i = 0; i < _pass; i++)
 	{
@@ -165,11 +165,6 @@ void clppScan::pushDatas(void* values, void* valuesOut, size_t valueSize, size_t
 	//---- Copy on the device
 	cl_int clStatus;
 	_clBuffer_values  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _valueSize * _datasetSize, _values, &clStatus);
-	checkCLStatus(clStatus);
-
-	_clBuffer_valuesOut = (cl_mem*)malloc(_pass * sizeof(cl_mem));
-	for(unsigned int i = 0; i < _pass; i++)
-		_clBuffer_valuesOut[i]  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _valueSize * _blockSumsSizes[i], 0, &clStatus);
 	checkCLStatus(clStatus);
 }
 
@@ -209,6 +204,7 @@ void clppScan::allocateBlockSums(unsigned int maxElements)
 
 	// Allocate the arrays
 	_clBuffer_BlockSums = new cl_mem[_pass];
+	_clBuffer_valuesOut = new cl_mem[_pass];
 	_blockSumsSizes = new unsigned int[_pass + 1];
 
 	// Create the cl-buffers
@@ -219,9 +215,12 @@ void clppScan::allocateBlockSums(unsigned int maxElements)
 		n = (n + _workgroupSize - 1) / _workgroupSize; // round up
 
 		_clBuffer_BlockSums[i] = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * n, NULL, &clStatus);
+		_clBuffer_valuesOut[i] = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * n, NULL, &clStatus);
 		checkCLStatus(clStatus);
 	}
 	_blockSumsSizes[_pass] = n;
+
+	checkCLStatus(clStatus);
 }
 
 void clppScan::freeBlockSums()
