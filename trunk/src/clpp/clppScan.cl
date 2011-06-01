@@ -123,8 +123,10 @@ __kernel
 void kernel__ExclusivePrefixScan(
 	__global const T* values,
 	__global T* valuesOut,
+	
 	__local T* localBuffer,
-	//const uint localBufferSize,
+	const uint localSizePerScan,	// The reserved size for a scan
+	
 	__global T* blockSums,
 	const uint blockSumsSize
 	)
@@ -133,12 +135,11 @@ void kernel__ExclusivePrefixScan(
 	const uint tid = get_local_id(0);
 	const uint bid = get_group_id(0);
 	
-    const uint localBufferSize = get_local_size(0); // Size for 1 scans
-    const uint blockSize = localBufferSize << 1;	// Size for the 2 scans	
+    const uint localBufferFullSize = localSizePerScan << 1;	// Size for the 2 scans	we do together
     int offset = 1;
 	
 	//512 & 1024
-	//printf("%d %d\n", localBufferSize, blockSize);
+	//printf("%d %d\n", localSizePerScan, localBufferFullSize);
 	
 	// We do a scan on 2 values at a time	
     const int tid2_0 = tid << 1; // 2 * tid
@@ -152,7 +153,8 @@ void kernel__ExclusivePrefixScan(
 	localBuffer[tid2_1] = (gid2_1 < blockSumsSize) ? values[gid2_1] : 0;
 	
     // bottom-up
-    for(uint d = localBufferSize; d > 0; d >>= 1)
+    for(uint d = localSizePerScan; d > 0; d >>= 1)
+	//for(uint d = 128; d > 0; d >>= 1)
 	{
         barrier(CLK_LOCAL_MEM_FENCE);
 		
@@ -170,19 +172,21 @@ void kernel__ExclusivePrefixScan(
     if (tid < 1)
 	{
 		// Store the value in blockSums buffer before making it to 0
-        blockSums[bid] = localBuffer[blockSize-1];
+        blockSums[bid] = localBuffer[localBufferFullSize-1];
 		
 		//barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 		
 		// Clear the last element
-        localBuffer[blockSize-1] = 0;
+        localBuffer[localBufferFullSize - 1] = 0;
     }
 
     // top-down
-    for(uint d = 1; d < blockSize; d <<= 1)
+    for(uint d = 1; d < localBufferFullSize; d <<= 1)
+	//for(uint d = 1; d < 256; d <<= 1)
 	{
         offset >>= 1;
         barrier(CLK_LOCAL_MEM_FENCE);
+		
         if (tid < d)
 		{
             const uint ai = mad24(offset, (tid2_1+0), -1); // offset*(tid2_0+1)-1 = offset*(tid2_1+0)-1
