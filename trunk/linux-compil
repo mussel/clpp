@@ -1,2 +1,0 @@
-cd ~/clpp/
-g++ src/clpp/*.cpp -I./src/ -lOpenCL
