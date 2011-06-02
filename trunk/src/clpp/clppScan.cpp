@@ -105,15 +105,17 @@ void clppScan::scan()
 	// We add the sum blocks to the upper-level blocks (In the inverse order).
 	for(int i = _pass - 2; i > -1; i--)
 	{
-		size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i] / 2, _workgroupSize / 2)};
+		size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i], _workgroupSize / 2)};
 		size_t localWorkSize = {_workgroupSize / 2};
 		//size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i], _workgroupSize / 2)};
 		//size_t localWorkSize = {_workgroupSize / 2};
 
-        cl_mem dest = (i > 0) ? _clBuffer_BlockSums[i-1] : _clBuffer_valuesOut[0];
+        //cl_mem dest = (i > 0) ? _clBuffer_valuesOut[i-1] : _clBuffer_valuesOut[0];
+
+		cl_mem dest = (i > 0) ? _clBuffer_valuesOut[i-1] : _clBuffer_valuesOut[0];
 
 		clStatus = clSetKernelArg(_kernel_UniformAdd, 0, sizeof(cl_mem), &dest);
-		clStatus |= clSetKernelArg(_kernel_UniformAdd, 1, sizeof(cl_mem), &_clBuffer_BlockSums[i]);
+		clStatus |= clSetKernelArg(_kernel_UniformAdd, 1, sizeof(cl_mem), &_clBuffer_valuesOut[i]);
 		clStatus |= clSetKernelArg(_kernel_UniformAdd, 2, sizeof(int), &_blockSumsSizes[i]);
 		clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_UniformAdd, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
 
