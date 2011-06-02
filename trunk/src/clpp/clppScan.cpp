@@ -68,12 +68,13 @@ void clppScan::scan()
 	checkCLStatus(clStatus);
 	
 	//---- Apply the scan to each level
-    size_t globalWorkSize = {toMultipleOf(_datasetSize, _workgroupSize / 2)};
-    size_t localWorkSize = {_workgroupSize / 2};
-	unsigned int blockSize = localWorkSize / 2;
-
 	for(unsigned int i = 0; i < _pass; i++)
 	{
+		size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i] / 2, _workgroupSize / 2)};
+		size_t localWorkSize = {_workgroupSize / 2};
+		//size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i], _workgroupSize / 2)};
+		//size_t localWorkSize = {_workgroupSize / 2};
+
 		if (i < 1)
 			clStatus = clSetKernelArg(_kernel_Scan, 0, sizeof(cl_mem), &_clBuffer_values);
 		else
@@ -104,6 +105,11 @@ void clppScan::scan()
 	// We add the sum blocks to the upper-level blocks (In the inverse order).
 	for(int i = _pass - 2; i > -1; i--)
 	{
+		size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i] / 2, _workgroupSize / 2)};
+		size_t localWorkSize = {_workgroupSize / 2};
+		//size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i], _workgroupSize / 2)};
+		//size_t localWorkSize = {_workgroupSize / 2};
+
         cl_mem dest = (i > 0) ? _clBuffer_BlockSums[i-1] : _clBuffer_valuesOut[0];
 
 		clStatus = clSetKernelArg(_kernel_UniformAdd, 0, sizeof(cl_mem), &dest);
@@ -212,11 +218,12 @@ void clppScan::allocateBlockSums(unsigned int maxElements)
 	for(unsigned int i = 0; i < _pass; i++)
 	{
 		_blockSumsSizes[i] = n;
-		n = (n + _workgroupSize - 1) / _workgroupSize; // round up
 
 		_clBuffer_BlockSums[i] = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * n, NULL, &clStatus);
 		_clBuffer_valuesOut[i] = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * n, NULL, &clStatus);
 		checkCLStatus(clStatus);
+
+		n = (n + _workgroupSize - 1) / _workgroupSize; // round up
 	}
 	_blockSumsSizes[_pass] = n;
 
