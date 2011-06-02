@@ -36,7 +36,7 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(0, 1);
+	context.setup(0, 0);
 
 	benchmark_Scan(&context);
 	//benchmark_Sort(&context);
