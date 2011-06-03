@@ -28,6 +28,7 @@
 // ------------
 // NVIDIA Mark Harris. Parallel prefix sum (scan) with CUDA. April 2007
 // http://developer.download.nvidia.com/compute/cuda/1_1/Website/projects/scan/doc/scan.pdf
+// http://graphics.idav.ucdavis.edu/publications/print_pub?pub_id=915
 //
 // Other references :
 // ------------------
@@ -121,11 +122,10 @@ void kernel__ExclusivePrefixScanSmall(
 
 __kernel
 void kernel__ExclusivePrefixScan(
-	__global const T* values,
-	__global T* valuesOut,
+	__global const T* input,
+	__global T* output,
 	
 	__local T* localBuffer,
-	const uint localWorkSize,	// The number of work-items to be processed
 	
 	__global T* blockSums,
 	const uint blockSumsSize
@@ -134,12 +134,12 @@ void kernel__ExclusivePrefixScan(
 	const uint gid = get_global_id(0);
 	const uint tid = get_local_id(0);
 	const uint bid = get_group_id(0);
+	const uint lwz  = get_local_size(0);
 	
 	// The local buffer has 2x the size of the local-work-size, because we manage 2 scans at a time.
-    const uint localBufferSize = localWorkSize << 1;
+    const uint localBufferSize = lwz << 1;
     int offset = 1;
 	
-	// We do a scan on 2 values at a time	
     const int tid2_0 = tid << 1;
     const int tid2_1 = tid2_0 + 1;
 	
@@ -147,11 +147,11 @@ void kernel__ExclusivePrefixScan(
     const int gid2_1 = gid2_0 + 1;
 
 	// Cache the datas in local memory
-	localBuffer[tid2_0] = (gid2_0 < blockSumsSize) ? values[gid2_0] : 0;
-	localBuffer[tid2_1] = (gid2_1 < blockSumsSize) ? values[gid2_1] : 0;
+	localBuffer[tid2_0] = (gid2_0 < blockSumsSize) ? input[gid2_0] : 0;
+	localBuffer[tid2_1] = (gid2_1 < blockSumsSize) ? input[gid2_1] : 0;
 	
     // bottom-up
-    for(uint d = localWorkSize; d > 0; d >>= 1)
+    for(uint d = lwz; d > 0; d >>= 1)
 	{
         barrier(CLK_LOCAL_MEM_FENCE);
 		
@@ -196,12 +196,12 @@ void kernel__ExclusivePrefixScan(
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Write out
+    // Copy back from the local buffer to the output array
     if (gid2_0 < blockSumsSize)
-        valuesOut[gid2_0] = localBuffer[tid2_0];
+        output[gid2_0] = localBuffer[tid2_0];
 		
     if (gid2_1 < blockSumsSize)
-        valuesOut[gid2_1] = localBuffer[tid2_1];
+        output[gid2_1] = localBuffer[tid2_1];
 }
 
 //------------------------------------------------------------
@@ -224,7 +224,7 @@ void kernel__UniformAdd(
 
     __local T localBuffer[1];
 
-    if (tid == 0)
+    if (tid < 1)
         localBuffer[0] = blockSums[blockId];
 
     barrier(CLK_LOCAL_MEM_FENCE);

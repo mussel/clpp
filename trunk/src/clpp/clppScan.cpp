@@ -30,7 +30,8 @@ clppScan::clppScan(clppContext* context, unsigned int maxElements)
 	//---- Get the workgroup size
 	clGetKernelWorkGroupInfo(_kernel_Scan, _context->clDevice, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &_workgroupSize, 0);
 	//_workgroupSize = 128;
-	//_workgroupSize = 256;
+	_workgroupSize = 256;
+	//_workgroupSize = 512;
 
 	//---- Prepare all the buffers
 	allocateBlockSums(maxElements);
@@ -62,8 +63,6 @@ void clppScan::scan()
 	// Intel SDK problem
 	//clStatus  = clSetKernelArg(_kernel_Scan, 2, _workgroupSize * 2 * sizeof(int), 0);
 	clStatus = clSetKernelArg(_kernel_Scan, 2, _workgroupSize * sizeof(int), 0);
-	unsigned int localSizePerScan = _workgroupSize / 2;
-	clStatus |= clSetKernelArg(_kernel_Scan, 3, sizeof(int), &localSizePerScan);
 
 	checkCLStatus(clStatus);
 	
@@ -79,8 +78,8 @@ void clppScan::scan()
 
 		clStatus = clSetKernelArg(_kernel_Scan, 0, sizeof(cl_mem), &clValues);
 		clStatus |= clSetKernelArg(_kernel_Scan, 1, sizeof(cl_mem), &clValuesOut);
-		clStatus |= clSetKernelArg(_kernel_Scan, 4, sizeof(cl_mem), &_clBuffer_BlockSums[i]);
-		clStatus |= clSetKernelArg(_kernel_Scan, 5, sizeof(int), &_blockSumsSizes[i]);
+		clStatus |= clSetKernelArg(_kernel_Scan, 3, sizeof(cl_mem), &_clBuffer_BlockSums[i]);
+		clStatus |= clSetKernelArg(_kernel_Scan, 4, sizeof(int), &_blockSumsSizes[i]);
 
 		clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_Scan, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
 
@@ -112,11 +111,11 @@ void clppScan::scan()
 
 	//	//clFinish(_context->clQueue);
  //   }
-
 	
 	for(int i = _pass - 2; i >= 0; i--)
 	{
-		size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i], _workgroupSize / 2)};
+		clFinish(_context->clQueue);
+		size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i] / 2, _workgroupSize / 2)};
 		size_t localWorkSize = {_workgroupSize / 2};
 
         cl_mem dest = (i > 0) ? _clBuffer_BlockSums[i-1] : _clBuffer_valuesOut[0];
