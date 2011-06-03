@@ -36,7 +36,7 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(2, 0);
+	context.setup(1, 0);
 
 	benchmark_Scan(&context);
 	//benchmark_Sort(&context);
@@ -47,7 +47,15 @@ void benchmark_Scan(clppContext* context)
 	//---- Create a set of data
 	unsigned int* values = (unsigned int*)malloc(datasetSize * sizeof(int));
 	unsigned int* valuesOut = (unsigned int*)malloc(datasetSize * sizeof(int));
-	makeOneVector(values, datasetSize);
+	//makeOneVector(values, datasetSize);
+	makeRandomUint32Vector(values, datasetSize, 32);
+
+	//---- CPU Scan
+	unsigned int* cpuScanValues = (unsigned int*)malloc(datasetSize * sizeof(int));
+	memcpy(cpuScanValues, values, datasetSize * sizeof(int));
+	cpuScanValues[0] = 0;
+	for(unsigned int i = 1; i < datasetSize; i++)
+		cpuScanValues[i] = cpuScanValues[i-1] + values[i - 1];
 
 	//--- Scan
 	clppScan* scan = new clppScan(context, datasetSize);
@@ -62,7 +70,7 @@ void benchmark_Scan(clppContext* context)
 
 	//---- Check the scan
 	for(int i = 0; i < datasetSize; i++)
-		if (valuesOut[i] != i)
+		if (valuesOut[i] != cpuScanValues[i])
 		{
 			cout << "Algorithm FAILED : Scan" << endl;
 			break;
@@ -72,6 +80,8 @@ void benchmark_Scan(clppContext* context)
 
 	//---- Free
 	free(values);
+	free(valuesOut);
+	free(cpuScanValues);
 }
 
 void benchmark_Sort(clppContext* context)

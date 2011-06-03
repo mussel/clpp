@@ -168,7 +168,7 @@ void kernel__ExclusivePrefixScan(
     barrier(CLK_LOCAL_MEM_FENCE);
     if (tid < 1)
 	{
-		// Store the value in blockSums buffer before making it to 0
+		// We store the biggest value (the last) to the sum-block for later use.
         blockSums[bid] = localBuffer[localBufferSize-1];
 		
 		//barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
@@ -213,9 +213,9 @@ void kernel__ExclusivePrefixScan(
 
 __kernel
 void kernel__UniformAdd(
-	__global T* memOut,
+	__global T* output,
 	__global const T* blockSums,
-	const uint N
+	const uint outputSize
 	)
 {
     const uint gid = get_global_id(0) * 2;
@@ -229,9 +229,9 @@ void kernel__UniformAdd(
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    if (gid < N)
-        memOut[gid] += localBuffer[0];
+    if (gid < outputSize)
+        output[gid] += localBuffer[0];
 		
-    if (gid + 1 < N)
-        memOut[gid + 1] += localBuffer[0];
+    if (gid + 1 < outputSize)
+        output[gid + 1] += localBuffer[0];
 }

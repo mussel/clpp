@@ -73,8 +73,6 @@ void clppScan::scan()
 	{
 		size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i] / 2, _workgroupSize / 2)};
 		size_t localWorkSize = {_workgroupSize / 2};
-		//size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i], _workgroupSize / 2)};
-		//size_t localWorkSize = {_workgroupSize / 2};
 
 		clStatus = clSetKernelArg(_kernel_Scan, 0, sizeof(cl_mem), &clValues);
 		clStatus |= clSetKernelArg(_kernel_Scan, 1, sizeof(cl_mem), &clValuesOut);
@@ -84,9 +82,13 @@ void clppScan::scan()
 		clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_Scan, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
 
 		checkCLStatus(clStatus);
+
 		//clFinish(_context->clQueue);
+		//int* blocksum = (int*)malloc(_valueSize * _blockSumsSizes[i]);
+		//clEnqueueReadBuffer(_context->clQueue, _clBuffer_valuesOut[0], CL_TRUE, 0, _valueSize * _blockSumsSizes[i], blocksum, 0, NULL, NULL);
 
 		clValues = clValuesOut = _clBuffer_BlockSums[i];
+
     }
 
 	//---- Uniform addition
@@ -117,6 +119,8 @@ void clppScan::scan()
 		clFinish(_context->clQueue);
 		size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i] / 2, _workgroupSize / 2)};
 		size_t localWorkSize = {_workgroupSize / 2};
+		//size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i], _workgroupSize / 2)};
+		//size_t localWorkSize = {_workgroupSize};
 
         cl_mem dest = (i > 0) ? _clBuffer_BlockSums[i-1] : _clBuffer_valuesOut[0];
 
@@ -270,10 +274,10 @@ void clppScan::pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t da
 
 void clppScan::popDatas()
 {
-    cl_int clStatus = clFinish(_context->clQueue);     // wait end of read
-	checkCLStatus(clStatus);
+ //   cl_int clStatus = clFinish(_context->clQueue);     // wait end of read
+	//checkCLStatus(clStatus);
 
-	clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_valuesOut[0], CL_TRUE, 0, _valueSize * _datasetSize, _valuesOut, 0, NULL, NULL);
+	cl_int clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_valuesOut[0], CL_TRUE, 0, _valueSize * _datasetSize, _valuesOut, 0, NULL, NULL);
 	checkCLStatus(clStatus);
 }
 
