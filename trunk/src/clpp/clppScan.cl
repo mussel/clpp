@@ -37,6 +37,7 @@
 
 #pragma OPENCL EXTENSION cl_amd_printf : enable
 #define T int
+//#define SUPPORT_AVOID_BANK_CONFLICT
 
 //------------------------------------------------------------
 // kernel__ExclusivePrefixScanSmall
@@ -112,13 +113,23 @@ void kernel__ExclusivePrefixScanSmall(
 // Purpose : do a scan on a chunck of data.
 //------------------------------------------------------------
 
-#define NUM_BANKS 16 
-#define LOG_NUM_BANKS 4 
-#ifdef ZERO_BANK_CONFLICTS 
-#define CONFLICT_FREE_OFFSET(n) ((n) >> NUM_BANKS + (n) >> (2 * LOG_NUM_BANKS)) 
-#else 
-#define CONFLICT_FREE_OFFSET(n) ((n) >> LOG_NUM_BANKS) 
+// Define this to more rigorously avoid bank conflicts, even at the lower (root) levels of the tree.
+// To avoid bank conflicts during the tree traversal, we need to add padding to the shared memory array every NUM_BANKS (16) elements.
+// Note that due to the higher addressing overhead, performance is lower with ZERO_BANK_CONFLICTS enabled.
+// It is provided as an example.
+//#define ZERO_BANK_CONFLICTS 
+
+// 16 banks on G80
+#define NUM_BANKS 16
+#define LOG_NUM_BANKS 4
+
+#ifdef ZERO_BANK_CONFLICTS
+#define CONFLICT_FREE_OFFSET(index) ((index) >> LOG_NUM_BANKS + (index) >> (2*LOG_NUM_BANKS))
+#else
+#define CONFLICT_FREE_OFFSET(index) ((index) >> LOG_NUM_BANKS)
 #endif
+
+//#define CONFLICT_FREE_OFFSET(index) 0
 
 __kernel
 void kernel__ExclusivePrefixScan(
@@ -147,8 +158,20 @@ void kernel__ExclusivePrefixScan(
     const int gid2_1 = gid2_0 + 1;
 
 	// Cache the datas in local memory
+
+#ifdef SUPPORT_AVOID_BANK_CONFLICT
+	uint ai = tid;
+	uint bi = tid + lwz;
+	uint gai = gid;
+	uint gbi = gid + lwz;
+	uint bankOffsetA = CONFLICT_FREE_OFFSET(ai); 
+	uint bankOffsetB = CONFLICT_FREE_OFFSET(bi);
+	localBuffer[ai + bankOffsetA] = (gai < blockSumsSize) ? input[gai] : 0; 
+	localBuffer[bi + bankOffsetB] = (gbi < blockSumsSize) ? input[gbi] : 0;
+#else
 	localBuffer[tid2_0] = (gid2_0 < blockSumsSize) ? input[gid2_0] : 0;
 	localBuffer[tid2_1] = (gid2_1 < blockSumsSize) ? input[gid2_1] : 0;
+#endif
 	
     // bottom-up
     for(uint d = lwz; d > 0; d >>= 1)
@@ -157,9 +180,19 @@ void kernel__ExclusivePrefixScan(
 		
         if (tid < d)
 		{
+#ifdef SUPPORT_AVOID_BANK_CONFLICT
+			//uint ai = mad24(offset, (tid2_1+0), -1);	// offset*(tid2_0+1)-1 = offset*(tid2_1+0)-1
+            //uint bi = mad24(offset, (tid2_1+1), -1);	// offset*(tid2_1+1)-1;			
+			uint i = 2 * offset * tid;
+			uint ai = i + offset - 1;
+			uint bi = ai + offset;
+			ai += CONFLICT_FREE_OFFSET(ai);	// ai += ai / NUM_BANKS;
+			bi += CONFLICT_FREE_OFFSET(bi);	// bi += bi / NUM_BANKS;
+#else
             const uint ai = mad24(offset, (tid2_1+0), -1);	// offset*(tid2_0+1)-1 = offset*(tid2_1+0)-1
             const uint bi = mad24(offset, (tid2_1+1), -1);	// offset*(tid2_1+1)-1;
-			
+#endif
+
             localBuffer[bi] += localBuffer[ai];
         }
         offset <<= 1;
@@ -168,13 +201,18 @@ void kernel__ExclusivePrefixScan(
     barrier(CLK_LOCAL_MEM_FENCE);
     if (tid < 1)
 	{
+#ifdef SUPPORT_AVOID_BANK_CONFLICT
+		uint index = localBufferSize-1;
+		index += CONFLICT_FREE_OFFSET(index);
+		blockSums[bid] = localBuffer[index];
+		localBuffer[index] = 0;
+#else
 		// We store the biggest value (the last) to the sum-block for later use.
-        blockSums[bid] = localBuffer[localBufferSize-1];
-		
-		//barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
-		
+        blockSums[bid] = localBuffer[localBufferSize-1];		
+		//barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);		
 		// Clear the last element
         localBuffer[localBufferSize - 1] = 0;
+#endif
     }
 
     // top-down
@@ -185,9 +223,19 @@ void kernel__ExclusivePrefixScan(
 		
         if (tid < d)
 		{
+#ifdef SUPPORT_AVOID_BANK_CONFLICT
+			//uint ai = mad24(offset, (tid2_1+0), -1);	// offset*(tid2_0+1)-1 = offset*(tid2_1+0)-1
+            //uint bi = mad24(offset, (tid2_1+1), -1);	// offset*(tid2_1+1)-1;			
+			uint i = 2 * offset * tid;
+			uint ai = i + offset - 1;
+			uint bi = ai + offset;
+			ai += CONFLICT_FREE_OFFSET(ai);	// Apply an offset to the __local memory
+			bi += CONFLICT_FREE_OFFSET(bi);
+#else
             const uint ai = mad24(offset, (tid2_1+0), -1); // offset*(tid2_0+1)-1 = offset*(tid2_1+0)-1
             const uint bi = mad24(offset, (tid2_1+1), -1); // offset*(tid2_1+1)-1;
-			
+#endif
+
             T tmp = localBuffer[ai];
             localBuffer[ai] = localBuffer[bi];
             localBuffer[bi] += tmp;
@@ -197,11 +245,15 @@ void kernel__ExclusivePrefixScan(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // Copy back from the local buffer to the output array
-    if (gid2_0 < blockSumsSize)
-        output[gid2_0] = localBuffer[tid2_0];
-		
-    if (gid2_1 < blockSumsSize)
-        output[gid2_1] = localBuffer[tid2_1];
+	
+#ifdef SUPPORT_AVOID_BANK_CONFLICT
+	output[gai] = (gai < blockSumsSize) * localBuffer[ai + bankOffsetA];		
+	output[gbi] = (gbi < blockSumsSize) * localBuffer[bi + bankOffsetB];		
+#else
+	output[gid2_0] = (gid2_0 < blockSumsSize) * localBuffer[tid2_0];
+    output[gid2_1] = (gid2_1 < blockSumsSize) * localBuffer[tid2_1];
+#endif
+
 }
 
 //------------------------------------------------------------
@@ -218,20 +270,31 @@ void kernel__UniformAdd(
 	const uint outputSize
 	)
 {
-    const uint gid = get_global_id(0) * 2;
+    uint gid = get_global_id(0) * 2;
     const uint tid = get_local_id(0);
     const uint blockId = get_group_id(0);
 
     __local T localBuffer[1];
 
+#ifdef SUPPORT_AVOID_BANK_CONFLICT
+	uint blockOffset = 1024 - 1;
+    if (tid < 1)
+        localBuffer[0] = blockSums[blockId + blockOffset];
+#else
     if (tid < 1)
         localBuffer[0] = blockSums[blockId];
+#endif
 
     barrier(CLK_LOCAL_MEM_FENCE);
-
-    if (gid < outputSize)
-        output[gid] += localBuffer[0];
-		
-    if (gid + 1 < outputSize)
-        output[gid + 1] += localBuffer[0];
+	
+#ifdef SUPPORT_AVOID_BANK_CONFLICT
+	unsigned int address = blockId * get_local_size(0) * 2 + get_local_id(0); 
+	
+	output[address] += localBuffer[0];
+    output[address + get_local_size(0)] += (get_local_id(0) + get_local_size(0) < outputSize) * localBuffer[0];
+#else
+	output[gid] += (gid < outputSize) * localBuffer[0];
+	gid++;
+	output[gid] += (gid < outputSize) * localBuffer[0];
+#endif
 }

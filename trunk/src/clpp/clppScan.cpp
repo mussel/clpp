@@ -60,9 +60,8 @@ void clppScan::scan()
 {
 	cl_int clStatus;
 
-	// Intel SDK problem
-	//clStatus  = clSetKernelArg(_kernel_Scan, 2, _workgroupSize * 2 * sizeof(int), 0);
-	clStatus = clSetKernelArg(_kernel_Scan, 2, _workgroupSize * sizeof(int), 0);
+	clStatus  = clSetKernelArg(_kernel_Scan, 2, _workgroupSize * 2 * sizeof(int), 0);
+	//clStatus = clSetKernelArg(_kernel_Scan, 2, _workgroupSize * sizeof(int), 0);
 
 	checkCLStatus(clStatus);
 	

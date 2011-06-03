@@ -36,7 +36,7 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(1, 0);
+	context.setup(2, 0);
 
 	benchmark_Scan(&context);
 	//benchmark_Sort(&context);
@@ -47,8 +47,8 @@ void benchmark_Scan(clppContext* context)
 	//---- Create a set of data
 	unsigned int* values = (unsigned int*)malloc(datasetSize * sizeof(int));
 	unsigned int* valuesOut = (unsigned int*)malloc(datasetSize * sizeof(int));
-	//makeOneVector(values, datasetSize);
-	makeRandomUint32Vector(values, datasetSize, 32);
+	makeOneVector(values, datasetSize);
+	//makeRandomUint32Vector(values, datasetSize, 32);
 
 	//---- CPU Scan
 	unsigned int* cpuScanValues = (unsigned int*)malloc(datasetSize * sizeof(int));
