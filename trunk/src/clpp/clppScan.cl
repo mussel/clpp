@@ -199,6 +199,17 @@ void kernel__ExclusivePrefixScan(
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
+	
+	/*
+	if (tid < 1)
+		blockSums[bid] = localBuffer[localBufferSize-1];
+		
+	barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+	
+	if (tid < 1)
+		localBuffer[localBufferSize - 1] = 0;
+	*/
+	
     if (tid < 1)
 	{
 #ifdef SUPPORT_AVOID_BANK_CONFLICT
@@ -250,8 +261,10 @@ void kernel__ExclusivePrefixScan(
 	output[gai] = (gai < blockSumsSize) * localBuffer[ai + bankOffsetA];		
 	output[gbi] = (gbi < blockSumsSize) * localBuffer[bi + bankOffsetB];		
 #else
-	output[gid2_0] = (gid2_0 < blockSumsSize) * localBuffer[tid2_0];
-    output[gid2_1] = (gid2_1 < blockSumsSize) * localBuffer[tid2_1];
+	if (gid2_0 < blockSumsSize)
+		output[gid2_0] = localBuffer[tid2_0];
+	if (gid2_1 < blockSumsSize)
+		output[gid2_1] = localBuffer[tid2_1];
 #endif
 
 }
@@ -273,6 +286,10 @@ void kernel__UniformAdd(
     uint gid = get_global_id(0) * 2;
     const uint tid = get_local_id(0);
     const uint blockId = get_group_id(0);
+	
+	// Intel SDK fix
+	//output[gid] += blockSums[blockId];
+	//output[gid+1] += blockSums[blockId];
 
     __local T localBuffer[1];
 
@@ -293,8 +310,10 @@ void kernel__UniformAdd(
 	output[address] += localBuffer[0];
     output[address + get_local_size(0)] += (get_local_id(0) + get_local_size(0) < outputSize) * localBuffer[0];
 #else
-	output[gid] += (gid < outputSize) * localBuffer[0];
+	if (gid < outputSize)
+		output[gid] += localBuffer[0];
 	gid++;
-	output[gid] += (gid < outputSize) * localBuffer[0];
+	if (gid < outputSize)
+		output[gid] += localBuffer[0];
 #endif
 }

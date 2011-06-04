@@ -32,7 +32,7 @@ private:
 	cl_kernel _kernel_UniformAdd;
 
 	cl_mem _clBuffer_values;
-	cl_mem* _clBuffer_valuesOut;
+	cl_mem _clBuffer_valuesOut;
 	cl_mem _clBuffer_Temp;
 
 	size_t _workgroupSize;
