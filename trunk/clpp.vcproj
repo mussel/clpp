@@ -353,6 +353,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\clpp\clppScanGPU.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\clpp\clppSort.cpp"
 				>
 			</File>
@@ -400,6 +404,10 @@
 			</File>
 			<File
 				RelativePath=".\src\clpp\clppScan.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\clpp\clppScanGPU.h"
 				>
 			</File>
 			<File

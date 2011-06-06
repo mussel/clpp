@@ -1,4 +1,4 @@
-#include "clpp/clppScan.h"
+#include "clpp/clppScanGPU.h"
 
 // Next :
 // 1 - Allow templating
@@ -6,40 +6,40 @@
 
 #pragma region Constructor
 
-clppScan::clppScan(clppContext* context, unsigned int maxElements)
+clppScanGPU::clppScanGPU(clppContext* context, unsigned int maxElements)
 {
 	_clBuffer_values = 0;
 	_clBuffer_valuesOut = 0;
 	_clBuffer_BlockSums = 0;
 
-	if (!compile(context, "clppScan.cl"))
+	if (!compile(context, "clppScanGPU.cl"))
 		return;
 
 	//---- Prepare all the kernels
 	cl_int clStatus;
 
-	_kernel_Scan = clCreateKernel(_clProgram, "kernel__ExclusivePrefixScan", &clStatus);
+	kernel__scanIntra = clCreateKernel(_clProgram, "kernel__scanIntra", &clStatus);
 	checkCLStatus(clStatus);
-
-	//_kernel_ScanSmall = clCreateKernel(_clProgram, "kernel__ExclusivePrefixScanSmall", &clStatus);
-	//checkCLStatus(clStatus);
 
 	_kernel_UniformAdd = clCreateKernel(_clProgram, "kernel__UniformAdd", &clStatus);
 	checkCLStatus(clStatus);
 
 	//---- Get the workgroup size
-	clGetKernelWorkGroupInfo(_kernel_Scan, _context->clDevice, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &_workgroupSize, 0);
+	// ATI : Actually the wavefront size is only 64 for the highend cards(48XX, 58XX, 57XX), but 32 for the middleend cards and 16 for the lowend cards.
+	// NVidia : 32
+	clGetKernelWorkGroupInfo(kernel__scanIntra, _context->clDevice, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &_workgroupSize, 0);
+	clGetKernelWorkGroupInfo(kernel__scanIntra, _context->clDevice, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &_workgroupSize, 0);
 	//_workgroupSize = 128;
 	//_workgroupSize = 256;
 	//_workgroupSize = 512;
 
-	clGetKernelWorkGroupInfo(_kernel_Scan, _context->clDevice, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &_workgroupSize, 0);
+	_workgroupSize = 32;
 
 	//---- Prepare all the buffers
 	allocateBlockSums(maxElements);
 }
 
-clppScan::~clppScan()
+clppScanGPU::~clppScanGPU()
 {
 	if (_clBuffer_values)
 		delete _clBuffer_values;
@@ -53,69 +53,38 @@ clppScan::~clppScan()
 
 #pragma region scan : v1
 
-void clppScan::scan()
+void clppScanGPU::scan()
 {
 	cl_int clStatus;
 
-	clStatus  = clSetKernelArg(_kernel_Scan, 2, _workgroupSize * 2 * sizeof(int), 0);
-
-	checkCLStatus(clStatus);
-	
 	//---- Apply the scan to each level
 	cl_mem clValues = _clBuffer_values;
-	cl_mem clValuesOut = _clBuffer_valuesOut;
 	for(unsigned int i = 0; i < _pass; i++)
 	{
-		size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i] / 2, _workgroupSize / 2)};
-		size_t localWorkSize = {_workgroupSize / 2};
+		size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i], _workgroupSize)};
+		size_t localWorkSize = {_workgroupSize};
 
-		clStatus = clSetKernelArg(_kernel_Scan, 0, sizeof(cl_mem), &clValues);
-		clStatus |= clSetKernelArg(_kernel_Scan, 1, sizeof(cl_mem), &clValuesOut);
-		clStatus |= clSetKernelArg(_kernel_Scan, 3, sizeof(cl_mem), &_clBuffer_BlockSums[i]);
-		clStatus |= clSetKernelArg(_kernel_Scan, 4, sizeof(int), &_blockSumsSizes[i]);
+		clStatus = clSetKernelArg(kernel__scanIntra, 0, sizeof(cl_mem), &clValues);
+		clStatus |= clSetKernelArg(kernel__scanIntra, 1, sizeof(cl_mem), &_clBuffer_BlockSums[i]);
+		clStatus |= clSetKernelArg(kernel__scanIntra, 2, sizeof(cl_mem), &_blockSumsSizes[i]);
 
-		clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_Scan, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
+		clStatus |= clEnqueueNDRangeKernel(_context->clQueue, kernel__scanIntra, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
 		checkCLStatus(clStatus);
 
-		clValues = clValuesOut = _clBuffer_BlockSums[i];
-
+		// Now we process the sums...
+		clValues = _clBuffer_BlockSums[i];
     }
-
-	//---- Uniform addition
-	// We add the sum blocks to the upper-level blocks (In the inverse order).
-	//for(int i = _pass - 2; i > -1; i--)
-	//{
-	//	size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i], _workgroupSize / 2)};
-	//	size_t localWorkSize = {_workgroupSize / 2};
-	//	//size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i], _workgroupSize / 2)};
-	//	//size_t localWorkSize = {_workgroupSize / 2};
-
- //       //cl_mem dest = (i > 0) ? _clBuffer_valuesOut[i-1] : _clBuffer_valuesOut[0];
-
-	//	cl_mem dest = (i > 0) ? _clBuffer_valuesOut[i-1] : _clBuffer_valuesOut[0];
-
-	//	clStatus = clSetKernelArg(_kernel_UniformAdd, 0, sizeof(cl_mem), &dest);
-	//	clStatus |= clSetKernelArg(_kernel_UniformAdd, 1, sizeof(cl_mem), &_clBuffer_valuesOut[i]);
-	//	clStatus |= clSetKernelArg(_kernel_UniformAdd, 2, sizeof(int), &_blockSumsSizes[i]);
-	//	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_UniformAdd, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
-
-	//	checkCLStatus(clStatus);
-
-	//	//clFinish(_context->clQueue);
- //   }
 	
 	for(int i = _pass - 2; i >= 0; i--)
 	{
 		size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i] / 2, _workgroupSize / 2)};
 		size_t localWorkSize = {_workgroupSize / 2};
 
-        cl_mem dest = (i > 0) ? _clBuffer_BlockSums[i-1] : _clBuffer_valuesOut;
+        cl_mem dest = (i > 0) ? _clBuffer_BlockSums[i-1] : _clBuffer_values;
 
 		clStatus = clSetKernelArg(_kernel_UniformAdd, 0, sizeof(cl_mem), &dest);
-		checkCLStatus(clStatus);
-		clStatus = clSetKernelArg(_kernel_UniformAdd, 1, sizeof(cl_mem), &_clBuffer_BlockSums[i]);
-		checkCLStatus(clStatus);
-		clStatus = clSetKernelArg(_kernel_UniformAdd, 2, sizeof(int), &_blockSumsSizes[i]);
+		clStatus |= clSetKernelArg(_kernel_UniformAdd, 1, sizeof(cl_mem), &_clBuffer_BlockSums[i]);
+		clStatus |= clSetKernelArg(_kernel_UniformAdd, 2, sizeof(int), &_blockSumsSizes[i]);
 		checkCLStatus(clStatus);
 
 		clStatus = clEnqueueNDRangeKernel(_context->clQueue, _kernel_UniformAdd, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
@@ -127,7 +96,7 @@ void clppScan::scan()
 
 #pragma region pushDatas
 
-void clppScan::pushDatas(void* values, void* valuesOut, size_t valueSize, size_t datasetSize)
+void clppScanGPU::pushDatas(void* values, void* valuesOut, size_t valueSize, size_t datasetSize)
 {
 	//---- Store some values
 	_values = values;
@@ -161,7 +130,7 @@ void clppScan::pushDatas(void* values, void* valuesOut, size_t valueSize, size_t
 	checkCLStatus(clStatus);
 }
 
-void clppScan::pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize)
+void clppScanGPU::pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize)
 {
 }
 
@@ -169,9 +138,9 @@ void clppScan::pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t da
 
 #pragma region popDatas
 
-void clppScan::popDatas()
+void clppScanGPU::popDatas()
 {
-	cl_int clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_valuesOut, CL_TRUE, 0, _valueSize * _datasetSize, _valuesOut, 0, NULL, NULL);
+	cl_int clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_values, CL_TRUE, 0, _valueSize * _datasetSize, _valuesOut, 0, NULL, NULL);
 	checkCLStatus(clStatus);
 }
 
@@ -179,7 +148,7 @@ void clppScan::popDatas()
 
 #pragma region allocateBlockSums
 
-void clppScan::allocateBlockSums(unsigned int maxElements)
+void clppScanGPU::allocateBlockSums(unsigned int maxElements)
 {
 	// Compute the number of buffers we need for the scan
 	cl_int clStatus;
@@ -215,7 +184,7 @@ void clppScan::allocateBlockSums(unsigned int maxElements)
 	checkCLStatus(clStatus);
 }
 
-void clppScan::freeBlockSums()
+void clppScanGPU::freeBlockSums()
 {
 	if (!_clBuffer_BlockSums)
 		return;

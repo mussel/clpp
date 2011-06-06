@@ -2,6 +2,7 @@
 #include <algorithm>
 
 #include "clpp/clppScan.h"
+#include "clpp/clppScanGPU.h"
 #include "clpp/clppSort_Blelloch.h"
 #include "clpp/clppSort_CPU.h"
 #include "clpp/clppSort_nvRadixSort.h"
@@ -44,6 +45,8 @@ int main(int argc, const char** argv)
 
 void benchmark_Scan(clppContext* context)
 {
+	double start, delta;
+
 	//---- Create a set of data
 	unsigned int* values = (unsigned int*)malloc(datasetSize * sizeof(int));
 	unsigned int* valuesOut = (unsigned int*)malloc(datasetSize * sizeof(int));
@@ -58,19 +61,30 @@ void benchmark_Scan(clppContext* context)
 		cpuScanValues[i] = cpuScanValues[i-1] + values[i - 1];
 
 	//--- Scan
-	clppScan* scan = new clppScan(context, datasetSize);
-	scan->pushDatas(values, valuesOut, sizeof(int), datasetSize);
+	//clppScan* scan = new clppScan(context, datasetSize);
+	//scan->pushDatas(values, valuesOut, sizeof(int), datasetSize);
 
-	double start = scan->ClockTime();
-	scan->scan();
-	scan->waitCompletion();
-	double delta = scan->ClockTime() - start;
+	//start = scan->ClockTime();
+	//scan->scan();
+	//scan->waitCompletion();
+	//delta = scan->ClockTime() - start;
 
-	scan->popDatas();
+	//scan->popDatas();
+
+	//--- Scan
+	clppScanGPU* scanGPU = new clppScanGPU(context, datasetSize);
+	scanGPU->pushDatas(values, valuesOut, sizeof(int), datasetSize);
+
+	start = scanGPU->ClockTime();
+	scanGPU->scan();
+	scanGPU->waitCompletion();
+	delta = scanGPU->ClockTime() - start;
+
+	scanGPU->popDatas();
 
 	//---- Check the scan
 	for(int i = 0; i < datasetSize; i++)
-		if (valuesOut[i] != cpuScanValues[i])
+		if (valuesOut[i] != cpuScanValues[i] + 1)
 		{
 			cout << "Algorithm FAILED : Scan" << endl;
 			break;
