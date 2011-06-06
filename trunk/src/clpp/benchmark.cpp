@@ -84,7 +84,7 @@ void benchmark_Scan(clppContext* context)
 
 	//---- Check the scan
 	for(int i = 0; i < datasetSize; i++)
-		if (valuesOut[i] != cpuScanValues[i] + 1)
+		if (valuesOut[i] != cpuScanValues[i])
 		{
 			cout << "Algorithm FAILED : Scan" << endl;
 			break;

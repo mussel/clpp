@@ -27,6 +27,8 @@ private:
 	void* _valuesOut;		// The scanned data set
 	size_t _valueSize;		// The size of a value in bytes
 
+	cl_kernel kernel__scan;
+
 	cl_kernel kernel__scanIntra;
 	cl_kernel _kernel_UniformAdd;
 
