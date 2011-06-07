@@ -76,7 +76,7 @@ void clppSort_Merill::pushDatas(void* keys, void* values, size_t keySize, size_t
 	_keyBits = keyBits;
 }
 
-void clppSort_Merill::pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize, unsigned int keyBits) 
+void clppSort_Merill::pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize, unsigned int keyBits) 
 {
 }
 

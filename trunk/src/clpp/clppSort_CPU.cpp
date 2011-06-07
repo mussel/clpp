@@ -32,7 +32,7 @@ void clppSort_CPU::pushDatas(void* keys, void* values, size_t keySize, size_t va
 	_keyBits = keyBits;
 }
 
-void clppSort_CPU::pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize, unsigned int keyBits) 
+void clppSort_CPU::pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize, unsigned int keyBits) 
 {
 	// Unsupported of course !
 }

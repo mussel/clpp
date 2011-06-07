@@ -66,7 +66,7 @@ clppSort_nvRadixSort::~clppSort_nvRadixSort()
     clReleaseMemObject(_clBuffer_BlockOffsets);
 }
 
-void clppSort_nvRadixSort::pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize, unsigned int keyBits)
+void clppSort_nvRadixSort::pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize, unsigned int keyBits)
 {
 	cl_int clStatus;
 

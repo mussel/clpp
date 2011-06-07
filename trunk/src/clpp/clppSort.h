@@ -28,7 +28,7 @@ public:
 	// clBuffer_keys    Array of keys for data to be sorted
 	// datasetSize		Number of elements to be sorted.  Must be <= maxElements passed to the constructor
 	// keyBits			The number of bits in each key to use for ordering
-	virtual void pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize, unsigned int keyBits) = 0;
+	virtual void pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize, unsigned int keyBits) = 0;
 
 	// Pop the data from the device
 	virtual void popDatas() = 0;
