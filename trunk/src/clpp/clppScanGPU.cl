@@ -3,36 +3,10 @@
 // ---------
 // Prefix sum or prefix scan is an operation where each output element contains the sum of all input elements preceding it.
 //
-// Algorithm :
-// -----------
-// The parallel prefix sum has two principal parts, the reduce phase (also known as the up-sweep phase) and the down-sweep phase.
-//
-// In the up-sweep reduction phase we traverse the computation tree from bottom to top, computing partial sums.
-// After this phase, the last element of the array contains the total sum.
-//
-// During the down-sweep phase, we traverse the tree from the root and use the partial sums to build the scan in place.
-//
-// Because the scan pictured is an exclusive sum, a zero is inserted into the last element before the start of the down-sweep phase.
-// This zero is then propagated back to the first element.
-//
-// In our implementation, each compute unit loads and sums up two elements (for the deepest depth). Each subsequent depth during the up-sweep
-// phase is processed by half of the compute units from the deeper level and the other way around for the down-sweep phase.
-//
-// In order to be able to scan large arrays, i.e. arrays that have many more elements than the maximum size of a work-group, the prefix sum has to be decomposed.
-// Each work-group computes the prefix scan of its sub-range and outputs a single number representing the sum of all elements in its sub-range.
-// The workgroup sums are scanned using exactly the same algorithm.
-// When the number of work-group results reaches the size of a work-group, the process is reversed and the work-group sums are
-// propagated to the sub-ranges, where each work-group adds the incoming sum to all its elements, thus producing the final scanned array.
-//
 // References :
 // ------------
-// NVIDIA Mark Harris. Parallel prefix sum (scan) with CUDA. April 2007
-// http://developer.download.nvidia.com/compute/cuda/1_1/Website/projects/scan/doc/scan.pdf
 // http://graphics.idav.ucdavis.edu/publications/print_pub?pub_id=915
 //
-// Other references :
-// ------------------
-// http://developer.nvidia.com/node/57
 //------------------------------------------------------------
 
 #pragma OPENCL EXTENSION cl_amd_printf : enable
@@ -159,14 +133,15 @@ void kernel__scan_block_anylength(
 	__global T *ptr,
 	__global const T *in,
 	__global T *out,
-	const uint B
+	const uint B,
+	const uint size
 )
 {
 	size_t idx = get_global_id(0);
 	const uint bidx = get_group_id(0);
 	const uint TC = get_local_size(0);
 	
-	const uint nPasses = (float)ceil( B / ((float)TC) );
+	const uint nPasses = (float)ceil( ((float)B) / ((float)TC) );
 	T reduceValue = OPERATOR_IDENTITY;
 	
 	for(uint i = 0; i < nPasses; ++i)
@@ -179,7 +154,7 @@ void kernel__scan_block_anylength(
 		barrier(CLK_LOCAL_MEM_FENCE);
 		
 		// Step 2: Perform scan on TC elements
-		T val = scan_block(ptr, B);
+		T val = scan_block(ptr, size);
 		
 		// Step 3: Propagate reduced result from previous block
 		// of TC elements
@@ -193,9 +168,9 @@ void kernel__scan_block_anylength(
 		{
 			//ptr[idx] = (Kind == exclusive) ? OPERATOR_APPLY(input, val) : val;
 			ptr[idx] = OPERATOR_APPLY(input, val);
-		}
-		
+		}		
 		barrier(CLK_LOCAL_MEM_FENCE);
+		
 		reduceValue = ptr[TC-1];
 		barrier(CLK_LOCAL_MEM_FENCE);
 	}

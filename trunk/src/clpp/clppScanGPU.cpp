@@ -60,14 +60,17 @@ void clppScanGPU::scan()
 {
 	cl_int clStatus;
 
+	int B = 512;
+
 	//---- Apply the scan to each level
-	size_t globalWorkSize = {toMultipleOf(_datasetSize, _workgroupSize)};
+	size_t globalWorkSize = {toMultipleOf(_datasetSize/(B), _workgroupSize)};
 	size_t localWorkSize = {_workgroupSize};
 
 	clStatus = clSetKernelArg(kernel__scan, 0, sizeof(cl_mem), &_clBuffer_BlockSums[0]);
 	clStatus |= clSetKernelArg(kernel__scan, 1, sizeof(cl_mem), &_clBuffer_values);
 	clStatus |= clSetKernelArg(kernel__scan, 2, sizeof(cl_mem), &_clBuffer_valuesOut);
-	clStatus |= clSetKernelArg(kernel__scan, 3, sizeof(int), &_datasetSize);
+	clStatus |= clSetKernelArg(kernel__scan, 3, sizeof(int), &B);
+	clStatus |= clSetKernelArg(kernel__scan, 4, sizeof(int), &_datasetSize);
 
 	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, kernel__scan, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
 	checkCLStatus(clStatus);
