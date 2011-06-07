@@ -32,8 +32,7 @@ clppScan::clppScan(clppContext* context, unsigned int maxElements)
 	//_workgroupSize = 128;
 	//_workgroupSize = 256;
 	//_workgroupSize = 512;
-
-	clGetKernelWorkGroupInfo(_kernel_Scan, _context->clDevice, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &_workgroupSize, 0);
+	//clGetKernelWorkGroupInfo(_kernel_Scan, _context->clDevice, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &_workgroupSize, 0);
 
 	//---- Prepare all the buffers
 	allocateBlockSums(maxElements);
@@ -51,7 +50,7 @@ clppScan::~clppScan()
 
 #pragma endregion
 
-#pragma region scan : v1
+#pragma region scan
 
 void clppScan::scan()
 {
@@ -78,32 +77,9 @@ void clppScan::scan()
 		checkCLStatus(clStatus);
 
 		clValues = clValuesOut = _clBuffer_BlockSums[i];
-
     }
 
 	//---- Uniform addition
-	// We add the sum blocks to the upper-level blocks (In the inverse order).
-	//for(int i = _pass - 2; i > -1; i--)
-	//{
-	//	size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i], _workgroupSize / 2)};
-	//	size_t localWorkSize = {_workgroupSize / 2};
-	//	//size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i], _workgroupSize / 2)};
-	//	//size_t localWorkSize = {_workgroupSize / 2};
-
- //       //cl_mem dest = (i > 0) ? _clBuffer_valuesOut[i-1] : _clBuffer_valuesOut[0];
-
-	//	cl_mem dest = (i > 0) ? _clBuffer_valuesOut[i-1] : _clBuffer_valuesOut[0];
-
-	//	clStatus = clSetKernelArg(_kernel_UniformAdd, 0, sizeof(cl_mem), &dest);
-	//	clStatus |= clSetKernelArg(_kernel_UniformAdd, 1, sizeof(cl_mem), &_clBuffer_valuesOut[i]);
-	//	clStatus |= clSetKernelArg(_kernel_UniformAdd, 2, sizeof(int), &_blockSumsSizes[i]);
-	//	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_UniformAdd, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
-
-	//	checkCLStatus(clStatus);
-
-	//	//clFinish(_context->clQueue);
- //   }
-	
 	for(int i = _pass - 2; i >= 0; i--)
 	{
 		size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i] / 2, _workgroupSize / 2)};
@@ -161,8 +137,32 @@ void clppScan::pushDatas(void* values, void* valuesOut, size_t valueSize, size_t
 	checkCLStatus(clStatus);
 }
 
-void clppScan::pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize)
+void clppScan::pushDatas(cl_mem clBuffer_values, cl_mem clBuffer_valuesOut, size_t valueSize, size_t datasetSize)
 {
+	_clBuffer_values = clBuffer_values;
+	_clBuffer_valuesOut = clBuffer_valuesOut;
+	_valueSize = valueSize;
+	_datasetSize = datasetSize;
+
+	//---- Compute the size of the different block we can use for '_datasetSize' (can be < maxElements)
+	// Compute the number of levels requested to do the scan
+	_pass = 0;
+	unsigned int n = _datasetSize;
+	do
+	{
+		n = (n + _workgroupSize - 1) / _workgroupSize; // round up
+		_pass++;
+	}
+	while(n > 1);
+
+	// Compute the block-sum sizes
+	n = _datasetSize;
+	for(unsigned int i = 0; i < _pass; i++)
+	{
+		_blockSumsSizes[i] = n;
+		n = (n + _workgroupSize - 1) / _workgroupSize; // round up
+	}
+	_blockSumsSizes[_pass] = n;
 }
 
 #pragma endregion

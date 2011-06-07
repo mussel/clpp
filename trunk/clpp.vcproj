@@ -380,6 +380,14 @@
 				RelativePath=".\src\clpp\clppSort_nvScan.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\src\clpp\clppSort_RadixSort.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\src\clpp\clppSort_RadixSort.h"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"

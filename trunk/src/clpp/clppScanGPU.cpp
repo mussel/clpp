@@ -61,9 +61,10 @@ void clppScanGPU::scan()
 	cl_int clStatus;
 
 	int B = 512;
+	//const int nPasses = (float)ceil( ((float)B) / ((float)_workgroupSize) );
 
 	//---- Apply the scan to each level
-	size_t globalWorkSize = {toMultipleOf(_datasetSize/(B), _workgroupSize)};
+	size_t globalWorkSize = {toMultipleOf(_datasetSize/B, _workgroupSize)};
 	size_t localWorkSize = {_workgroupSize};
 
 	clStatus = clSetKernelArg(kernel__scan, 0, sizeof(cl_mem), &_clBuffer_BlockSums[0]);

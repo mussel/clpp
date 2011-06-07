@@ -20,10 +20,10 @@
 //#define BLOCK_SIZE 64
 
 //#ifdef OCL_PLATFORM==NVIDIA || OCL_GPU==1
-//#define SYNC() 
+#define SYNC() 
 //#endif
 
-#define SYNC() barrier(CLK_LOCAL_MEM_FENCE)
+//#define SYNC() barrier(CLK_LOCAL_MEM_FENCE)
 
 //------------------------------------------------------------
 // kernel__scanIntra
@@ -53,6 +53,42 @@ void kernel__scanIntra(__global T* input, __global T* sums, uint size)
 	// Store the sum		
 	if (lane > 30)
 		sums[bid] = input[idx];
+}
+
+//------------------------------------------------------------
+// kernel__UniformAdd
+//
+// Purpose :
+// Final step of large-array scan: combine basic inclusive scan with exclusive scan of top elements of input arrays.
+//------------------------------------------------------------
+
+__kernel
+void kernel__UniformAdd(
+	__global T* output,
+	__global const T* blockSums,
+	const uint outputSize
+	)
+{
+    uint gid = get_global_id(0) * 2;
+    const uint tid = get_local_id(0);
+    const uint blockId = get_group_id(0);
+	
+	// Intel SDK fix
+	//output[gid] += blockSums[blockId];
+	//output[gid+1] += blockSums[blockId];
+
+    __local T localBuffer[1];
+
+    if (tid < 1)
+        localBuffer[0] = (blockId < 1) ? OPERATOR_IDENTITY : blockSums[blockId - 1];
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+	
+	if (gid < outputSize)
+		output[gid] += localBuffer[0];
+	gid++;
+	if (gid < outputSize)
+		output[gid] += localBuffer[0];
 }
 
 //------------------------------------------------------------
@@ -174,40 +210,4 @@ void kernel__scan_block_anylength(
 		reduceValue = ptr[TC-1];
 		barrier(CLK_LOCAL_MEM_FENCE);
 	}
-}
-
-//------------------------------------------------------------
-// kernel__UniformAdd
-//
-// Purpose :
-// Final step of large-array scan: combine basic inclusive scan with exclusive scan of top elements of input arrays.
-//------------------------------------------------------------
-
-__kernel
-void kernel__UniformAdd(
-	__global T* output,
-	__global const T* blockSums,
-	const uint outputSize
-	)
-{
-    uint gid = get_global_id(0) * 2;
-    const uint tid = get_local_id(0);
-    const uint blockId = get_group_id(0);
-	
-	// Intel SDK fix
-	//output[gid] += blockSums[blockId];
-	//output[gid+1] += blockSums[blockId];
-
-    __local T localBuffer[1];
-
-    if (tid < 1)
-        localBuffer[0] = (blockId < 1) ? OPERATOR_IDENTITY : blockSums[blockId - 1];
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-	
-	if (gid < outputSize)
-		output[gid] += localBuffer[0];
-	gid++;
-	if (gid < outputSize)
-		output[gid] += localBuffer[0];
 }

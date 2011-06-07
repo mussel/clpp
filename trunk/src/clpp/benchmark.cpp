@@ -6,7 +6,8 @@
 #include "clpp/clppSort_Blelloch.h"
 #include "clpp/clppSort_CPU.h"
 #include "clpp/clppSort_nvRadixSort.h"
-#include "clpp/clppSort_Merill.h"
+#include "clpp/clppSort_RadixSort.h"
+//#include "clpp/clppSort_Merill.h"
 
 #include <string.h>
 
@@ -28,8 +29,8 @@ void benchmark_Sort(clppContext* context);
 //unsigned int datasetSize = 1<<10;
 //unsigned int datasetSize = 1<<17;
 //unsigned int datasetSize = 1<<19;
-//unsigned int datasetSize = _N;
-unsigned int datasetSize = 1<<23;  // has to match _N for Blelloch ?
+unsigned int datasetSize = _N;
+//unsigned int datasetSize = 1<<23;  // has to match _N for Blelloch ?
 
 int main(int argc, const char** argv)
 {
@@ -37,10 +38,10 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(2, 0);
+	context.setup(0, 0);
 
-	benchmark_Scan(&context);
-	//benchmark_Sort(&context);
+	//benchmark_Scan(&context);
+	benchmark_Sort(&context);
 }
 
 void benchmark_Scan(clppContext* context)
@@ -118,18 +119,23 @@ void benchmark_Sort(clppContext* context)
 	//---- Start the benchmark
 	clppSort* clppsort;
 
-	// Brute fore
-	clppsort = new clppSort_CPU(context);
-	benchmark(*context, clppsort, keys, keysSorted, datasetSize);
+	//// Brute fore
+	//clppsort = new clppSort_CPU(context);
+	//benchmark(*context, clppsort, keys, keysSorted, datasetSize);
 
-	// Blelloch
-	memcpy(keys, keysCopy, datasetSize * sizeof(int));
-	clppsort = new clppSort_Blelloch(context, datasetSize);
-	benchmark(*context, clppsort, keys, keysSorted, datasetSize);	
+	//// Blelloch
+	//memcpy(keys, keysCopy, datasetSize * sizeof(int));
+	//clppsort = new clppSort_Blelloch(context, datasetSize);
+	//benchmark(*context, clppsort, keys, keysSorted, datasetSize);	
 
-	// NV
+	//// NV
+	//memcpy(keys, keysCopy, datasetSize * sizeof(int));
+	//clppsort = new clppSort_nvRadixSort(context, datasetSize, 128); // 128 = work group size
+	//benchmark(*context, clppsort, keys, keysSorted, datasetSize);
+
+	// Radix sort
 	memcpy(keys, keysCopy, datasetSize * sizeof(int));
-	clppsort = new clppSort_nvRadixSort(context, datasetSize, 128); // 128 = work group size
+	clppsort = new clppSort_RadixSort(context, datasetSize);
 	benchmark(*context, clppsort, keys, keysSorted, datasetSize);
 
 	// Merill
