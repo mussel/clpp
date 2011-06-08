@@ -35,8 +35,8 @@ void benchmark_Sort_KV(clppContext* context);
 //unsigned int datasetSize = 1<<10;
 //unsigned int datasetSize = 1<<17;
 //unsigned int datasetSize = 1<<19;
-unsigned int datasetSize = _N;
-//unsigned int datasetSize = 1<<23;  // has to match _N for Blelloch ?
+//unsigned int datasetSize = _N;
+unsigned int datasetSize = 1<<23;  // has to match _N for Blelloch ?
 
 int main(int argc, const char** argv)
 {
@@ -47,13 +47,13 @@ int main(int argc, const char** argv)
 	context.setup(0, 0);
 
 	// Scan
-	//benchmark_Scan(&context);
+	benchmark_Scan(&context);
 
 	// Sorting : key
 	//benchmark_Sort(&context);
 
 	// Sorting : key + value
-	benchmark_Sort_KV(&context);
+	//benchmark_Sort_KV(&context);
 }
 
 #pragma region benchmark_Scan

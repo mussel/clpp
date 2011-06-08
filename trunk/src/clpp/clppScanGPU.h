@@ -20,6 +20,8 @@ public:
 
 	void popDatas();
 
+	string compilePreprocess(string kernel);
+
 private:
 	size_t _datasetSize;	// The number of keys to sort
 
@@ -27,10 +29,10 @@ private:
 	void* _valuesOut;		// The scanned data set
 	size_t _valueSize;		// The size of a value in bytes
 
-	cl_kernel kernel__scan;
-
-	cl_kernel kernel__scanIntra;
-	cl_kernel _kernel_UniformAdd;
+	cl_kernel _kernel_scan_exclusive;
+	cl_kernel _kernel_scan_inclusive;
+	cl_kernel _kernel_UniformAdd_exclusive;
+	cl_kernel _kernel_UniformAdd_inclusive;	
 
 	cl_mem _clBuffer_values;
 	cl_mem _clBuffer_valuesOut;
