@@ -26,13 +26,7 @@
 //
 // References :
 // ------------
-// NVIDIA Mark Harris. Parallel prefix sum (scan) with CUDA. April 2007
-// http://developer.download.nvidia.com/compute/cuda/1_1/Website/projects/scan/doc/scan.pdf
-// http://graphics.idav.ucdavis.edu/publications/print_pub?pub_id=915
-//
-// Other references :
-// ------------------
-// http://developer.nvidia.com/node/57
+// http://graphics.idav.ucdavis.edu/publications/print_pub?pub_id=1041
 //------------------------------------------------------------
 
 #pragma OPENCL EXTENSION cl_amd_printf : enable
@@ -40,46 +34,6 @@
 #define T int
 #define OPERATOR_APPLY(A,B) A+B
 #define OPERATOR_IDENTITY 0
-
-//#define BLOCK_SIZE 16
-#define BLOCK_SIZE 32
-//#define BLOCK_SIZE 64
-
-//#ifdef OCL_PLATFORM==NVIDIA || OCL_GPU==1
-//#define SYNC() 
-//#endif
-
-#define SYNC() barrier(CLK_LOCAL_MEM_FENCE)
-
-//------------------------------------------------------------
-// kernel__scanIntra
-//
-// Purpose : do a scan on a chunck of data.
-//------------------------------------------------------------
-
-__kernel
-void kernel__scanIntra(__global T* input, __global T* sums, uint size)
-{
-	size_t idx = get_global_id(0);
-	const uint lane = get_local_id(0);
-	const uint bid = get_group_id(0);
-	
-	if (lane >= 1  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 1] , input[idx]);
-	SYNC();
-	if (lane >= 2  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 2] , input[idx]);
-	SYNC();
-	if (lane >= 4  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 4] , input[idx]);
-	SYNC();
-	if (lane >= 8  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 8] , input[idx]);
-	SYNC();
-	if (lane >= 16 && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 16], input[idx]);
-	
-	barrier(CLK_LOCAL_MEM_FENCE);
-	
-	// Store the sum		
-	if (lane > 30)
-		sums[bid] = input[idx];
-}
 
 //------------------------------------------------------------
 // kernel__scanInter
@@ -93,15 +47,10 @@ inline T scanIntra_exclusive(__global T* input, size_t idx, uint size)
 	const uint bid = get_group_id(0);
 	
 	if (lane >= 1  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 1] , input[idx]);
-	SYNC();
 	if (lane >= 2  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 2] , input[idx]);
-	SYNC();
 	if (lane >= 4  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 4] , input[idx]);
-	SYNC();
 	if (lane >= 8  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 8] , input[idx]);
-	SYNC();
 	if (lane >= 16 && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 16], input[idx]);
-	SYNC();
 		
 	return (lane > 0) ? input[idx-1] : OPERATOR_IDENTITY;
 }
@@ -112,15 +61,10 @@ inline T scanIntra_inclusive(__global volatile T* input, size_t idx, uint size)
 	const uint bid = get_group_id(0);
 	
 	if (lane >= 1  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 1] , input[idx]);
-	SYNC();
 	if (lane >= 2  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 2] , input[idx]);
-	SYNC();
 	if (lane >= 4  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 4] , input[idx]);
-	SYNC();
 	if (lane >= 8  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 8] , input[idx]);
-	SYNC();
 	if (lane >= 16 && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 16], input[idx]);
-	SYNC();
 		
 	return input[idx];
 }
@@ -199,40 +143,4 @@ void kernel__scan_block_anylength(
 		reduceValue = ptr[TC-1];
 		barrier(CLK_LOCAL_MEM_FENCE);
 	}
-}
-
-//------------------------------------------------------------
-// kernel__UniformAdd
-//
-// Purpose :
-// Final step of large-array scan: combine basic inclusive scan with exclusive scan of top elements of input arrays.
-//------------------------------------------------------------
-
-__kernel
-void kernel__UniformAdd(
-	__global T* output,
-	__global const T* blockSums,
-	const uint outputSize
-	)
-{
-    uint gid = get_global_id(0) * 2;
-    const uint tid = get_local_id(0);
-    const uint blockId = get_group_id(0);
-	
-	// Intel SDK fix
-	//output[gid] += blockSums[blockId];
-	//output[gid+1] += blockSums[blockId];
-
-    __local T localBuffer[1];
-
-    if (tid < 1)
-        localBuffer[0] = (blockId < 1) ? OPERATOR_IDENTITY : blockSums[blockId - 1];
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-	
-	if (gid < outputSize)
-		output[gid] += localBuffer[0];
-	gid++;
-	if (gid < outputSize)
-		output[gid] += localBuffer[0];
 }

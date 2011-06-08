@@ -3,6 +3,7 @@
 
 #include "clpp/clppScan.h"
 #include "clpp/clppScanGPU.h"
+#include "clpp/clppScanGPU2.h"
 #include "clpp/clppSort_Blelloch.h"
 #include "clpp/clppSort_CPU.h"
 #include "clpp/clppSort_nvRadixSort.h"
@@ -87,7 +88,18 @@ void benchmark_Scan(clppContext* context)
 	//scan->popDatas();
 
 	//--- Scan
-	clppScanGPU* scanGPU = new clppScanGPU(context, datasetSize);
+	//clppScanGPU* scanGPU = new clppScanGPU(context, datasetSize);
+	//scanGPU->pushDatas(values, valuesOut, sizeof(int), datasetSize);
+
+	//start = scanGPU->ClockTime();
+	//scanGPU->scan();
+	//scanGPU->waitCompletion();
+	//delta = scanGPU->ClockTime() - start;
+
+	//scanGPU->popDatas();
+
+	//--- Scan
+	clppScanGPU2* scanGPU = new clppScanGPU2(context, datasetSize);
 	scanGPU->pushDatas(values, valuesOut, sizeof(int), datasetSize);
 
 	start = scanGPU->ClockTime();

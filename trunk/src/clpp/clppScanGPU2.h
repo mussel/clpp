@@ -1,15 +1,15 @@
-#ifndef __CLPP_SCANGPU_H__
-#define __CLPP_SCANGPU_H__
+#ifndef __CLPP_SCANGPU2_H__
+#define __CLPP_SCANGPU2_H__
 
 #include "clpp/clppProgram.h"
 
-class clppScanGPU : public clppProgram
+class clppScanGPU2 : public clppProgram
 {
 public:
 	// Create a new scan.
 	// maxElements : the maximum number of elements to scan.
-	clppScanGPU(clppContext* context, unsigned int maxElements);
-	~clppScanGPU();
+	clppScanGPU2(clppContext* context, unsigned int maxElements);
+	~clppScanGPU2();
 
 	string getName() { return "Prefix sum (exclusive)"; }
 
@@ -28,9 +28,6 @@ private:
 	size_t _valueSize;		// The size of a value in bytes
 
 	cl_kernel kernel__scan;
-
-	cl_kernel kernel__scanIntra;
-	cl_kernel _kernel_UniformAdd;
 
 	cl_mem _clBuffer_values;
 	cl_mem _clBuffer_valuesOut;
