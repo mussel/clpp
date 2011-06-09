@@ -12,7 +12,14 @@ void clppContext::setup()
 
 void clppContext::setup(unsigned int platformId, unsigned int deviceId)
 {
+	isGPU = isCPU = false;
+	Vendor = Vendor_Unknown;
+
 	cl_int clStatus;
+
+	size_t infoLen;
+	char infoStr[1024];
+	cl_device_type infoType;
 
 	//---- Retreive information about platforms
 	cl_uint platformsCount;
@@ -26,6 +33,14 @@ void clppContext::setup(unsigned int platformId, unsigned int deviceId)
 	platformId = min(platformId, platformsCount - 1);
 	clPlatform = platforms[platformId];
 
+	clGetPlatformInfo (clPlatform, CL_PLATFORM_VENDOR, sizeof(infoStr), infoStr, &infoLen);
+	if (stristr(infoStr, "Intel") != NULL)
+		Vendor = Vendor_Intel;
+	if (stristr(infoStr, "AMD") != NULL)
+		Vendor = Vendor_AMD;
+	if (stristr(infoStr, "NVidia") != NULL)
+		Vendor = Vendor_NVidia;
+
 	//---- Devices
 	cl_uint devicesCount;
 	clStatus = clGetDeviceIDs(clPlatform, CL_DEVICE_TYPE_ALL, 0, NULL, &devicesCount);
@@ -37,6 +52,12 @@ void clppContext::setup(unsigned int platformId, unsigned int deviceId)
 	assert(clStatus == CL_SUCCESS);
 
 	clDevice = devices[min(deviceId, devicesCount - 1)];
+		
+	clGetDeviceInfo(clDevice, CL_DEVICE_TYPE, sizeof(infoType), &infoType, &infoLen);
+	if (infoType & CL_DEVICE_TYPE_CPU)
+		isCPU = true;
+	if (infoType & CL_DEVICE_TYPE_GPU)
+		isGPU = true;
 
 	//---- Context
 	clContext = clCreateContext(0, 1, &clDevice, NULL, NULL, &clStatus);
@@ -57,4 +78,39 @@ void clppContext::setup(unsigned int platformId, unsigned int deviceId)
 	clStatus = clGetDeviceInfo(clDevice, CL_DEVICE_NAME, 500, deviceName, NULL);
 
 	cout << "Platform[" << platformName << "] Device[" << deviceName << "]" << endl;
+}
+
+char* clppContext::stristr(const char *String, const char *Pattern)
+{
+    char *pptr, *sptr, *start;
+    unsigned int slen, plen;
+    for (start = (char *)String,
+            pptr = (char *)Pattern,
+            slen = strlen(String),
+            plen = strlen(Pattern);
+            // while string length not shorter than pattern length
+            slen >= plen;
+            start++, slen--)
+    {
+        // find start of pattern in string
+        while (toupper(*start) != toupper(*Pattern))
+        {
+            start++;
+            slen--;
+            // if pattern longer than string
+            if (slen < plen)
+                return(NULL);
+        }
+        sptr = start;
+        pptr = (char *)Pattern;
+        while (toupper(*sptr) == toupper(*pptr))
+        {
+            sptr++;
+            pptr++;
+            // if end of pattern then pattern was found
+            if ('\0' == *pptr)
+                return (start);
+        }
+    }
+    return(NULL);
 }

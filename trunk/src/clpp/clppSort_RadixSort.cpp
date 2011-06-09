@@ -1,4 +1,5 @@
 #include "clpp/clppSort_RadixSort.h"
+#include "clpp/clpp.h"
 
 // Next :
 // 1 - Allow templating
@@ -28,7 +29,7 @@ clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxEle
 
 	_workgroupSize = 32;
 
-	_scan = new clppScan(context, maxElements);
+	_scan = clpp::createBestScan(context, maxElements);
 
 	radixSortAllocatedForN = 0;
     radixHist1 = NULL;

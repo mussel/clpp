@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9.00"
+	Version="9,00"
 	Name="clpp"
 	ProjectGUID="{7E8F5E8C-716F-4B3B-9CE2-1A48B6A2DF7D}"
 	RootNamespace="oclFiniteDifferences3d"
@@ -349,15 +349,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\clpp\clppScan.cpp"
+				RelativePath=".\src\clpp\clppScan_Default.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\src\clpp\clppScanGPU.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\src\clpp\clppScanGPU2.cpp"
+				RelativePath=".\src\clpp\clppScan_GPU.cpp"
 				>
 			</File>
 			<File
@@ -415,11 +411,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\clpp\clppScanGPU.h"
+				RelativePath=".\src\clpp\clppScan_Default.h"
 				>
 			</File>
 			<File
-				RelativePath=".\src\clpp\clppScanGPU2.h"
+				RelativePath=".\src\clpp\clppScan_GPU.h"
 				>
 			</File>
 			<File

@@ -7,6 +7,8 @@
 #include <CL/opencl.h>
 #endif
 
+enum clppVendor { Vendor_Unknown, Vendor_NVidia, Vendor_AMD, Vendor_Intel };
+
 class clppContext
 {
 public:
@@ -20,6 +22,15 @@ public:
 
 	// Setup with a specific platform and device
 	void setup(unsigned int platformId, unsigned int deviceId);
+
+	// Informations
+	bool isGPU;
+	bool isCPU;
+	clppVendor Vendor;
+
+private:
+	// Case-insensitive strstr() work-alike.
+	static char* stristr(const char *String, const char *Pattern);
 };
 
 #endif

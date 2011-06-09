@@ -1,4 +1,4 @@
-#include "clpp/clppScan.h"
+#include "clpp/clppScan_Default.h"
 
 // Next :
 // 1 - Allow templating
@@ -6,13 +6,13 @@
 
 #pragma region Constructor
 
-clppScan::clppScan(clppContext* context, unsigned int maxElements)
+clppScan_Default::clppScan_Default(clppContext* context, unsigned int maxElements)
 {
 	_clBuffer_values = 0;
 	_clBuffer_valuesOut = 0;
 	_clBuffer_BlockSums = 0;
 
-	if (!compile(context, "clppScan.cl"))
+	if (!compile(context, "clppScan_Default.cl"))
 		return;
 
 	//---- Prepare all the kernels
@@ -38,7 +38,7 @@ clppScan::clppScan(clppContext* context, unsigned int maxElements)
 	allocateBlockSums(maxElements);
 }
 
-clppScan::~clppScan()
+clppScan_Default::~clppScan_Default()
 {
 	if (_clBuffer_values)
 		delete _clBuffer_values;
@@ -52,7 +52,7 @@ clppScan::~clppScan()
 
 #pragma region scan
 
-void clppScan::scan()
+void clppScan_Default::scan()
 {
 	cl_int clStatus;
 
@@ -103,7 +103,7 @@ void clppScan::scan()
 
 #pragma region pushDatas
 
-void clppScan::pushDatas(void* values, void* valuesOut, size_t valueSize, size_t datasetSize)
+void clppScan_Default::pushDatas(void* values, void* valuesOut, size_t valueSize, size_t datasetSize)
 {
 	//---- Store some values
 	_values = values;
@@ -137,8 +137,9 @@ void clppScan::pushDatas(void* values, void* valuesOut, size_t valueSize, size_t
 	checkCLStatus(clStatus);
 }
 
-void clppScan::pushDatas(cl_mem clBuffer_values, cl_mem clBuffer_valuesOut, size_t valueSize, size_t datasetSize)
+void clppScan_Default::pushDatas(cl_mem clBuffer_values, cl_mem clBuffer_valuesOut, size_t valueSize, size_t datasetSize)
 {
+	_values = _valuesOut = 0;
 	_clBuffer_values = clBuffer_values;
 	_clBuffer_valuesOut = clBuffer_valuesOut;
 	_valueSize = valueSize;
@@ -169,7 +170,7 @@ void clppScan::pushDatas(cl_mem clBuffer_values, cl_mem clBuffer_valuesOut, size
 
 #pragma region popDatas
 
-void clppScan::popDatas()
+void clppScan_Default::popDatas()
 {
 	cl_int clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_valuesOut, CL_TRUE, 0, _valueSize * _datasetSize, _valuesOut, 0, NULL, NULL);
 	checkCLStatus(clStatus);
@@ -179,7 +180,7 @@ void clppScan::popDatas()
 
 #pragma region allocateBlockSums
 
-void clppScan::allocateBlockSums(unsigned int maxElements)
+void clppScan_Default::allocateBlockSums(unsigned int maxElements)
 {
 	// Compute the number of buffers we need for the scan
 	cl_int clStatus;
@@ -215,7 +216,7 @@ void clppScan::allocateBlockSums(unsigned int maxElements)
 	checkCLStatus(clStatus);
 }
 
-void clppScan::freeBlockSums()
+void clppScan_Default::freeBlockSums()
 {
 	if (!_clBuffer_BlockSums)
 		return;

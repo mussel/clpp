@@ -103,7 +103,7 @@ void kernel__scan_block_anylength(
 	__global T *out,
 	const uint B,
 	uint size,
-	const uint nPasses
+	const uint passesCount
 )
 {	
 	size_t idx = get_local_id(0);
@@ -112,9 +112,7 @@ void kernel__scan_block_anylength(
 	
 	T reduceValue = OPERATOR_IDENTITY;
 	
-	//__local T localBuf[384];
-	
-	for(uint i = 0; i < nPasses; ++i)
+	for(uint i = 0; i < passesCount; ++i)
 	{
 		const uint offset = i * TC + (bidx * B);
 		

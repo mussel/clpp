@@ -2,8 +2,9 @@
 #include <algorithm>
 
 #include "clpp/clppScan.h"
-#include "clpp/clppScanGPU.h"
-#include "clpp/clppScanGPU2.h"
+#include "clpp/clppScan_Default.h"
+#include "clpp/clppScan_GPU.h"
+
 #include "clpp/clppSort_Blelloch.h"
 #include "clpp/clppSort_CPU.h"
 #include "clpp/clppSort_nvRadixSort.h"
@@ -36,9 +37,9 @@ void benchmark_Sort_KV(clppContext* context);
 //unsigned int datasetSize = 1<<10;
 //unsigned int datasetSize = 1<<17;
 //unsigned int datasetSize = 1<<19;
-//unsigned int datasetSize = _N;
+unsigned int datasetSize = _N;
 //unsigned int datasetSize = 1<<23;  // has to match _N for Blelloch ?
-unsigned int datasetSize = 384000;
+//unsigned int datasetSize = 384000;
 
 int main(int argc, const char** argv)
 {
@@ -70,37 +71,26 @@ void benchmark_Scan(clppContext* context)
 	makeOneVector(values, datasetSize);
 	//makeRandomUint32Vector(values, datasetSize, 32);
 
-	//---- CPU Scan
+	//---- Scan : default
 	unsigned int* cpuScanValues = (unsigned int*)malloc(datasetSize * sizeof(int));
 	memcpy(cpuScanValues, values, datasetSize * sizeof(int));
 	cpuScanValues[0] = 0;
 	for(unsigned int i = 1; i < datasetSize; i++)
 		cpuScanValues[i] = cpuScanValues[i-1] + values[i - 1];
 
-	//--- Scan
-	//clppScan* scan = new clppScan(context, datasetSize);
-	//scan->pushDatas(values, valuesOut, sizeof(int), datasetSize);
+	//--- Scan : GPU
+	clppScan* scan = new clppScan_Default(context, datasetSize);
+	scan->pushDatas(values, valuesOut, sizeof(int), datasetSize);
 
-	//start = scan->ClockTime();
-	//scan->scan();
-	//scan->waitCompletion();
-	//delta = scan->ClockTime() - start;
+	start = scan->ClockTime();
+	scan->scan();
+	scan->waitCompletion();
+	delta = scan->ClockTime() - start;
 
-	//scan->popDatas();
+	scan->popDatas();
 
-	//--- Scan
-	//clppScanGPU* scanGPU = new clppScanGPU(context, datasetSize);
-	//scanGPU->pushDatas(values, valuesOut, sizeof(int), datasetSize);
-
-	//start = scanGPU->ClockTime();
-	//scanGPU->scan();
-	//scanGPU->waitCompletion();
-	//delta = scanGPU->ClockTime() - start;
-
-	//scanGPU->popDatas();
-
-	//--- Scan
-	clppScanGPU2* scanGPU = new clppScanGPU2(context, datasetSize);
+	////--- Scan
+	clppScan* scanGPU = new clppScan_GPU(context, datasetSize);
 	scanGPU->pushDatas(values, valuesOut, sizeof(int), datasetSize);
 
 	start = scanGPU->ClockTime();
