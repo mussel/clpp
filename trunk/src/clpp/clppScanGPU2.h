@@ -11,7 +11,7 @@ public:
 	clppScanGPU2(clppContext* context, unsigned int maxElements);
 	~clppScanGPU2();
 
-	string getName() { return "Prefix sum (exclusive)"; }
+	string getName() { return "Prefix sum (exclusive) for the GPU"; }
 
 	void scan();
 
@@ -19,6 +19,8 @@ public:
 	void pushDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize);
 
 	void popDatas();
+
+	string compilePreprocess(string kernel);
 
 private:
 	size_t _datasetSize;	// The number of keys to sort
@@ -31,18 +33,8 @@ private:
 
 	cl_mem _clBuffer_values;
 	cl_mem _clBuffer_valuesOut;
-	cl_mem _clBuffer_Temp;
 
 	size_t _workgroupSize;
-
-	unsigned int* _temp;
-
-	int _pass;
-	cl_mem* _clBuffer_BlockSums;
-	unsigned int* _blockSumsSizes;
-
-	void allocateBlockSums(unsigned int maxElements);
-	void freeBlockSums();
 };
 
 #endif

@@ -41,10 +41,9 @@
 // Purpose : do a scan on a chunck of data.
 //------------------------------------------------------------
 
-inline T scanIntra_exclusive(__global T* input, size_t idx, uint size)
+inline T scan_simt_exclusive(__local T* input, size_t idx, uint size)
 {
-	const uint lane = get_local_id(0);
-	const uint bid = get_group_id(0);
+	const uint lane = idx & 31; // SIMT size
 	
 	if (lane >= 1  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 1] , input[idx]);
 	if (lane >= 2  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 2] , input[idx]);
@@ -55,10 +54,9 @@ inline T scanIntra_exclusive(__global T* input, size_t idx, uint size)
 	return (lane > 0) ? input[idx-1] : OPERATOR_IDENTITY;
 }
 
-inline T scanIntra_inclusive(__global volatile T* input, size_t idx, uint size)
+inline T scan_simt_inclusive(__local volatile T* input, size_t idx, uint size)
 {
-	const uint lane = get_local_id(0);
-	const uint bid = get_group_id(0);
+	const uint lane = idx & 31; // SIMT size
 	
 	if (lane >= 1  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 1] , input[idx]);
 	if (lane >= 2  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 2] , input[idx]);
@@ -69,30 +67,30 @@ inline T scanIntra_inclusive(__global volatile T* input, size_t idx, uint size)
 	return input[idx];
 }
 
-T scan_block(__global T* ptr, uint size)
+T scan_workgroup(__local T* localBuf, uint size)
 {
-	size_t idx = get_global_id(0);
-	const uint lane = get_local_id(0); // idx & 31;
-	const uint bid = get_group_id(0); // idx >> 5;
+	size_t idx = get_local_id(0);
+	const uint lane = idx & 31;
+	const uint simt_bid = idx >> 5;
 	
 	// Step 1: Intra-warp scan in each warp
-	T val = scanIntra_exclusive(ptr, idx, size);
+	T val = scan_simt_exclusive(localBuf, idx, size);
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
-	// Step 2: Collect per-warp partial results
-	if (lane == 31) ptr[bid] = ptr[idx];
+	// Step 2: Collect per-warp partial results (the sum)
+	if (lane == 31) localBuf[simt_bid] = localBuf[idx];
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	// Step 3: Use 1st warp to scan per-warp results
-	if (bid == 0) scanIntra_inclusive(ptr, idx, size);
+	if (simt_bid == 0) scan_simt_inclusive(localBuf, idx, size);
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	// Step 4: Accumulate results from Steps 1 and 3
-	if (bid > 0) val = OPERATOR_APPLY(ptr[bid-1], val);
+	if (simt_bid > 0) val = OPERATOR_APPLY(localBuf[simt_bid-1], val);
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	// Step 5: Write and return the final result
-	ptr[idx] = val;
+	localBuf[idx] = val;
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	return val;
@@ -100,33 +98,36 @@ T scan_block(__global T* ptr, uint size)
 
 __kernel
 void kernel__scan_block_anylength(
-	__global T *ptr,
+	__local T* localBuf,
 	__global const T *in,
 	__global T *out,
-	const uint B
+	const uint B,
+	uint size,
+	const uint nPasses
 )
-{
-	size_t idx = get_global_id(0);
+{	
+	size_t idx = get_local_id(0);
 	const uint bidx = get_group_id(0);
 	const uint TC = get_local_size(0);
 	
-	const uint nPasses = (float)ceil( B / ((float)TC) );
 	T reduceValue = OPERATOR_IDENTITY;
+	
+	//__local T localBuf[384];
 	
 	for(uint i = 0; i < nPasses; ++i)
 	{
 		const uint offset = i * TC + (bidx * B);
 		
-		// Step 1: Read TC elements from global (off-chip)
-		// memory to shared memory (on-chip)
-		T input = ptr[idx] = in[offset + idx];
+		if ((offset + idx) > size-1) return;
+		
+		// Step 1: Read TC elements from global (off-chip) memory to local memory (on-chip)
+		T input = localBuf[idx] = in[offset + idx];
 		barrier(CLK_LOCAL_MEM_FENCE);
 		
 		// Step 2: Perform scan on TC elements
-		T val = scan_block(ptr, B);
+		T val = scan_workgroup(localBuf, size);
 		
-		// Step 3: Propagate reduced result from previous block
-		// of TC elements
+		// Step 3: Propagate reduced result from previous block of TC elements
 		val = OPERATOR_APPLY(val, reduceValue);
 		
 		// Step 4: Write out data to global memory
@@ -135,12 +136,12 @@ void kernel__scan_block_anylength(
 		// Step 5: Choose reduced value for next iteration
 		if (idx == (TC-1))
 		{
-			//ptr[idx] = (Kind == exclusive) ? OPERATOR_APPLY(input, val) : val;
-			ptr[idx] = OPERATOR_APPLY(input, val);
+			//localBuf[idx] = (Kind == exclusive) ? OPERATOR_APPLY(input, val) : val;
+			localBuf[idx] = OPERATOR_APPLY(input, val);
 		}
-		
 		barrier(CLK_LOCAL_MEM_FENCE);
-		reduceValue = ptr[TC-1];
+		
+		reduceValue = localBuf[TC-1];
 		barrier(CLK_LOCAL_MEM_FENCE);
 	}
 }

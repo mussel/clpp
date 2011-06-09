@@ -37,7 +37,8 @@ void benchmark_Sort_KV(clppContext* context);
 //unsigned int datasetSize = 1<<17;
 //unsigned int datasetSize = 1<<19;
 //unsigned int datasetSize = _N;
-unsigned int datasetSize = 1<<23;  // has to match _N for Blelloch ?
+//unsigned int datasetSize = 1<<23;  // has to match _N for Blelloch ?
+unsigned int datasetSize = 384000;
 
 int main(int argc, const char** argv)
 {
