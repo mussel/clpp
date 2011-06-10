@@ -27,6 +27,10 @@
 // References :
 // ------------
 // http://graphics.idav.ucdavis.edu/publications/print_pub?pub_id=1041
+//
+// To read :
+// http://developer.apple.com/library/mac/#samplecode/OpenCL_Parallel_Prefix_Sum_Example/Listings/scan_kernel_cl.html#//apple_ref/doc/uid/DTS40008183-scan_kernel_cl-DontLinkElementID_5
+// http://developer.apple.com/library/mac/#samplecode/OpenCL_Parallel_Reduction_Example/Listings/reduce_int4_kernel_cl.html
 //------------------------------------------------------------
 
 #pragma OPENCL EXTENSION cl_amd_printf : enable
@@ -35,54 +39,51 @@
 #define OPERATOR_APPLY(A,B) A+B
 #define OPERATOR_IDENTITY 0
 
+//#define VOLATILE volatile
+#define VOLATILE
+
 //------------------------------------------------------------
 // kernel__scanInter
 //
 // Purpose : do a scan on a chunck of data.
 //------------------------------------------------------------
 
-inline T scan_simt_exclusive(__local T* input, size_t idx, uint size)
+inline T scan_simt_exclusive(__local VOLATILE T* input, size_t idx, const uint lane)
 {
-	const uint lane = idx & 31; // SIMT size
-	
-	if (lane >= 1  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 1] , input[idx]);
-	if (lane >= 2  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 2] , input[idx]);
-	if (lane >= 4  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 4] , input[idx]);
-	if (lane >= 8  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 8] , input[idx]);
-	if (lane >= 16 && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 16], input[idx]);
+	if (lane > 0 ) input[idx] = OPERATOR_APPLY(input[idx - 1] , input[idx]);
+	if (lane > 1 ) input[idx] = OPERATOR_APPLY(input[idx - 2] , input[idx]);
+	if (lane > 3 ) input[idx] = OPERATOR_APPLY(input[idx - 4] , input[idx]);
+	if (lane > 7 ) input[idx] = OPERATOR_APPLY(input[idx - 8] , input[idx]);
+	if (lane > 15) input[idx] = OPERATOR_APPLY(input[idx - 16], input[idx]);
 		
 	return (lane > 0) ? input[idx-1] : OPERATOR_IDENTITY;
 }
 
-inline T scan_simt_inclusive(__local volatile T* input, size_t idx, uint size)
-{
-	const uint lane = idx & 31; // SIMT size
-	
-	if (lane >= 1  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 1] , input[idx]);
-	if (lane >= 2  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 2] , input[idx]);
-	if (lane >= 4  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 4] , input[idx]);
-	if (lane >= 8  && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 8] , input[idx]);
-	if (lane >= 16 && idx < size) input[idx] = OPERATOR_APPLY(input[idx - 16], input[idx]);
+inline T scan_simt_inclusive(__local VOLATILE T* input, size_t idx, const uint lane)
+{	
+	if (lane > 0 ) input[idx] = OPERATOR_APPLY(input[idx - 1] , input[idx]);
+	if (lane > 1 ) input[idx] = OPERATOR_APPLY(input[idx - 2] , input[idx]);
+	if (lane > 3 ) input[idx] = OPERATOR_APPLY(input[idx - 4] , input[idx]);
+	if (lane > 7 ) input[idx] = OPERATOR_APPLY(input[idx - 8] , input[idx]);
+	if (lane > 15) input[idx] = OPERATOR_APPLY(input[idx - 16], input[idx]);
 		
 	return input[idx];
 }
 
-T scan_workgroup(__local T* localBuf, uint size)
+inline T scan_workgroup(__local T* localBuf, const uint idx, const uint lane, simt_bid)
 {
-	size_t idx = get_local_id(0);
-	const uint lane = idx & 31;
-	const uint simt_bid = idx >> 5;
-	
 	// Step 1: Intra-warp scan in each warp
-	T val = scan_simt_exclusive(localBuf, idx, size);
+	T val = scan_simt_exclusive(localBuf, idx, lane);
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	// Step 2: Collect per-warp partial results (the sum)
-	if (lane == 31) localBuf[simt_bid] = localBuf[idx];
+	//if (lane == 31) localBuf[simt_bid] = localBuf[idx];
+	if (lane > 30) localBuf[simt_bid] = localBuf[idx];
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	// Step 3: Use 1st warp to scan per-warp results
-	if (simt_bid == 0) scan_simt_inclusive(localBuf, idx, size);
+	//if (simt_bid == 0) scan_simt_inclusive(localBuf, idx, lane);
+	if (simt_bid < 1) scan_simt_inclusive(localBuf, idx, lane);
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	// Step 4: Accumulate results from Steps 1 and 3
@@ -110,26 +111,44 @@ void kernel__scan_block_anylength(
 	const uint bidx = get_group_id(0);
 	const uint TC = get_local_size(0);
 	
+	const uint lane = idx & 31;
+	const uint simt_bid = idx >> 5;
+	
 	T reduceValue = OPERATOR_IDENTITY;
 	
+	//#pragma unroll
 	for(uint i = 0; i < passesCount; ++i)
 	{
 		const uint offset = i * TC + (bidx * B);
+		const uint offsetIdx = offset + idx;
 		
-		if ((offset + idx) > size-1) return;
+		if (offsetIdx > size-1) return;
 		
 		// Step 1: Read TC elements from global (off-chip) memory to local memory (on-chip)
-		T input = localBuf[idx] = in[offset + idx];
+		T input = localBuf[idx] = in[offsetIdx];		
+		
+		/*
+		// This version try to avoid bank conflicts and improve memory access serializations !
+		if (lane < 1)
+		{
+			__global T* currentOffset = in + offsetIdx;
+			vstore16(vload16(0, currentOffset),  0, localBuf);
+			vstore16(vload16(0, currentOffset + 16), 16, localBuf);
+		}
+		barrier(CLK_LOCAL_MEM_FENCE);
+		T input = localBuf[idx];
+		*/
+		
 		barrier(CLK_LOCAL_MEM_FENCE);
 		
 		// Step 2: Perform scan on TC elements
-		T val = scan_workgroup(localBuf, size);
+		T val = scan_workgroup(localBuf, idx, lane, simt_bid);
 		
 		// Step 3: Propagate reduced result from previous block of TC elements
 		val = OPERATOR_APPLY(val, reduceValue);
 		
 		// Step 4: Write out data to global memory
-		out[offset + idx] = val;
+		out[offsetIdx] = val;
 		
 		// Step 5: Choose reduced value for next iteration
 		if (idx == (TC-1))

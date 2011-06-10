@@ -21,6 +21,7 @@ void makeRandomUint32Vector(unsigned int *a, unsigned int numElements, unsigned 
 void makeRandomUint32Vector_KV(unsigned int *a, unsigned int numElements, unsigned int keybits);
 void makeRandomUint32Vector_i(unsigned int *a, unsigned int numElements, unsigned int keybits);
 
+void benchmark_scan(clppContext* context, clppScan* scan);
 void benchmark_sort(clppContext context, clppSort* sort, unsigned int* keys, unsigned int* keysSorted, unsigned int datasetSize);
 void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int* keys, unsigned int* keysSorted, unsigned int datasetSize);
 
@@ -36,10 +37,11 @@ void benchmark_Sort_KV(clppContext* context);
 //unsigned int datasetSize = 131072;
 //unsigned int datasetSize = 1<<10;
 //unsigned int datasetSize = 1<<17;
-//unsigned int datasetSize = 1<<19;
-unsigned int datasetSize = _N;
+unsigned int datasetSize = 1<<21;
+//unsigned int datasetSize = _N;
 //unsigned int datasetSize = 1<<23;  // has to match _N for Blelloch ?
 //unsigned int datasetSize = 384000;
+//unsigned int datasetSize = 400000;
 
 int main(int argc, const char** argv)
 {
@@ -63,6 +65,19 @@ int main(int argc, const char** argv)
 
 void benchmark_Scan(clppContext* context)
 {
+	clppScan* scan = new clppScan_Default(context, datasetSize);
+	benchmark_scan(context, scan);
+
+	scan = new clppScan_GPU(context, datasetSize);
+	benchmark_scan(context, scan);
+}
+
+#pragma endregion
+
+#pragma region benchmark_scan
+
+void benchmark_scan(clppContext* context, clppScan* scan)
+{
 	double start, delta;
 
 	//---- Create a set of data
@@ -71,6 +86,7 @@ void benchmark_Scan(clppContext* context)
 	makeOneVector(values, datasetSize);
 	//makeRandomUint32Vector(values, datasetSize, 32);
 
+
 	//---- Scan : default
 	unsigned int* cpuScanValues = (unsigned int*)malloc(datasetSize * sizeof(int));
 	memcpy(cpuScanValues, values, datasetSize * sizeof(int));
@@ -78,8 +94,7 @@ void benchmark_Scan(clppContext* context)
 	for(unsigned int i = 1; i < datasetSize; i++)
 		cpuScanValues[i] = cpuScanValues[i-1] + values[i - 1];
 
-	//--- Scan : GPU
-	clppScan* scan = new clppScan_Default(context, datasetSize);
+	//--- Scan
 	scan->pushDatas(values, valuesOut, sizeof(int), datasetSize);
 
 	start = scan->ClockTime();
@@ -89,17 +104,6 @@ void benchmark_Scan(clppContext* context)
 
 	scan->popDatas();
 
-	////--- Scan
-	clppScan* scanGPU = new clppScan_GPU(context, datasetSize);
-	scanGPU->pushDatas(values, valuesOut, sizeof(int), datasetSize);
-
-	start = scanGPU->ClockTime();
-	scanGPU->scan();
-	scanGPU->waitCompletion();
-	delta = scanGPU->ClockTime() - start;
-
-	scanGPU->popDatas();
-
 	//---- Check the scan
 	for(int i = 0; i < datasetSize; i++)
 		if (valuesOut[i] != cpuScanValues[i])
@@ -108,7 +112,7 @@ void benchmark_Scan(clppContext* context)
 			break;
 		}
 
-	cout << "Performance for [Scan] : data-set size[" << datasetSize << "] time (ms): " << delta << endl;
+	cout << "Performance for [Scan] : data-set size[" << datasetSize << "] time (ms): " << delta << endl << endl;
 
 	//---- Free
 	free(values);
@@ -212,7 +216,7 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int* keys, uns
 	sort->waitCompletion();
 	double delta = sort->ClockTime() - start;
 
-	cout << "Performance for [" << sort->getName() << "] : data-set size[" << datasetSize << "] time (ms): " << delta << endl;
+	cout << "Performance for [" << sort->getName() << "] : data-set size[" << datasetSize << "] time (ms): " << delta << endl << endl;
 
 	sort->popDatas();
 
@@ -232,7 +236,7 @@ void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int* datas,
 	sort->waitCompletion();
 	double delta = sort->ClockTime() - start;
 
-	cout << "Performance for [" << sort->getName() << "] : data-set size[" << datasetSize << "] time (ms): " << delta << endl;
+	cout << "Performance for [" << sort->getName() << "] : data-set size[" << datasetSize << "] time (ms): " << delta << endl << endl;
 
 	sort->popDatas();
 
