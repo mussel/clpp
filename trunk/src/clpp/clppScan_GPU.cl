@@ -70,7 +70,7 @@ inline T scan_simt_inclusive(__local VOLATILE T* input, size_t idx, const uint l
 	return input[idx];
 }
 
-inline T scan_workgroup(__local T* localBuf, const uint idx, const uint lane, simt_bid)
+inline T scan_workgroup_exclusive(__local T* localBuf, const uint idx, const uint lane, const uint simt_bid)
 {
 	// Step 1: Intra-warp scan in each warp
 	T val = scan_simt_exclusive(localBuf, idx, lane);
@@ -100,8 +100,7 @@ inline T scan_workgroup(__local T* localBuf, const uint idx, const uint lane, si
 __kernel
 void kernel__scan_block_anylength(
 	__local T* localBuf,
-	__global const T *in,
-	__global T *out,
+	__global T* dataSet,
 	const uint B,
 	uint size,
 	const uint passesCount
@@ -125,13 +124,13 @@ void kernel__scan_block_anylength(
 		if (offsetIdx > size-1) return;
 		
 		// Step 1: Read TC elements from global (off-chip) memory to local memory (on-chip)
-		T input = localBuf[idx] = in[offsetIdx];		
+		T input = localBuf[idx] = dataSet[offsetIdx];		
 		
 		/*
 		// This version try to avoid bank conflicts and improve memory access serializations !
 		if (lane < 1)
 		{
-			__global T* currentOffset = in + offsetIdx;
+			__global T* currentOffset = inputDatas + offsetIdx;
 			vstore16(vload16(0, currentOffset),  0, localBuf);
 			vstore16(vload16(0, currentOffset + 16), 16, localBuf);
 		}
@@ -142,13 +141,13 @@ void kernel__scan_block_anylength(
 		barrier(CLK_LOCAL_MEM_FENCE);
 		
 		// Step 2: Perform scan on TC elements
-		T val = scan_workgroup(localBuf, idx, lane, simt_bid);
+		T val = scan_workgroup_exclusive(localBuf, idx, lane, simt_bid);
 		
 		// Step 3: Propagate reduced result from previous block of TC elements
 		val = OPERATOR_APPLY(val, reduceValue);
 		
 		// Step 4: Write out data to global memory
-		out[offsetIdx] = val;
+		dataSet[offsetIdx] = val;
 		
 		// Step 5: Choose reduced value for next iteration
 		if (idx == (TC-1))

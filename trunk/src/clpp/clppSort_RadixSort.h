@@ -38,10 +38,9 @@ private:
 
 	clppScan* _scan;
 
-	cl_mem radixHist1;
-	cl_mem radixHist2;
+	cl_mem _clBuffer_radixHist1;
+	cl_mem _clBuffer_radixHist2;
 	cl_mem radixDataB;
-	int radixSortAllocatedForN;
 };
 
 #endif

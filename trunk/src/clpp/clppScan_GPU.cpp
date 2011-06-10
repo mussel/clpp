@@ -10,11 +10,11 @@
 
 #pragma region Constructor
 
-clppScan_GPU::clppScan_GPU(clppContext* context, unsigned int maxElements)
+clppScan_GPU::clppScan_GPU(clppContext* context, size_t valueSize, unsigned int maxElements) :
+	clppScan(context, valueSize, maxElements) 
 {
 	cl_int clStatus;
 	_clBuffer_values = 0;
-	_clBuffer_valuesOut = 0;
 
 	//---- Compilation
 	if (!compile(context, "clppScan_GPU.cl"))
@@ -35,8 +35,6 @@ clppScan_GPU::~clppScan_GPU()
 {
 	if (_clBuffer_values)
 		delete _clBuffer_values;
-	if (_clBuffer_valuesOut)
-		delete _clBuffer_valuesOut;
 }
 
 #pragma endregion
@@ -82,52 +80,55 @@ void clppScan_GPU::scan()
 	size_t globalWorkSize = {toMultipleOf(_datasetSize / multipleFactor, _workgroupSize)};
 
 	int delta = _datasetSize - (globalWorkSize*multipleFactor);
-	if (delta > 0) globalWorkSize+=_workgroupSize;
 
 	unsigned int passes = (float)ceil( B / ((float)_workgroupSize) );
 	if (delta > 0) passes++;
 
-	unsigned int i = 0;
-	clStatus  = clSetKernelArg(kernel__scan, i++, _workgroupSize * _valueSize, 0);
-	clStatus |= clSetKernelArg(kernel__scan, i++, sizeof(cl_mem), &_clBuffer_values);
-	clStatus |= clSetKernelArg(kernel__scan, i++, sizeof(cl_mem), &_clBuffer_valuesOut);
-	clStatus |= clSetKernelArg(kernel__scan, i++, sizeof(int), &B);
-	clStatus |= clSetKernelArg(kernel__scan, i++, sizeof(int), &_datasetSize);
-	clStatus |= clSetKernelArg(kernel__scan, i++, sizeof(int), &passes);
+	clStatus  = clSetKernelArg(kernel__scan, 0, _workgroupSize * _valueSize, 0);
+	clStatus |= clSetKernelArg(kernel__scan, 1, sizeof(cl_mem), &_clBuffer_values);
+	clStatus |= clSetKernelArg(kernel__scan, 2, sizeof(int), &B);
+	clStatus |= clSetKernelArg(kernel__scan, 3, sizeof(int), &_datasetSize);
+	clStatus |= clSetKernelArg(kernel__scan, 4, sizeof(int), &passes);
 
 	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, kernel__scan, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
 	checkCLStatus(clStatus);
+
 }
 
 #pragma endregion
 
 #pragma region pushDatas
 
-void clppScan_GPU::pushDatas(void* values, void* valuesOut, size_t valueSize, size_t datasetSize)
+void clppScan_GPU::pushDatas(void* values, size_t datasetSize) 
 {
+	cl_int clStatus;
+
 	//---- Store some values
 	_values = values;
-	_valuesOut = valuesOut;
-	_valueSize = valueSize;
+	bool reallocate = datasetSize > _datasetSize;
 	_datasetSize = datasetSize;
 
 	//---- Copy on the device
-	cl_int clStatus;
-	
-	_clBuffer_values = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _valueSize * _datasetSize, _values, &clStatus);
-	checkCLStatus(clStatus);
+	if (reallocate)
+	{
+		//---- Release
+		if (_clBuffer_values)
+			clReleaseMemObject(_clBuffer_values);
 
-	_clBuffer_valuesOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _valueSize * _datasetSize, _values, &clStatus);
-	checkCLStatus(clStatus);
+		//---- Allocate & copy on the device
+		_clBuffer_values = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _valueSize * _datasetSize, _values, &clStatus);
+		checkCLStatus(clStatus);
+	}
+	else
+		// Just resend
+		clEnqueueWriteBuffer(_context->clQueue, _clBuffer_values, CL_FALSE, 0, _valueSize * _datasetSize, _values, 0, 0, 0);
 }
 
-void clppScan_GPU::pushDatas(cl_mem clBuffer_values, cl_mem clBuffer_valuesOut, size_t valueSize, size_t datasetSize)
+void clppScan_GPU::pushDatas(cl_mem clBuffer_values, size_t datasetSize)
 {
-	_values = _valuesOut = 0;
+	_values = 0;
 
 	_clBuffer_values = clBuffer_values;
-	_clBuffer_valuesOut = clBuffer_valuesOut;
-	_valueSize = valueSize;
 	_datasetSize = datasetSize;
 }
 
@@ -137,7 +138,7 @@ void clppScan_GPU::pushDatas(cl_mem clBuffer_values, cl_mem clBuffer_valuesOut, 
 
 void clppScan_GPU::popDatas()
 {
-	cl_int clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_valuesOut, CL_TRUE, 0, _valueSize * _datasetSize, _valuesOut, 0, NULL, NULL);
+	cl_int clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_values, CL_TRUE, 0, _valueSize * _datasetSize, _values, 0, NULL, NULL);
 	checkCLStatus(clStatus);
 }
 

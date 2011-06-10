@@ -5,11 +5,11 @@
 
 #include "clpp/clppSort_Blelloch.h"
 
-clppScan* clpp::createBestScan(clppContext* context, unsigned int maxElements)
+clppScan* clpp::createBestScan(clppContext* context, size_t valueSize, unsigned int maxElements)
 {
 	if (context->isGPU)
-		return new clppScan_GPU(context, maxElements);
-	return new clppScan_Default(context, maxElements);
+		return new clppScan_GPU(context, valueSize, maxElements);
+	return new clppScan_Default(context, valueSize, maxElements);
 }
 
 clppSort* clpp::createBestSort(clppContext* context, unsigned int maxElements)

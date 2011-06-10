@@ -1,4 +1,4 @@
-#include "clpp/clppScan_Default.h"
+#include "clpp/clppScan_Merrill.h"
 
 // Next :
 // 1 - Allow templating
@@ -6,13 +6,13 @@
 
 #pragma region Constructor
 
-clppScan_Default::clppScan_Default(clppContext* context, size_t valueSize, unsigned int maxElements) :
+clppScan_Merrill::clppScan_Merrill(clppContext* context, size_t valueSize, unsigned int maxElements) :
 	clppScan(context, valueSize, maxElements) 
 {
 	_clBuffer_values = 0;
 	_clBuffer_BlockSums = 0;
 
-	if (!compile(context, "clppScan_Default.cl"))
+	if (!compile(context, "clppScan_Merrill.cl"))
 		return;
 
 	//---- Prepare all the kernels
@@ -38,10 +38,12 @@ clppScan_Default::clppScan_Default(clppContext* context, size_t valueSize, unsig
 	allocateBlockSums(maxElements);
 }
 
-clppScan_Default::~clppScan_Default()
+clppScan_Merrill::~clppScan_Merrill()
 {
 	if (_clBuffer_values)
 		delete _clBuffer_values;
+	if (_clBuffer_valuesOut)
+		delete _clBuffer_valuesOut;
 
 	freeBlockSums();
 }
@@ -50,7 +52,7 @@ clppScan_Default::~clppScan_Default()
 
 #pragma region scan
 
-void clppScan_Default::scan()
+void clppScan_Merrill::scan()
 {
 	cl_int clStatus;
 
@@ -60,20 +62,21 @@ void clppScan_Default::scan()
 	
 	//---- Apply the scan to each level
 	cl_mem clValues = _clBuffer_values;
+	cl_mem clValuesOut = _clBuffer_valuesOut;
 	for(unsigned int i = 0; i < _pass; i++)
 	{
 		size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i] / 2, _workgroupSize / 2)};
 		size_t localWorkSize = {_workgroupSize / 2};
 
 		clStatus = clSetKernelArg(_kernel_Scan, 0, sizeof(cl_mem), &clValues);
-		clStatus |= clSetKernelArg(_kernel_Scan, 1, sizeof(cl_mem), &clValues);
+		clStatus |= clSetKernelArg(_kernel_Scan, 1, sizeof(cl_mem), &clValuesOut);
 		clStatus |= clSetKernelArg(_kernel_Scan, 3, sizeof(cl_mem), &_clBuffer_BlockSums[i]);
 		clStatus |= clSetKernelArg(_kernel_Scan, 4, sizeof(int), &_blockSumsSizes[i]);
 
 		clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_Scan, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
 		checkCLStatus(clStatus);
 
-		clValues = _clBuffer_BlockSums[i];
+		clValues = clValuesOut = _clBuffer_BlockSums[i];
     }
 
 	//---- Uniform addition
@@ -82,7 +85,7 @@ void clppScan_Default::scan()
 		size_t globalWorkSize = {toMultipleOf(_blockSumsSizes[i] / 2, _workgroupSize / 2)};
 		size_t localWorkSize = {_workgroupSize / 2};
 
-        cl_mem dest = (i > 0) ? _clBuffer_BlockSums[i-1] : _clBuffer_values;
+        cl_mem dest = (i > 0) ? _clBuffer_BlockSums[i-1] : _clBuffer_valuesOut;
 
 		clStatus = clSetKernelArg(_kernel_UniformAdd, 0, sizeof(cl_mem), &dest);
 		checkCLStatus(clStatus);
@@ -100,55 +103,39 @@ void clppScan_Default::scan()
 
 #pragma region pushDatas
 
-void clppScan_Default::pushDatas(void* values, size_t datasetSize)
+void clppScan_Merrill::pushDatas(void* values, size_t datasetSize)
 {
-	cl_int clStatus;
-
 	//---- Store some values
 	_values = values;
-	bool reallocate = datasetSize > _datasetSize;
-	bool recompute =  datasetSize != _datasetSize;
 	_datasetSize = datasetSize;
 
 	//---- Compute the size of the different block we can use for '_datasetSize' (can be < maxElements)
 	// Compute the number of levels requested to do the scan
-	if (recompute)
+	_pass = 0;
+	unsigned int n = _datasetSize;
+	do
 	{
-		_pass = 0;
-		unsigned int n = _datasetSize;
-		do
-		{
-			n = (n + _workgroupSize - 1) / _workgroupSize; // round up
-			_pass++;
-		}
-		while(n > 1);
-
-		// Compute the block-sum sizes
-		n = _datasetSize;
-		for(unsigned int i = 0; i < _pass; i++)
-		{
-			_blockSumsSizes[i] = n;
-			n = (n + _workgroupSize - 1) / _workgroupSize; // round up
-		}
-		_blockSumsSizes[_pass] = n;
+		n = (n + _workgroupSize - 1) / _workgroupSize; // round up
+		_pass++;
 	}
+	while(n > 1);
+
+	// Compute the block-sum sizes
+	n = _datasetSize;
+	for(unsigned int i = 0; i < _pass; i++)
+	{
+		_blockSumsSizes[i] = n;
+		n = (n + _workgroupSize - 1) / _workgroupSize; // round up
+	}
+	_blockSumsSizes[_pass] = n;
 
 	//---- Copy on the device
-	if (reallocate)
-	{
-		//---- Release
-		if (_clBuffer_values)
-			clReleaseMemObject(_clBuffer_values);
-
-		_clBuffer_values  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _valueSize * _datasetSize, _values, &clStatus);
-		checkCLStatus(clStatus);
-	}
-	else
-		// Just resend
-		clEnqueueWriteBuffer(_context->clQueue, _clBuffer_values, CL_FALSE, 0, _valueSize * _datasetSize, _values, 0, 0, 0);
+	cl_int clStatus;
+	_clBuffer_values  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _valueSize * _datasetSize, _values, &clStatus);
+	checkCLStatus(clStatus);
 }
 
-void clppScan_Default::pushDatas(cl_mem clBuffer_values, size_t datasetSize)
+void clppScan_Merrill::pushDatas(cl_mem clBuffer_values, size_t datasetSize)
 {
 	_values = 0;
 	_clBuffer_values = clBuffer_values;
@@ -156,35 +143,32 @@ void clppScan_Default::pushDatas(cl_mem clBuffer_values, size_t datasetSize)
 
 	//---- Compute the size of the different block we can use for '_datasetSize' (can be < maxElements)
 	// Compute the number of levels requested to do the scan
-	if (datasetSize != _datasetSize)
+	_pass = 0;
+	unsigned int n = _datasetSize;
+	do
 	{
-		_pass = 0;
-		unsigned int n = _datasetSize;
-		do
-		{
-			n = (n + _workgroupSize - 1) / _workgroupSize; // round up
-			_pass++;
-		}
-		while(n > 1);
-
-		// Compute the block-sum sizes
-		n = _datasetSize;
-		for(unsigned int i = 0; i < _pass; i++)
-		{
-			_blockSumsSizes[i] = n;
-			n = (n + _workgroupSize - 1) / _workgroupSize; // round up
-		}
-		_blockSumsSizes[_pass] = n;
+		n = (n + _workgroupSize - 1) / _workgroupSize; // round up
+		_pass++;
 	}
+	while(n > 1);
+
+	// Compute the block-sum sizes
+	n = _datasetSize;
+	for(unsigned int i = 0; i < _pass; i++)
+	{
+		_blockSumsSizes[i] = n;
+		n = (n + _workgroupSize - 1) / _workgroupSize; // round up
+	}
+	_blockSumsSizes[_pass] = n;
 }
 
 #pragma endregion
 
 #pragma region popDatas
 
-void clppScan_Default::popDatas()
+void clppScan_Merrill::popDatas()
 {
-	cl_int clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_values, CL_TRUE, 0, _valueSize * _datasetSize, _values, 0, NULL, NULL);
+	cl_int clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_valuesOut, CL_TRUE, 0, _valueSize * _datasetSize, _valuesOut, 0, NULL, NULL);
 	checkCLStatus(clStatus);
 }
 
@@ -192,7 +176,7 @@ void clppScan_Default::popDatas()
 
 #pragma region allocateBlockSums
 
-void clppScan_Default::allocateBlockSums(unsigned int maxElements)
+void clppScan_Merrill::allocateBlockSums(unsigned int maxElements)
 {
 	// Compute the number of buffers we need for the scan
 	cl_int clStatus;
@@ -208,6 +192,9 @@ void clppScan_Default::allocateBlockSums(unsigned int maxElements)
 	// Allocate the arrays
 	_clBuffer_BlockSums = new cl_mem[_pass];
 	_blockSumsSizes = new unsigned int[_pass + 1];
+
+	_clBuffer_valuesOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * maxElements, NULL, &clStatus);
+	checkCLStatus(clStatus);
 
 	// Create the cl-buffers
 	n = maxElements;
@@ -225,7 +212,7 @@ void clppScan_Default::allocateBlockSums(unsigned int maxElements)
 	checkCLStatus(clStatus);
 }
 
-void clppScan_Default::freeBlockSums()
+void clppScan_Merrill::freeBlockSums()
 {
 	if (!_clBuffer_BlockSums)
 		return;
