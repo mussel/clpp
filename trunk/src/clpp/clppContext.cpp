@@ -77,7 +77,7 @@ void clppContext::setup(unsigned int platformId, unsigned int deviceId)
 	char deviceName[500];
 	clStatus = clGetDeviceInfo(clDevice, CL_DEVICE_NAME, 500, deviceName, NULL);
 
-	cout << "Platform[" << platformName << "] Device[" << deviceName << "]" << endl;
+	cout << "Platform[" << platformName << "] Device[" << deviceName << "]" << endl << endl<< endl;
 }
 
 char* clppContext::stristr(const char *String, const char *Pattern)

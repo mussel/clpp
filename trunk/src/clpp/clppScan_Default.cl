@@ -133,8 +133,7 @@ void kernel__ExclusivePrefixScanSmall(
 
 __kernel
 void kernel__ExclusivePrefixScan(
-	__global const T* input,
-	__global T* output,
+	__global T* dataSet,
 	
 	__local T* localBuffer,
 	
@@ -166,11 +165,11 @@ void kernel__ExclusivePrefixScan(
 	uint gbi = gid + lwz;
 	uint bankOffsetA = CONFLICT_FREE_OFFSET(ai); 
 	uint bankOffsetB = CONFLICT_FREE_OFFSET(bi);
-	localBuffer[ai + bankOffsetA] = (gai < blockSumsSize) ? input[gai] : 0; 
-	localBuffer[bi + bankOffsetB] = (gbi < blockSumsSize) ? input[gbi] : 0;
+	localBuffer[ai + bankOffsetA] = (gai < blockSumsSize) ? dataSet[gai] : 0; 
+	localBuffer[bi + bankOffsetB] = (gbi < blockSumsSize) ? dataSet[gbi] : 0;
 #else
-	localBuffer[tid2_0] = (gid2_0 < blockSumsSize) ? input[gid2_0] : 0;
-	localBuffer[tid2_1] = (gid2_1 < blockSumsSize) ? input[gid2_1] : 0;
+	localBuffer[tid2_0] = (gid2_0 < blockSumsSize) ? dataSet[gid2_0] : 0;
+	localBuffer[tid2_1] = (gid2_1 < blockSumsSize) ? dataSet[gid2_1] : 0;
 #endif
 	
     // bottom-up
@@ -258,13 +257,13 @@ void kernel__ExclusivePrefixScan(
     // Copy back from the local buffer to the output array
 	
 #ifdef SUPPORT_AVOID_BANK_CONFLICT
-	output[gai] = (gai < blockSumsSize) * localBuffer[ai + bankOffsetA];		
-	output[gbi] = (gbi < blockSumsSize) * localBuffer[bi + bankOffsetB];		
+	dataSet[gai] = (gai < blockSumsSize) * localBuffer[ai + bankOffsetA];		
+	dataSet[gbi] = (gbi < blockSumsSize) * localBuffer[bi + bankOffsetB];		
 #else
 	if (gid2_0 < blockSumsSize)
-		output[gid2_0] = localBuffer[tid2_0];
+		dataSet[gid2_0] = localBuffer[tid2_0];
 	if (gid2_1 < blockSumsSize)
-		output[gid2_1] = localBuffer[tid2_1];
+		dataSet[gid2_1] = localBuffer[tid2_1];
 #endif
 
 }

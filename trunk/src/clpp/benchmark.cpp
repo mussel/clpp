@@ -38,8 +38,8 @@ void benchmark_Sort_KV(clppContext* context);
 //unsigned int datasetSize = 131072;
 //unsigned int datasetSize = 1<<10;
 //unsigned int datasetSize = 1<<17;
-//unsigned int datasetSize = 1<<21;
-unsigned int datasetSize = _N;
+unsigned int datasetSize = 1<<21;
+//unsigned int datasetSize = _N;
 //unsigned int datasetSize = 1<<23;  // has to match _N for Blelloch ?
 //unsigned int datasetSize = 384000;
 //unsigned int datasetSize = 400000;
@@ -66,10 +66,10 @@ int main(int argc, const char** argv)
 
 void benchmark_Scan(clppContext* context)
 {
-	//clppScan* scan = new clppScan_Default(context, sizeof(int), datasetSize);
-	//benchmark_scan(context, scan);
+	clppScan* scan = new clppScan_Default(context, sizeof(int), datasetSize);
+	benchmark_scan(context, scan);
 
-	clppScan* scan = new clppScan_GPU(context, sizeof(int), datasetSize);
+	scan = new clppScan_GPU(context, sizeof(int), datasetSize);
 	benchmark_scan(context, scan);
 
 	//scan = new clppScan_Merrill(context, datasetSize);

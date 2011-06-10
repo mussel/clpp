@@ -33,7 +33,7 @@ clppScan_GPU::clppScan_GPU(clppContext* context, size_t valueSize, unsigned int 
 
 clppScan_GPU::~clppScan_GPU()
 {
-	if (_clBuffer_values)
+	if (_is_clBuffersOwner && _clBuffer_values)
 		delete _clBuffer_values;
 }
 
@@ -117,6 +117,7 @@ void clppScan_GPU::pushDatas(void* values, size_t datasetSize)
 
 		//---- Allocate & copy on the device
 		_clBuffer_values = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _valueSize * _datasetSize, _values, &clStatus);
+		_is_clBuffersOwner = true;
 		checkCLStatus(clStatus);
 	}
 	else

@@ -17,6 +17,7 @@ public:
 		_datasetSize = 0;
 		_clBuffer_values = 0;
 		_workgroupSize = 0;
+		_is_clBuffersOwner = false;
 	}
 
 	// Start the scan operation
@@ -38,6 +39,7 @@ protected:
 	size_t _valueSize;		// The size of a value in bytes
 
 	cl_mem _clBuffer_values;
+	bool _is_clBuffersOwner;
 
 	size_t _workgroupSize;
 };

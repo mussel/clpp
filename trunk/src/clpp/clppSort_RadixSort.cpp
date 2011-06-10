@@ -31,7 +31,7 @@ clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxEle
 
 	_workgroupSize = 32;
 
-	//_scan = clpp::createBestScan(context, maxElements);
+	//_scan = clpp::createBestScan(context, sizeof(int), maxElements);
 	_scan = new clppScan_Default(context, sizeof(int), maxElements);
 
     _clBuffer_radixHist1 = NULL;
@@ -53,6 +53,8 @@ clppSort_RadixSort::~clppSort_RadixSort()
 
 	if (_clBuffer_radixHist2)
 		clReleaseMemObject(_clBuffer_radixHist2);
+
+	delete _scan;
 }
 
 #pragma endregion

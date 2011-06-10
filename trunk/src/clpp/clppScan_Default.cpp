@@ -40,7 +40,7 @@ clppScan_Default::clppScan_Default(clppContext* context, size_t valueSize, unsig
 
 clppScan_Default::~clppScan_Default()
 {
-	if (_clBuffer_values)
+	if (_is_clBuffersOwner && _clBuffer_values)
 		delete _clBuffer_values;
 
 	freeBlockSums();
@@ -54,7 +54,7 @@ void clppScan_Default::scan()
 {
 	cl_int clStatus;
 
-	clStatus  = clSetKernelArg(_kernel_Scan, 2, _workgroupSize * 2 * sizeof(int), 0);
+	clStatus  = clSetKernelArg(_kernel_Scan, 1, _workgroupSize * _valueSize, 0);
 
 	checkCLStatus(clStatus);
 	
@@ -66,9 +66,8 @@ void clppScan_Default::scan()
 		size_t localWorkSize = {_workgroupSize / 2};
 
 		clStatus = clSetKernelArg(_kernel_Scan, 0, sizeof(cl_mem), &clValues);
-		clStatus |= clSetKernelArg(_kernel_Scan, 1, sizeof(cl_mem), &clValues);
-		clStatus |= clSetKernelArg(_kernel_Scan, 3, sizeof(cl_mem), &_clBuffer_BlockSums[i]);
-		clStatus |= clSetKernelArg(_kernel_Scan, 4, sizeof(int), &_blockSumsSizes[i]);
+		clStatus |= clSetKernelArg(_kernel_Scan, 2, sizeof(cl_mem), &_clBuffer_BlockSums[i]);
+		clStatus |= clSetKernelArg(_kernel_Scan, 3, sizeof(int), &_blockSumsSizes[i]);
 
 		clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_Scan, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
 		checkCLStatus(clStatus);
@@ -141,6 +140,7 @@ void clppScan_Default::pushDatas(void* values, size_t datasetSize)
 			clReleaseMemObject(_clBuffer_values);
 
 		_clBuffer_values  = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _valueSize * _datasetSize, _values, &clStatus);
+		_is_clBuffersOwner = true;
 		checkCLStatus(clStatus);
 	}
 	else
