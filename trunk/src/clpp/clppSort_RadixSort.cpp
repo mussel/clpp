@@ -5,17 +5,19 @@
 
 // Next :
 // 1 - Allow templating
-// 2 - 
+// 2 - Allow to sort on specific bits only
 
 #pragma region Constructor
 
-clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxElements)
+clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxElements, unsigned int bits)
 {
 	_clBuffer_values = 0;
 	_clBuffer_valuesOut = 0;
 
 	if (!compile(context, "clppSort_RadixSort.cl"))
 		return;
+
+	_bits = bits;
 
 	//---- Prepare all the kernels
 	cl_int clStatus;
@@ -27,12 +29,10 @@ clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxEle
 	checkCLStatus(clStatus);
 
 	//---- Get the workgroup size
-	clGetKernelWorkGroupInfo(_kernel_RadixLocalSort, _context->clDevice, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &_workgroupSize, 0);
-
+	//clGetKernelWorkGroupInfo(_kernel_RadixLocalSort, _context->clDevice, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &_workgroupSize, 0);
 	_workgroupSize = 32;
 
 	_scan = clpp::createBestScan(context, sizeof(int), maxElements);
-	//_scan = new clppScan_Default(context, sizeof(int), maxElements);
 
     _clBuffer_radixHist1 = NULL;
     _clBuffer_radixHist2 = NULL;
@@ -70,7 +70,7 @@ void clppSort_RadixSort::sort()
 
 	cl_mem dataA = _clBuffer_values;
     cl_mem dataB = _clBuffer_valuesOut;
-    for(unsigned int bitOffset = 0; bitOffset < 32; bitOffset += 4)
+    for(unsigned int bitOffset = 0; bitOffset < _bits; bitOffset += 4)
 	{
         radixLocal(dataA, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset, _datasetSize);
 		
@@ -136,7 +136,7 @@ void clppSort_RadixSort::radixPermute(cl_mem dataIn, cl_mem dataOut, cl_mem hist
 
 #pragma region pushDatas
 
-void clppSort_RadixSort::pushDatas(void* values, void* valuesOut, size_t keySize, size_t valueSize, size_t datasetSize, unsigned int keyBits)
+void clppSort_RadixSort::pushDatas(void* values, void* valuesOut, size_t keySize, size_t valueSize, size_t datasetSize)
 {
 	cl_int clStatus;
 

@@ -26,17 +26,16 @@ void clppSort_CPU::sort()
 
 #pragma region pushDatas
 
-void clppSort_CPU::pushDatas(void* keys, void* values, size_t keySize, size_t valueSize, size_t datasetSize, unsigned int keyBits)
+void clppSort_CPU::pushDatas(void* keys, void* values, size_t keySize, size_t valueSize, size_t datasetSize)
 {
 	_keys = keys;
 	_keySize = keySize;
 	_values = values;
 	_valueSize = valueSize;
 	_datasetSize = datasetSize;
-	_keyBits = keyBits;
 }
 
-void clppSort_CPU::pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize, unsigned int keyBits) 
+void clppSort_CPU::pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize) 
 {
 	// Unsupported of course !
 }

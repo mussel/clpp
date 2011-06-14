@@ -400,7 +400,7 @@ void clppSort_Blelloch::reorder(int pass)
 
 #pragma region pushDatas
 
-void clppSort_Blelloch::pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize, unsigned int keyBits)
+void clppSort_Blelloch::pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize)
 {
 	cl_int clStatus;
 

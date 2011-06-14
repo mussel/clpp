@@ -14,12 +14,12 @@ clppScan* clpp::createBestScan(clppContext* context, size_t valueSize, unsigned 
 	return new clppScan_Default(context, valueSize, maxElements);
 }
 
-clppSort* clpp::createBestSort(clppContext* context, unsigned int maxElements)
+clppSort* clpp::createBestSort(clppContext* context, unsigned int maxElements, unsigned int bits)
 {
 	return new clppSort_Blelloch(context, maxElements);
 }
 
-clppSort* clpp::createBestSortKV(clppContext* context, unsigned int maxElements)
+clppSort* clpp::createBestSortKV(clppContext* context, unsigned int maxElements, unsigned int bits)
 {
-	return new clppSort_RadixSort(context, maxElements);
+	return new clppSort_RadixSort(context, maxElements, bits);
 }

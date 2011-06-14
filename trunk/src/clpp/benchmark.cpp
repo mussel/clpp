@@ -25,7 +25,7 @@ void makeRandomUint32Vector_i(unsigned int *a, unsigned int numElements, unsigne
 
 void benchmark_scan(clppContext* context, clppScan* scan, int datasetSize);
 void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSize);
-void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int datasetSize);
+void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int datasetSize, unsigned int bits);
 
 bool checkIsSorted(unsigned int* tocheck, size_t datasetSize, string algorithmName);
 bool checkIsSortedKV(unsigned int* tocheck, size_t datasetSize, string algorithmName);
@@ -57,10 +57,10 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(2, 0);
+	context.setup(0, 0);
 
 	// Scan
-	test_Scan(&context);
+	//test_Scan(&context);
 
 	// Sorting : key
 	//test_Sort(&context);
@@ -138,12 +138,14 @@ void test_Sort(clppContext* context)
 
 void test_Sort_KV(clppContext* context)
 {
+	unsigned int BITS = 32;
+
 	//---- Radix sort
 	cout << "--------------- Default sort Key-Value" << endl;
 	for(unsigned int i = 0; i < datasetSizesCount; i++)
 	{
-		clppSort* clppsort = new clppSort_RadixSort(context, datasetSizes[i]);
-		benchmark_sort_KV(*context, clppsort, datasetSizes[i]);
+		clppSort* clppsort = new clppSort_RadixSort(context, datasetSizes[i], BITS);
+		benchmark_sort_KV(*context, clppsort, datasetSizes[i], BITS);
 		delete clppsort;
 	}
 }
@@ -203,7 +205,7 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
 	makeRandomUint32Vector(keys, datasetSize, 32);  
 
 	//---- Push the datas
- 	sort->pushDatas(keys, keys, 4, 4, datasetSize, 32);
+ 	sort->pushDatas(keys, keys, 4, 4, datasetSize);
 
 	//---- Sort
 	stopWatcher->StartTimer();
@@ -225,13 +227,13 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
 
 #pragma region benchmark_sort_KV
 
-void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int datasetSize)
+void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int datasetSize, unsigned int bits)
 {
 	unsigned int* datas = (unsigned int*)malloc(2 * datasetSize * sizeof(int));
-	makeRandomUint32Vector_KV(datas, datasetSize, 32);   
+	makeRandomUint32Vector_KV(datas, datasetSize, bits);   
 
 	//---- Push the datas
- 	sort->pushDatas(datas, datas, 4, 4, datasetSize, 32);
+ 	sort->pushDatas(datas, datas, 4, 4, datasetSize);
 
 	//---- Sort
 	stopWatcher->StartTimer();
@@ -291,10 +293,12 @@ void makeRandomUint32Vector(unsigned int* a, unsigned int numElements, unsigned 
 void makeRandomUint32Vector_KV(unsigned int* a, unsigned int numElements, unsigned int keybits)
 {
     srand(95123);
-    for(unsigned int i=0; i < numElements; ++i) 
+	unsigned int max = (1<<keybits) - 1;
+    for(unsigned int i = 0; i < numElements; i++)
 	{
-		a[i * 2 + 0] = (rand()%(1<<_TOTALBITS));
-		a[i * 2 + 1] = i; //(rand()%(1<<_TOTALBITS));
+		float r = (float)rand()/RAND_MAX;
+		a[i * 2 + 0] = r * max;
+		a[i * 2 + 1] = i;
     }
 }
 

@@ -7,15 +7,15 @@
 class clppSort_RadixSort : public clppSort
 {
 public:
-	clppSort_RadixSort(clppContext* context, unsigned int maxElements);
+	clppSort_RadixSort(clppContext* context, unsigned int maxElements, unsigned int bits);
 	~clppSort_RadixSort();
 
 	string getName() { return "Radix sort"; }
 
 	void sort();
 
-	void pushDatas(void* values, void* valuesOut, size_t keySize, size_t valueSize, size_t datasetSize, unsigned int keyBits);
-	void pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize, unsigned int keyBits) {}
+	void pushDatas(void* values, void* valuesOut, size_t keySize, size_t valueSize, size_t datasetSize);
+	void pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize) {}
 
 	void popDatas();
 
@@ -31,6 +31,8 @@ private:
 	cl_mem _clBuffer_valuesOut;
 
 	size_t _workgroupSize;
+
+	unsigned int _bits;
 
 	void radixLocal(cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset, const unsigned int N);
 	void radixPermute(cl_mem dataIn, cl_mem dataOut, cl_mem histScan, cl_mem blockHists, int bitOffset, const unsigned int N);
