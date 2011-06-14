@@ -33,9 +33,6 @@ public:
 	// Wait for the end of the program
 	virtual void waitCompletion();
 
-	// Helper method : Retrieves the number of milliseconds that have elapsed since the system was started.
-	double ClockTime();
-
 	// Helper method : use to retreive textual error message
 	static void checkCLStatus(cl_int clStatus);
 

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <algorithm>
 
+#include "clpp/StopWatch.h"
 #include "clpp/clppScan.h"
 #include "clpp/clppScan_Default.h"
 #include "clpp/clppScan_GPU.h"
@@ -46,7 +47,9 @@ void test_Sort_KV(clppContext* context);
 //unsigned int datasetSize = 400000;
 
 unsigned int datasetSizes[7] = {128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
-unsigned int datasetSizesCount = 7;
+unsigned int datasetSizesCount = 6;
+
+StopWatch* stopWatcher = new StopWatch();
 
 int main(int argc, const char** argv)
 {
@@ -145,12 +148,10 @@ void test_Sort_KV(clppContext* context)
 
 void benchmark_scan(clppContext* context, clppScan* scan, int datasetSize)
 {
-	double start, delta;
-
 	//---- Create a set of data
 	unsigned int* values = (unsigned int*)malloc(datasetSize * sizeof(int));
-	makeOneVector(values, datasetSize);
-	//makeRandomUint32Vector(values, datasetSize, 32);
+	//makeOneVector(values, datasetSize);
+	makeRandomUint32Vector(values, datasetSize, 32);
 
 	//---- Scan : default
 	unsigned int* cpuScanValues = (unsigned int*)malloc(datasetSize * sizeof(int));
@@ -165,10 +166,10 @@ void benchmark_scan(clppContext* context, clppScan* scan, int datasetSize)
 	//--- Scan
 	scan->pushDatas(values, datasetSize);
 
-	start = scan->ClockTime();
+	stopWatcher->StartTimer();
 	scan->scan();
 	scan->waitCompletion();
-	delta = scan->ClockTime() - start;
+	stopWatcher->StopTimer();
 
 	scan->popDatas();
 
@@ -180,7 +181,7 @@ void benchmark_scan(clppContext* context, clppScan* scan, int datasetSize)
 			break;
 		}
 
-	cout << "Performance for [Scan] : data-set size[" << datasetSize << "] time (ms): " << delta << endl << endl;
+	cout << "Performance for [Scan] : data-set size[" << datasetSize << "] time (ms): " << stopWatcher->GetElapsedTime() << endl << endl;
 
 	//---- Free
 	free(values);
@@ -205,12 +206,12 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
  	sort->pushDatas(keys, keys, 4, 4, datasetSize, 32);
 
 	//---- Sort
-	double start = sort->ClockTime();
+	stopWatcher->StartTimer();
 	sort->sort();
 	sort->waitCompletion();
-	double delta = sort->ClockTime() - start;
+	stopWatcher->StopTimer();
 
-	cout << "Performance for [" << sort->getName() << "] : data-set size[" << datasetSize << "] time (ms): " << delta << endl << endl;
+	cout << "Performance for [" << sort->getName() << "] : data-set size[" << datasetSize << "] time (ms): " << stopWatcher->GetElapsedTime() << endl << endl;
 
 	//---- Check if it is sorted
 	sort->popDatas();
@@ -230,18 +231,18 @@ void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int dataset
 	makeRandomUint32Vector_KV(datas, datasetSize, 32);   
 
 	//---- Trace
-	cout << "--------------- Sort : " << sort->getName() << endl;
+	cout << "--------------- Sort Key-Value : " << sort->getName() << endl;
 
 	//---- Push the datas
  	sort->pushDatas(datas, datas, 4, 4, datasetSize, 32);
 
 	//---- Sort
-	double start = sort->ClockTime();
+	stopWatcher->StartTimer();
 	sort->sort();
 	sort->waitCompletion();
-	double delta = sort->ClockTime() - start;
+	stopWatcher->StopTimer();
 
-	cout << "Performance for [" << sort->getName() << "] : data-set size[" << datasetSize << "] time (ms): " << delta << endl << endl;
+	cout << "Performance for [" << sort->getName() << "] : data-set size[" << datasetSize << "] time (ms): " << stopWatcher->GetElapsedTime() << endl << endl;
 
 	//---- Check if it is sorted
 	sort->popDatas();
@@ -336,7 +337,7 @@ bool checkIsSortedKV(unsigned int* tocheck, size_t datasetSize, string algorithm
 			cout << "Algorithm FAILED : " << algorithmName << endl;
 			return false;
 		}
-		previous = tocheck[i];
+		previous = tocheck[i*2];
 	}
 
 	return true;

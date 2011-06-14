@@ -57,7 +57,8 @@ bool clppProgram::compile(clppContext* context, string fileName)
 #ifdef __APPLE__
     const char* buildOptions = "-DMAC -cl-fast-relaxed-math";
 #else
-    const char* buildOptions = "-cl-fast-relaxed-math";
+    //const char* buildOptions = "-cl-fast-relaxed-math";
+	const char* buildOptions = "";
 #endif
 
 	clStatus = clBuildProgram(_clProgram, 0, NULL, buildOptions, NULL, NULL);
@@ -157,20 +158,6 @@ void clppProgram::checkCLStatus(cl_int clStatus)
 {
 	const char* e = getOpenCLErrorString(clStatus);
 	assert(clStatus == CL_SUCCESS);
-}
-
-double clppProgram::ClockTime()
-{
-#if defined(__linux__) || defined(__APPLE__)
-    struct timeval t;
-    gettimeofday(&t, 0);
-
-    return t.tv_sec + t.tv_usec / 1000.0;
-#elif defined (WIN32)
-    return GetTickCount();
-#else
-    Unsupported Platform !!!
-#endif
 }
 
 void clppProgram::waitCompletion()
