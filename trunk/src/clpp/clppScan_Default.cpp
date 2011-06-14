@@ -41,7 +41,7 @@ clppScan_Default::clppScan_Default(clppContext* context, size_t valueSize, unsig
 clppScan_Default::~clppScan_Default()
 {
 	if (_is_clBuffersOwner && _clBuffer_values)
-		delete _clBuffer_values;
+		clReleaseMemObject(_clBuffer_values);
 
 	freeBlockSums();
 }

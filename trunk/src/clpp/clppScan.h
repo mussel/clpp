@@ -20,6 +20,9 @@ public:
 		_is_clBuffersOwner = false;
 	}
 
+	// Returns the algorithm name
+	virtual string getName() = 0;
+
 	// Start the scan operation
 	virtual void scan() = 0;
 

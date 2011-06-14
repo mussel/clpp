@@ -10,7 +10,6 @@ using namespace std;
 class clppSort : public clppProgram
 {
 public:
-
 	// Returns the algorithm name
 	virtual string getName() = 0;
 

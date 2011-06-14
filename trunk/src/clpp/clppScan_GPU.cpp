@@ -34,7 +34,7 @@ clppScan_GPU::clppScan_GPU(clppContext* context, size_t valueSize, unsigned int 
 clppScan_GPU::~clppScan_GPU()
 {
 	if (_is_clBuffersOwner && _clBuffer_values)
-		delete _clBuffer_values;
+		clReleaseMemObject(_clBuffer_values);
 }
 
 #pragma endregion

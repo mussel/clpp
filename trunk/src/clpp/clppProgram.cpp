@@ -20,9 +20,11 @@ clppProgram::~clppProgram()
 {
     cl_int clStatus;
 
-    clStatus = clReleaseProgram(_clProgram);
-
-    checkCLStatus(clStatus);
+	if (_clProgram)
+	{
+		clStatus = clReleaseProgram(_clProgram);
+		checkCLStatus(clStatus);
+	}
 }
 
 string clppProgram::getBasePath()

@@ -14,6 +14,9 @@ public:
 
 	// Create the best sort primitive for the context and a number of elements to sort.
 	static clppSort* createBestSort(clppContext* context, unsigned int maxElements);
+
+	// Create the best sort (Key+Value) primitive for the context and a number of elements to sort.
+	static clppSort* createBestSortKV(clppContext* context, unsigned int maxElements);
 };
 
 #endif

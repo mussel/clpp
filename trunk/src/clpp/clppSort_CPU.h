@@ -7,6 +7,7 @@ class clppSort_CPU : public clppSort
 {
 public:
 	clppSort_CPU(clppContext* context);
+	~clppSort_CPU();
 
 	string getName() { return "CPU Brute force"; }
 

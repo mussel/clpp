@@ -8,6 +8,10 @@ clppSort_CPU::clppSort_CPU(clppContext* context)
 {
 }
 
+clppSort_CPU::~clppSort_CPU()
+{
+}
+
 #pragma endregion
 
 #pragma region sort
