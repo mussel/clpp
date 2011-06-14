@@ -31,8 +31,8 @@ clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxEle
 
 	_workgroupSize = 32;
 
-	//_scan = clpp::createBestScan(context, sizeof(int), maxElements);
-	_scan = new clppScan_Default(context, sizeof(int), maxElements);
+	_scan = clpp::createBestScan(context, sizeof(int), maxElements);
+	//_scan = new clppScan_Default(context, sizeof(int), maxElements);
 
     _clBuffer_radixHist1 = NULL;
     _clBuffer_radixHist2 = NULL;

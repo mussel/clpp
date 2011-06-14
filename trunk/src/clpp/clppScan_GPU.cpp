@@ -70,30 +70,50 @@ void clppScan_GPU::scan()
 {
 	cl_int clStatus;
 
-	int multiple = _datasetSize - (_datasetSize%_workgroupSize);
-	int multipleFactor = multiple / _workgroupSize;
-
-	int B = _workgroupSize * multipleFactor;
-
-	//---- Apply the scan to each level
+	int blockSize = _datasetSize / _workgroupSize;
+	int B = blockSize * _workgroupSize;
+	if ((_datasetSize % _workgroupSize) > 0) { blockSize++; };
 	size_t localWorkSize = {_workgroupSize};
-	size_t globalWorkSize = {toMultipleOf(_datasetSize / multipleFactor, _workgroupSize)};
-
-	int delta = _datasetSize - (globalWorkSize*multipleFactor);
-
-	unsigned int passes = (float)ceil( B / ((float)_workgroupSize) );
-	if (delta > 0) passes++;
+	size_t globalWorkSize = {toMultipleOf(_datasetSize / blockSize, _workgroupSize)};
 
 	clStatus  = clSetKernelArg(kernel__scan, 0, _workgroupSize * _valueSize, 0);
 	clStatus |= clSetKernelArg(kernel__scan, 1, sizeof(cl_mem), &_clBuffer_values);
 	clStatus |= clSetKernelArg(kernel__scan, 2, sizeof(int), &B);
 	clStatus |= clSetKernelArg(kernel__scan, 3, sizeof(int), &_datasetSize);
-	clStatus |= clSetKernelArg(kernel__scan, 4, sizeof(int), &passes);
+	clStatus |= clSetKernelArg(kernel__scan, 4, sizeof(int), &blockSize);
 
 	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, kernel__scan, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
 	checkCLStatus(clStatus);
-
 }
+
+
+//void clppScan_GPU::scan()
+//{
+//	cl_int clStatus;
+//
+//	int multiple = _datasetSize - (_datasetSize%_workgroupSize);
+//	int multipleFactor = multiple / _workgroupSize;
+//
+//	int B = _workgroupSize * multipleFactor;
+//
+//	//---- Apply the scan to each level
+//	size_t localWorkSize = {_workgroupSize};
+//	size_t globalWorkSize = {toMultipleOf(_datasetSize / multipleFactor, _workgroupSize)};
+//
+//	int delta = _datasetSize - (globalWorkSize*multipleFactor);
+//
+//	unsigned int passes = (float)ceil( B / ((float)_workgroupSize) );
+//	if (delta > 0) passes++;
+//
+//	clStatus  = clSetKernelArg(kernel__scan, 0, _workgroupSize * _valueSize, 0);
+//	clStatus |= clSetKernelArg(kernel__scan, 1, sizeof(cl_mem), &_clBuffer_values);
+//	clStatus |= clSetKernelArg(kernel__scan, 2, sizeof(int), &B);
+//	clStatus |= clSetKernelArg(kernel__scan, 3, sizeof(int), &_datasetSize);
+//	clStatus |= clSetKernelArg(kernel__scan, 4, sizeof(int), &passes);
+//
+//	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, kernel__scan, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
+//	checkCLStatus(clStatus);
+//}
 
 #pragma endregion
 

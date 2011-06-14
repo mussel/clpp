@@ -1,3 +1,5 @@
+// http://www.sci.utah.edu/~csilva/papers/cgf.pdf
+
 /*#ifdef cl_khr_byte_addressable_store
 #pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
 #define LTYPE ushort

@@ -46,7 +46,7 @@ void test_Sort_KV(clppContext* context);
 //unsigned int datasetSize = 384000;
 //unsigned int datasetSize = 400000;
 
-unsigned int datasetSizes[7] = {128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
+unsigned int datasetSizes[8] = {16000, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
 unsigned int datasetSizesCount = 6;
 
 StopWatch* stopWatcher = new StopWatch();
@@ -57,10 +57,10 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(0, 0);
+	context.setup(2, 0);
 
 	// Scan
-	//test_Scan(&context);
+	test_Scan(&context);
 
 	// Sorting : key
 	//test_Sort(&context);
@@ -74,6 +74,7 @@ int main(int argc, const char** argv)
 void test_Scan(clppContext* context)
 {
 	//---- Default scan
+	cout << "--------------- Scan : Default scan" << endl;
 	for(unsigned int i = 0; i < datasetSizesCount; i++)
 	{
 		clppScan* scan = new clppScan_Default(context, sizeof(int), datasetSizes[i]);
@@ -82,6 +83,7 @@ void test_Scan(clppContext* context)
 	}
 
 	//---- GPU scan
+	cout << "--------------- Scan : GPU scan" << endl;
 	for(unsigned int i = 0; i < datasetSizesCount; i++)
 	{
 		clppScan* scan = new clppScan_GPU(context, sizeof(int), datasetSizes[i]);
@@ -99,7 +101,8 @@ void test_Scan(clppContext* context)
 
 void test_Sort(clppContext* context)
 {
-	//---- Brute fore
+	//---- Brute force
+	cout << "--------------- Brute force sort" << endl;
 	for(unsigned int i = 0; i < datasetSizesCount; i++)
 	{
 		clppSort* clppsort = new clppSort_CPU(context);
@@ -108,6 +111,7 @@ void test_Sort(clppContext* context)
 	}
 
 	//---- Blelloch
+	cout << "--------------- Blelloch sort" << endl;
 	for(unsigned int i = 0; i < datasetSizesCount; i++)
 	{
 		clppSort* clppsort = new clppSort_Blelloch(context, datasetSizes[i]);
@@ -115,6 +119,7 @@ void test_Sort(clppContext* context)
 	}
 
 	//---- NV
+	cout << "--------------- NVidia sort" << endl;
 	for(unsigned int i = 0; i < datasetSizesCount; i++)
 	{
 		clppSort* clppsort = new clppSort_nvRadixSort(context, datasetSizes[i], 128); // 128 = work group size
@@ -134,6 +139,7 @@ void test_Sort(clppContext* context)
 void test_Sort_KV(clppContext* context)
 {
 	//---- Radix sort
+	cout << "--------------- Default sort Key-Value" << endl;
 	for(unsigned int i = 0; i < datasetSizesCount; i++)
 	{
 		clppSort* clppsort = new clppSort_RadixSort(context, datasetSizes[i]);
@@ -150,8 +156,8 @@ void benchmark_scan(clppContext* context, clppScan* scan, int datasetSize)
 {
 	//---- Create a set of data
 	unsigned int* values = (unsigned int*)malloc(datasetSize * sizeof(int));
-	//makeOneVector(values, datasetSize);
-	makeRandomUint32Vector(values, datasetSize, 32);
+	makeOneVector(values, datasetSize);
+	//makeRandomUint32Vector(values, datasetSize, 32);
 
 	//---- Scan : default
 	unsigned int* cpuScanValues = (unsigned int*)malloc(datasetSize * sizeof(int));
@@ -159,9 +165,6 @@ void benchmark_scan(clppContext* context, clppScan* scan, int datasetSize)
 	cpuScanValues[0] = 0;
 	for(unsigned int i = 1; i < datasetSize; i++)
 		cpuScanValues[i] = cpuScanValues[i-1] + values[i - 1];
-
-	//---- Trace
-	cout << "--------------- Scan : " << scan->getName() << endl;
 
 	//--- Scan
 	scan->pushDatas(values, datasetSize);
@@ -181,7 +184,7 @@ void benchmark_scan(clppContext* context, clppScan* scan, int datasetSize)
 			break;
 		}
 
-	cout << "Performance for [Scan] : data-set size[" << datasetSize << "] time (ms): " << stopWatcher->GetElapsedTime() << endl << endl;
+	cout << "Performance for data-set size[" << datasetSize << "] time (ms): " << stopWatcher->GetElapsedTime() << endl;
 
 	//---- Free
 	free(values);
@@ -199,9 +202,6 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
 	//makeRandomUint32Vector_i(keys, datasetSize, 16);
 	makeRandomUint32Vector(keys, datasetSize, 32);  
 
-	//---- Trace
-	cout << "--------------- Sort : " << sort->getName() << endl;
-
 	//---- Push the datas
  	sort->pushDatas(keys, keys, 4, 4, datasetSize, 32);
 
@@ -211,7 +211,7 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
 	sort->waitCompletion();
 	stopWatcher->StopTimer();
 
-	cout << "Performance for [" << sort->getName() << "] : data-set size[" << datasetSize << "] time (ms): " << stopWatcher->GetElapsedTime() << endl << endl;
+	cout << "Performance for data-set size[" << datasetSize << "] time (ms): " << stopWatcher->GetElapsedTime() << endl;
 
 	//---- Check if it is sorted
 	sort->popDatas();
@@ -230,9 +230,6 @@ void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int dataset
 	unsigned int* datas = (unsigned int*)malloc(2 * datasetSize * sizeof(int));
 	makeRandomUint32Vector_KV(datas, datasetSize, 32);   
 
-	//---- Trace
-	cout << "--------------- Sort Key-Value : " << sort->getName() << endl;
-
 	//---- Push the datas
  	sort->pushDatas(datas, datas, 4, 4, datasetSize, 32);
 
@@ -242,7 +239,7 @@ void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int dataset
 	sort->waitCompletion();
 	stopWatcher->StopTimer();
 
-	cout << "Performance for [" << sort->getName() << "] : data-set size[" << datasetSize << "] time (ms): " << stopWatcher->GetElapsedTime() << endl << endl;
+	cout << "Performance for data-set size[" << datasetSize << "] time (ms): " << stopWatcher->GetElapsedTime() << endl;
 
 	//---- Check if it is sorted
 	sort->popDatas();
