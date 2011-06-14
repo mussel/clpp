@@ -128,7 +128,7 @@ void kernel__radixLocalSort(
         int tmpBase = srcBase;
 		srcBase = dstBase;
 		dstBase = tmpBase;
-    } // for
+    }
 
     barrier(CLK_LOCAL_MEM_FENCE);
     // write sorted data back to global mem

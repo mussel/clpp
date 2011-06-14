@@ -152,11 +152,12 @@ void clppScan_Default::pushDatas(cl_mem clBuffer_values, size_t datasetSize)
 {
 	_values = 0;
 	_clBuffer_values = clBuffer_values;
+	bool recompute =  datasetSize != _datasetSize;
 	_datasetSize = datasetSize;
 
 	//---- Compute the size of the different block we can use for '_datasetSize' (can be < maxElements)
 	// Compute the number of levels requested to do the scan
-	if (datasetSize != _datasetSize)
+	if (recompute)
 	{
 		_pass = 0;
 		unsigned int n = _datasetSize;
