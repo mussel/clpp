@@ -129,7 +129,7 @@ void test_Sort(clppContext* context)
 
 void test_Sort_KV(clppContext* context)
 {
-	unsigned int BITS = 16;
+	unsigned int BITS = 32;
 
 	//---- Satish Radix-sort
 	cout << "--------------- Satish sort Key-Value" << endl;

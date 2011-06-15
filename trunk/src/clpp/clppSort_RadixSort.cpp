@@ -116,8 +116,8 @@ void clppSort_RadixSort::radixLocal(cl_mem data, cl_mem hist, cl_mem blockHists,
     size_t local[1] = {_workgroupSize};
 	clStatus = clEnqueueNDRangeKernel(_context->clQueue, _kernel_RadixLocalSort, 1, NULL, global, local, 0, NULL, NULL);
 
-    clStatus |= clFinish(_context->clQueue);
-    checkCLStatus(clStatus);
+    //clStatus |= clFinish(_context->clQueue);
+    //checkCLStatus(clStatus);
 }
 
 void clppSort_RadixSort::radixPermute(cl_mem dataIn, cl_mem dataOut, cl_mem histScan, cl_mem blockHists, int bitOffset, const unsigned int N)
@@ -137,9 +137,9 @@ void clppSort_RadixSort::radixPermute(cl_mem dataIn, cl_mem dataOut, cl_mem hist
 	size_t global[1] = {toMultipleOf(Ndiv4, _workgroupSize)};
     size_t local[1] = {_workgroupSize};
     clStatus = clEnqueueNDRangeKernel(_context->clQueue, _kernel_RadixPermute, 1, NULL, global, local, 0, NULL, NULL);
-    clStatus |= clFinish(_context->clQueue);
 
-    checkCLStatus(clStatus);
+    //clStatus |= clFinish(_context->clQueue);
+    //checkCLStatus(clStatus);
 }
 
 #pragma endregion

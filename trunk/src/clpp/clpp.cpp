@@ -8,7 +8,7 @@
 
 clppScan* clpp::createBestScan(clppContext* context, size_t valueSize, unsigned int maxElements)
 {
-	if (context->isGPU && context->Vendor == clppVendor::Vendor_NVidia)
+	if (context->isGPU)// && context->Vendor == clppVendor::Vendor_NVidia)
 		return new clppScan_GPU(context, valueSize, maxElements);
 
 	return new clppScan_Default(context, valueSize, maxElements);
