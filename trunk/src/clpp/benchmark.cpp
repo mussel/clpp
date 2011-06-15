@@ -56,7 +56,7 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(2, 0);
+	context.setup(0, 0);
 
 	// Scan
 	//test_Scan(&context);
@@ -129,7 +129,7 @@ void test_Sort(clppContext* context)
 
 void test_Sort_KV(clppContext* context)
 {
-	unsigned int BITS = 32;
+	unsigned int BITS = 16;
 
 	//---- Satish Radix-sort
 	cout << "--------------- Satish sort Key-Value" << endl;

@@ -6,6 +6,7 @@
 // Next :
 // 1 - Allow templating
 // 2 - Allow to sort on specific bits only
+// 3 - Allow sorting of keys only
 
 #pragma region Constructor
 

@@ -19,7 +19,9 @@
 //------------------------------------------------------------
 // kernel__radixLocalSort
 //
-// Purpose : 
+// Purpose :
+// 1) Each workgroup sorts its tile by using local memory
+// 2) Create an histogram of d=2^b digits entries
 //------------------------------------------------------------
 
 __kernel
@@ -218,17 +220,17 @@ void kernel__radixLocalSort(
 //------------------------------------------------------------
 // kernel__radixPermute
 //
-// Purpose : 
+// Purpose : Prefix sum results are used to scatter each work-group's elements to their correct position.
 //------------------------------------------------------------
 
 __kernel
 void kernel__radixPermute(
-	__global const int2* dataIn,     // size 4*4 int2s per block
-	__global int2* dataOut,    // size 4*4 int2s per block
-	__global const int* histSum,     // size 16  per block (64 B)
-	__global const int* blockHists, // size 16 int2s per block (64 B)
-	const int bitOffset,       // k*4, k=0..7
-	const int N)              // N = 32 (32x int2 global)
+	__global const int2* dataIn,		// size 4*4 int2s per block
+	__global int2* dataOut,				// size 4*4 int2s per block
+	__global const int* histSum,		// size 16  per block (64 B)
+	__global const int* blockHists,		// size 16 int2s per block (64 B)
+	const int bitOffset,				// k*4, k=0..7
+	const int N)						// N = 32 (32x int2 global)
 {
     const int4 gid4 = ((const int4)(get_global_id(0) << 2)) + (const int4)(0,1,2,3);
     const int tid = get_local_id(0);
@@ -239,7 +241,7 @@ void kernel__radixPermute(
     __local int sharedHistSum[16];
     __local int localHistStart[16];
 
-    // first, fetch per-block int2 histogram and int histogram sums
+    // Fetch per-block int2 histogram and int histogram sums
     if (tid < 16)
     {
         sharedHistSum[tid] = histSum[tid * numBlocks + blockId];
