@@ -42,7 +42,7 @@ public:
 
 	void sort();
 
-	void pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize);
+	void pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize);
 
 	void popDatas();
 

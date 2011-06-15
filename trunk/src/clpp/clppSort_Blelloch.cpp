@@ -115,7 +115,7 @@ void clppSort_Blelloch::resize(int nn)
         nkeys_rounded = nkeys - remainder + (_GROUPS * _ITEMS);
         // pad the vector with big values
         assert(nkeys_rounded <= _N);
-        clStatus = clEnqueueWriteBuffer(_context->clQueue, _clBuffer_keys, CL_TRUE, sizeof(int) * nkeys, sizeof(int) * (_GROUPS * _ITEMS - remainder), pad, 0, NULL, NULL);
+        clStatus = clEnqueueWriteBuffer(_context->clQueue, _clBuffer_dataSet, CL_TRUE, sizeof(int) * nkeys, sizeof(int) * (_GROUPS * _ITEMS - remainder), pad, 0, NULL, NULL);
         
         checkCLStatus(clStatus);
     }
@@ -129,7 +129,7 @@ void clppSort_Blelloch::transpose(int nbrow,int nbcol)
 {
     cl_int clStatus;
 
-    clStatus  = clSetKernelArg(_kernel_Transpose, 0, sizeof(cl_mem), &_clBuffer_keys);
+    clStatus  = clSetKernelArg(_kernel_Transpose, 0, sizeof(cl_mem), &_clBuffer_dataSet);
     checkCLStatus(clStatus);
 
     clStatus  = clSetKernelArg(_kernel_Transpose, 1, sizeof(cl_mem), &_clBuffer_outKeys);
@@ -174,8 +174,8 @@ void clppSort_Blelloch::transpose(int nbrow,int nbcol)
 
     // swap the old and new vectors of keys
     cl_mem _clBuffer_temp;
-    _clBuffer_temp = _clBuffer_keys;
-    _clBuffer_keys = _clBuffer_outKeys;
+    _clBuffer_temp = _clBuffer_dataSet;
+    _clBuffer_dataSet = _clBuffer_outKeys;
     _clBuffer_outKeys = _clBuffer_temp;
 
     // swap the old and new permutations
@@ -210,7 +210,7 @@ void clppSort_Blelloch::histogram(int pass)
 
     assert(_RADIX == pow(2.f,_BITS));
 
-    clStatus  = clSetKernelArg(_kernel_Histogram, 0, sizeof(cl_mem), &_clBuffer_keys);
+    clStatus  = clSetKernelArg(_kernel_Histogram, 0, sizeof(cl_mem), &_clBuffer_dataSet);
     checkCLStatus(clStatus);
 
     clStatus = clSetKernelArg(_kernel_Histogram, 2, sizeof(int), &pass);
@@ -342,7 +342,7 @@ void clppSort_Blelloch::reorder(int pass)
 
     clFinish(_context->clQueue);
 
-    clStatus  = clSetKernelArg(_kernel_Reorder, 0, sizeof(cl_mem), &_clBuffer_keys);
+    clStatus  = clSetKernelArg(_kernel_Reorder, 0, sizeof(cl_mem), &_clBuffer_dataSet);
     checkCLStatus(clStatus);
 
     clStatus  = clSetKernelArg(_kernel_Reorder, 1, sizeof(cl_mem), &_clBuffer_outKeys);
@@ -386,8 +386,8 @@ void clppSort_Blelloch::reorder(int pass)
 
     // swap the old and new vectors of keys
     cl_mem _clBuffer_temp;
-    _clBuffer_temp = _clBuffer_keys;
-    _clBuffer_keys = _clBuffer_outKeys;
+    _clBuffer_temp = _clBuffer_dataSet;
+    _clBuffer_dataSet = _clBuffer_outKeys;
     _clBuffer_outKeys = _clBuffer_temp;
 
     // swap the old and new permutations
@@ -400,7 +400,7 @@ void clppSort_Blelloch::reorder(int pass)
 
 #pragma region pushDatas
 
-void clppSort_Blelloch::pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize)
+void clppSort_Blelloch::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize)
 {
 	cl_int clStatus;
 
@@ -435,9 +435,9 @@ void clppSort_Blelloch::pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values
 	//cout <<"nkeys="<<nkeys<<" "<<nkeys_rounded<<endl;
 
 	//---- Send the data
-	if (_keys != 0)
+	if (_dataSet != 0)
 	{
-		clStatus = clEnqueueWriteBuffer(_context->clQueue, clBuffer_keys, CL_FALSE, 0, sizeof(int) * _N, _keys, 0, NULL, NULL);
+		clStatus = clEnqueueWriteBuffer(_context->clQueue, clBuffer_dataSet, CL_FALSE, 0, sizeof(int) * _N, _dataSet, 0, NULL, NULL);
 		checkCLStatus(clStatus);
 	}
 
@@ -474,7 +474,7 @@ void clppSort_Blelloch::popDatas()
 
     clFinish(_context->clQueue);     // wait end of read
 
-	clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_keys, CL_FALSE, 0, sizeof(int) * _N, _keys, 0, NULL, NULL);
+	clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSet, CL_FALSE, 0, sizeof(int) * _N, _dataSet, 0, NULL, NULL);
 	checkCLStatus(clStatus);
 
 	/*

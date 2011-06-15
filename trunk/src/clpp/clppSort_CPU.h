@@ -13,8 +13,8 @@ public:
 
 	void sort();
 
-	void pushDatas(void* keys, void* values, size_t keySize, size_t valueSize, size_t datasetSize);
-	void pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize);
+	void pushDatas(void* dataSet, size_t datasetSize);
+	void pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize);
 
 	void popDatas();
 

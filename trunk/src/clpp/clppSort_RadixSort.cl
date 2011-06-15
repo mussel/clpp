@@ -14,20 +14,6 @@
 // Radix Sort For Vector Multiprocessors, Marco Zagha and Guy E. Blelloch
 //------------------------------------------------------------
 
-/*#ifdef cl_khr_byte_addressable_store
-#pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
-#define LTYPE ushort
-#else
-#define LTYPE uint
-#endif*/
-//#pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
-//#define LTYPE uint
-/*#ifdef BYTE_ADDR
-#pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
-#define LTYPE int
-#else
-#define LTYPE int
-#endif*/
 #define LTYPE int	// TODO
 
 //------------------------------------------------------------

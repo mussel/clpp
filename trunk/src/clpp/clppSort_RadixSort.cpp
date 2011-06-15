@@ -11,8 +11,8 @@
 
 clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxElements, unsigned int bits)
 {
-	_clBuffer_values = 0;
-	_clBuffer_valuesOut = 0;
+	_clBuffer_dataSet = 0;
+	_clBuffer_dataSetOut = 0;
 
 	if (!compile(context, "clppSort_RadixSort.cl"))
 		return;
@@ -36,17 +36,16 @@ clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxEle
 
     _clBuffer_radixHist1 = NULL;
     _clBuffer_radixHist2 = NULL;
-    _clBuffer_valuesOut = NULL;
 	_datasetSize = 0;
 }
 
 clppSort_RadixSort::~clppSort_RadixSort()
 {
-	if (_clBuffer_values)
-		clReleaseMemObject(_clBuffer_values);
+	if (_clBuffer_dataSet)
+		clReleaseMemObject(_clBuffer_dataSet);
 
-	if (_clBuffer_valuesOut)
-		clReleaseMemObject(_clBuffer_valuesOut);
+	if (_clBuffer_dataSetOut)
+		clReleaseMemObject(_clBuffer_dataSetOut);
 
 	if (_clBuffer_radixHist1)
 		clReleaseMemObject(_clBuffer_radixHist1);
@@ -65,18 +64,26 @@ inline int roundUpDiv(int A, int B) { return (A + B - 1) / (B); }
 
 void clppSort_RadixSort::sort()
 {
+	// Satish et al. empirically set b = 4. The size of a work-group is in hundreds of
+	// work-items, depending on the concrete device and each work-item processes more than one
+	// stream element, usually 4, in order to hide latencies.
+
 	cl_int clStatus;
     unsigned int numBlocks = roundUpDiv(_datasetSize, _workgroupSize * 4);
 
-	cl_mem dataA = _clBuffer_values;
-    cl_mem dataB = _clBuffer_valuesOut;
+	cl_mem dataA = _clBuffer_dataSet;
+    cl_mem dataB = _clBuffer_dataSetOut;
     for(unsigned int bitOffset = 0; bitOffset < _bits; bitOffset += 4)
 	{
+		// 1) Each workgroup sorts its tile by using local memory
+		// 2) Create an histogram of d=2^b digits entries
         radixLocal(dataA, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset, _datasetSize);
 		
+		// 3) Scan the p*2^b = p*(16) entry histogram table. Stored in column-major order, computes global digit offsets.
 		_scan->pushDatas(_clBuffer_radixHist1, 16 * numBlocks);
 		_scan->scan();
         
+		// 4) Prefix sum results are used to scatter each work-group's elements to their correct position.
 		radixPermute(dataA, dataB, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset, _datasetSize);
 
         std::swap(dataA, dataB);
@@ -136,13 +143,55 @@ void clppSort_RadixSort::radixPermute(cl_mem dataIn, cl_mem dataOut, cl_mem hist
 
 #pragma region pushDatas
 
-void clppSort_RadixSort::pushDatas(void* values, void* valuesOut, size_t keySize, size_t valueSize, size_t datasetSize)
+void clppSort_RadixSort::pushDatas(void* dataSet, size_t datasetSize)
 {
 	cl_int clStatus;
 
 	//---- Store some values
-	_values = values;
-	_valuesOut = valuesOut;
+	_dataSet = dataSet;
+	_dataSetOut = dataSet;
+	_valueSize = 4;
+	_keySize = 4;
+	bool reallocate = datasetSize > _datasetSize;
+	_datasetSize = datasetSize;
+
+	//---- Prepare some buffers
+	if (reallocate)
+	{
+		//---- Release
+		if (_clBuffer_dataSet)
+		{
+			clReleaseMemObject(_clBuffer_dataSet);
+			clReleaseMemObject(_clBuffer_dataSetOut);
+			clReleaseMemObject(_clBuffer_radixHist1);
+			clReleaseMemObject(_clBuffer_radixHist2);
+		}
+
+		//---- Allocate
+		unsigned int numBlocks = roundUpDiv(_datasetSize, _workgroupSize * 4);
+	    
+		_clBuffer_radixHist1 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * 16 * numBlocks, NULL, &clStatus);
+		checkCLStatus(clStatus);
+		_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize+_keySize) * 16 * numBlocks, NULL, &clStatus);
+		checkCLStatus(clStatus);
+
+		//---- Copy on the device
+		_clBuffer_dataSet = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, (_valueSize+_keySize) * _datasetSize, _dataSet, &clStatus);
+		checkCLStatus(clStatus);
+
+		_clBuffer_dataSetOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize+_keySize) * _datasetSize, NULL, &clStatus);
+		checkCLStatus(clStatus);
+	}
+	else
+		// Just resend
+		clEnqueueWriteBuffer(_context->clQueue, _clBuffer_dataSet, CL_FALSE, 0, (_valueSize+_keySize) * _datasetSize, _dataSet, 0, 0, 0);
+}
+
+void clppSort_RadixSort::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize)
+{
+	cl_int clStatus;
+
+	//---- Store some values
 	_valueSize = valueSize;
 	_keySize = keySize;
 	bool reallocate = datasetSize > _datasetSize;
@@ -163,57 +212,17 @@ void clppSort_RadixSort::pushDatas(void* values, void* valuesOut, size_t keySize
 		//---- Allocate
 		unsigned int numBlocks = roundUpDiv(_datasetSize, _workgroupSize * 4);
 	    
+		// column size = 2^b = 16
+		// row size = numblocks
 		_clBuffer_radixHist1 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * 16 * numBlocks, NULL, &clStatus);
 		checkCLStatus(clStatus);
-		_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize+_keySize) * 16 * numBlocks, NULL, &clStatus);
-		checkCLStatus(clStatus);
-
-		//---- Copy on the device
-		_clBuffer_values = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, (_valueSize+_keySize) * _datasetSize, _values, &clStatus);
-		checkCLStatus(clStatus);
-
-		_clBuffer_valuesOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize+_keySize) * _datasetSize, NULL, &clStatus);
+		_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize + _keySize) * 16 * numBlocks, NULL, &clStatus);
 		checkCLStatus(clStatus);
 	}
-	else
-		// Just resend
-		clEnqueueWriteBuffer(_context->clQueue, _clBuffer_values, CL_FALSE, 0, (_valueSize+_keySize) * _datasetSize, _values, 0, 0, 0);
-}
 
-//void clppSort_RadixSort::pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize)
-//{
-//	cl_int clStatus;
-//
-//	//---- Store some values
-//	_valueSize = valueSize;
-//	_keySize = keySize;
-//	bool reallocate = datasetSize > _datasetSize;
-//	_datasetSize = datasetSize;
-//
-//	//---- Prepare some buffers
-//	if (reallocate)
-//	{
-//		//---- Release
-//		if (_clBuffer_values)
-//		{
-//			clReleaseMemObject(_clBuffer_values);
-//			clReleaseMemObject(_clBuffer_valuesOut);
-//			clReleaseMemObject(_clBuffer_radixHist1);
-//			clReleaseMemObject(_clBuffer_radixHist2);
-//		}
-//
-//		//---- Allocate
-//		unsigned int numBlocks = roundUpDiv(_datasetSize, _workgroupSize * 4);
-//	    
-//		_clBuffer_radixHist1 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * 16 * numBlocks, NULL, &clStatus);
-//		checkCLStatus(clStatus);
-//		_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize+_keySize) * 16 * numBlocks, NULL, &clStatus);
-//		checkCLStatus(clStatus);
-//	}
-//
-//	_clBuffer_values = clBuffer_values;
-//	_clBuffer_valuesOut = clBuffer_valuesOut;
-//}
+	_clBuffer_values = clBuffer_dataSet;
+	_clBuffer_valuesOut = clBuffer_dataSet;
+}
 
 #pragma endregion
 
@@ -221,7 +230,7 @@ void clppSort_RadixSort::pushDatas(void* values, void* valuesOut, size_t keySize
 
 void clppSort_RadixSort::popDatas()
 {
-	cl_int clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_valuesOut, CL_TRUE, 0, (_valueSize+_keySize) * _datasetSize, _valuesOut, 0, NULL, NULL);
+	cl_int clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, (_valueSize + _keySize) * _datasetSize, _dataSetOut, 0, NULL, NULL);
 	checkCLStatus(clStatus);
 }
 

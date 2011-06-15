@@ -180,7 +180,7 @@ void clppSort_nvRadixSort::reorderDataKeysOnlyOCL(unsigned int startbit)
     size_t localWorkSize[1] = {CTA_SIZE};
 
     cl_int clStatus;
-    clStatus  = clSetKernelArg(_kernel_ReorderDataKeysOnly, 0, sizeof(cl_mem), (void*)&_clBuffer_keys);
+    clStatus  = clSetKernelArg(_kernel_ReorderDataKeysOnly, 0, sizeof(cl_mem), (void*)&_clBuffer_dataSet);
     clStatus |= clSetKernelArg(_kernel_ReorderDataKeysOnly, 1, sizeof(cl_mem), (void*)&_clBuffer_TempKeys);
     clStatus |= clSetKernelArg(_kernel_ReorderDataKeysOnly, 2, sizeof(cl_mem), (void*)&_clBuffer_BlockOffsets);
     clStatus |= clSetKernelArg(_kernel_ReorderDataKeysOnly, 3, sizeof(cl_mem), (void*)&_clBuffer_CountersSum);

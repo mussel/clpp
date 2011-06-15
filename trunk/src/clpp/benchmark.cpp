@@ -9,7 +9,6 @@
 
 #include "clpp/clppSort_Blelloch.h"
 #include "clpp/clppSort_CPU.h"
-#include "clpp/clppSort_nvRadixSort.h"
 #include "clpp/clppSort_RadixSort.h"
 //#include "clpp/clppSort_Merill.h"
 
@@ -118,14 +117,6 @@ void test_Sort(clppContext* context)
 		benchmark_sort(*context, clppsort, datasetSizes[i]);	
 	}
 
-	//---- NV
-	cout << "--------------- NVidia sort" << endl;
-	for(unsigned int i = 0; i < datasetSizesCount; i++)
-	{
-		clppSort* clppsort = new clppSort_nvRadixSort(context, datasetSizes[i], 128); // 128 = work group size
-		benchmark_sort(*context, clppsort, datasetSizes[i]);
-	}
-
 	// Merill
 	//memcpy(keys, keysCopy, datasetSize * sizeof(int));
 	//clppsort = new clppSort_Merill(context, datasetSize); // 128 = work group size
@@ -140,8 +131,8 @@ void test_Sort_KV(clppContext* context)
 {
 	unsigned int BITS = 32;
 
-	//---- Radix sort
-	cout << "--------------- Default sort Key-Value" << endl;
+	//---- Satish Radix-sort
+	cout << "--------------- Satish sort Key-Value" << endl;
 	for(unsigned int i = 0; i < datasetSizesCount; i++)
 	{
 		clppSort* clppsort = new clppSort_RadixSort(context, datasetSizes[i], BITS);
@@ -205,7 +196,7 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
 	makeRandomUint32Vector(keys, datasetSize, 32);  
 
 	//---- Push the datas
- 	sort->pushDatas(keys, keys, 4, 4, datasetSize);
+ 	sort->pushDatas(keys, datasetSize);
 
 	//---- Sort
 	stopWatcher->StartTimer();
@@ -233,7 +224,7 @@ void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int dataset
 	makeRandomUint32Vector_KV(datas, datasetSize, bits);   
 
 	//---- Push the datas
- 	sort->pushDatas(datas, datas, 4, 4, datasetSize);
+ 	sort->pushDatas(datas, datasetSize);
 
 	//---- Sort
 	stopWatcher->StartTimer();

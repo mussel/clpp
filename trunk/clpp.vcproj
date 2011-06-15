@@ -373,18 +373,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\clpp\clppSort_Merill.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\src\clpp\clppSort_nvRadixSort.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\src\clpp\clppSort_nvScan.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\src\clpp\clppSort_RadixSort.cpp"
 				>
 			</File>
@@ -440,18 +428,6 @@
 			</File>
 			<File
 				RelativePath=".\src\clpp\clppSort_CPU.h"
-				>
-			</File>
-			<File
-				RelativePath=".\src\clpp\clppSort_Merill.h"
-				>
-			</File>
-			<File
-				RelativePath=".\src\clpp\clppSort_nvRadixSort.h"
-				>
-			</File>
-			<File
-				RelativePath=".\src\clpp\clppSort_nvScan.h"
 				>
 			</File>
 			<File

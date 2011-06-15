@@ -14,21 +14,19 @@ public:
 
 	void sort();
 
-	void pushDatas(void* values, void* valuesOut, size_t keySize, size_t valueSize, size_t datasetSize);
-	void pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize) {}
+	void pushDatas(void* dataSet, size_t datasetSize);
+	void pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize) {}
 
 	void popDatas();
 
 private:
 	size_t _datasetSize;	// The number of keys to sort
 
-	void* _valuesOut;
+	void* _dataSetOut;
+	cl_mem _clBuffer_dataSetOut;
 
 	cl_kernel _kernel_RadixLocalSort;
-	cl_kernel _kernel_RadixPermute;
-
-	cl_mem _clBuffer_values;
-	cl_mem _clBuffer_valuesOut;
+	cl_kernel _kernel_RadixPermute;	
 
 	size_t _workgroupSize;
 
