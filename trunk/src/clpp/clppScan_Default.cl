@@ -56,11 +56,11 @@ void kernel__ExclusivePrefixScanSmall(
 	
 	int offset = 1;
 
-    /* Cache the computational window in shared memory */
+    // Cache the computational window in shared memory
 	block[2*tid]     = input[2*tid];
 	block[2*tid + 1] = input[2*tid + 1];	
 
-    /* build the sum in place up the tree */
+    // Build the sum in place up the tree
 	for(int d = length>>1; d > 0; d >>=1)
 	{
 		barrier(CLK_LOCAL_MEM_FENCE);
@@ -75,15 +75,13 @@ void kernel__ExclusivePrefixScanSmall(
 		offset *= 2;
 	}
 
-    /* scan back down the tree */
+    // scan back down the tree
 
-    /* clear the last element */
+    // Clear the last element
 	if(tid == 0)
-	{
 		block[length - 1] = 0;
-	}
 
-    /* traverse down the tree building the scan in the place */
+    // traverse down the tree building the scan in the place
 	for(int d = 1; d < length ; d *= 2)
 	{
 		offset >>=1;
@@ -102,7 +100,7 @@ void kernel__ExclusivePrefixScanSmall(
 	
 	barrier(CLK_LOCAL_MEM_FENCE);
 
-    /*write the results back to global memory */
+    // write the results back to global memory
 	output[2*tid]     = block[2*tid];
 	output[2*tid + 1] = block[2*tid + 1];
 }

@@ -286,7 +286,7 @@ void makeRandomUint32Vector(unsigned int* a, unsigned int numElements, unsigned 
     //cout << "Warning, max int = "<< (1<<_TOTALBITS)<<endl;
     for(unsigned int i=0; i < numElements; ++i)  { 
       // a[i] = ((rand() & keyshiftmask)<<16) | (rand() & keymask); 
-      a[i] = (rand()%(1<<_TOTALBITS));   // peut-être qu'il fallait pas :-)
+      a[i] = (rand()%(1<<_TOTALBITS));
     }
 }
 

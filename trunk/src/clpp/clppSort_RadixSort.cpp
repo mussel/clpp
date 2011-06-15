@@ -88,13 +88,13 @@ void clppSort_RadixSort::radixLocal(cl_mem data, cl_mem hist, cl_mem blockHists,
     int LTYPE_SIZE = sizeof(cl_int);
     //if (extensions->contains("cl_khr_byte_addressable_store"))
     //    LTYPE_SIZE = sizeof(cl_int);
-    cl_int clStatus = CL_SUCCESS;
+    cl_int clStatus;
     unsigned int a = 0;
     unsigned int Ndiv4 = roundUpDiv(N, 4);
 
-	clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, (_valueSize+_keySize) * 4 * _workgroupSize, (const void*)NULL);	// shared,    4*4 int2s
-    clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, LTYPE_SIZE * 4 * 2 * _workgroupSize, (const void*)NULL);	// indices,   4*4*2 shorts
-    clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, LTYPE_SIZE * 4 * _workgroupSize, (const void*)NULL);		// sharedSum, 4*4 shorts
+	clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, (_valueSize+_keySize) * 4 * _workgroupSize, (const void*)NULL);	// shared,    4*4 int2s
+    clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, LTYPE_SIZE * 4 * 2 * _workgroupSize, (const void*)NULL);		// indices,   4*4*2 shorts
+    clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, LTYPE_SIZE * 4 * _workgroupSize, (const void*)NULL);			// sharedSum, 4*4 shorts
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)&data);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)&hist);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)&blockHists);
@@ -112,11 +112,11 @@ void clppSort_RadixSort::radixLocal(cl_mem data, cl_mem hist, cl_mem blockHists,
 
 void clppSort_RadixSort::radixPermute(cl_mem dataIn, cl_mem dataOut, cl_mem histScan, cl_mem blockHists, int bitOffset, const unsigned int N)
 {
-    cl_int clStatus = CL_SUCCESS;
+    cl_int clStatus;
     unsigned int a = 0;
     unsigned int Ndiv4 = roundUpDiv(N, 4);
 
-    clStatus |= clSetKernelArg(_kernel_RadixPermute, a++, sizeof(cl_mem), (const void*)&dataIn);
+    clStatus  = clSetKernelArg(_kernel_RadixPermute, a++, sizeof(cl_mem), (const void*)&dataIn);
     clStatus |= clSetKernelArg(_kernel_RadixPermute, a++, sizeof(cl_mem), (const void*)&dataOut);
     clStatus |= clSetKernelArg(_kernel_RadixPermute, a++, sizeof(cl_mem), (const void*)&histScan);
     clStatus |= clSetKernelArg(_kernel_RadixPermute, a++, sizeof(cl_mem), (const void*)&blockHists);
@@ -179,6 +179,41 @@ void clppSort_RadixSort::pushDatas(void* values, void* valuesOut, size_t keySize
 		// Just resend
 		clEnqueueWriteBuffer(_context->clQueue, _clBuffer_values, CL_FALSE, 0, (_valueSize+_keySize) * _datasetSize, _values, 0, 0, 0);
 }
+
+//void clppSort_RadixSort::pushCLDatas(cl_mem clBuffer_keys, cl_mem clBuffer_values, size_t datasetSize)
+//{
+//	cl_int clStatus;
+//
+//	//---- Store some values
+//	_valueSize = valueSize;
+//	_keySize = keySize;
+//	bool reallocate = datasetSize > _datasetSize;
+//	_datasetSize = datasetSize;
+//
+//	//---- Prepare some buffers
+//	if (reallocate)
+//	{
+//		//---- Release
+//		if (_clBuffer_values)
+//		{
+//			clReleaseMemObject(_clBuffer_values);
+//			clReleaseMemObject(_clBuffer_valuesOut);
+//			clReleaseMemObject(_clBuffer_radixHist1);
+//			clReleaseMemObject(_clBuffer_radixHist2);
+//		}
+//
+//		//---- Allocate
+//		unsigned int numBlocks = roundUpDiv(_datasetSize, _workgroupSize * 4);
+//	    
+//		_clBuffer_radixHist1 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * 16 * numBlocks, NULL, &clStatus);
+//		checkCLStatus(clStatus);
+//		_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize+_keySize) * 16 * numBlocks, NULL, &clStatus);
+//		checkCLStatus(clStatus);
+//	}
+//
+//	_clBuffer_values = clBuffer_values;
+//	_clBuffer_valuesOut = clBuffer_valuesOut;
+//}
 
 #pragma endregion
 

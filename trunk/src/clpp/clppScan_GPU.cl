@@ -115,7 +115,7 @@ void kernel__scan_block_anylength(
 	
 	T reduceValue = OPERATOR_IDENTITY;
 	
-	//#pragma unroll
+	//#pragma unroll 4
 	for(uint i = 0; i < passesCount; ++i)
 	{
 		const uint offset = i * TC + (bidx * B);

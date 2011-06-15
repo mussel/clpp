@@ -1,4 +1,18 @@
+//------------------------------------------------------------
+// Purpose :
+// ---------
+//
+// Algorithm :
+// -----------
+// Radix sort algorithm for key-value pairs. This work is based on the Blelloch
+// paper and optimized with the technique described in the Satish/Harris/Garland paper.
+//
+// References :
+// ------------
+// Designing Efficient Sorting Algorithms for Manycore GPUs. Nadathur Satish, Mark Harris, Michael Garland. http://mgarland.org/files/papers/gpusort-ipdps09.pdf
 // http://www.sci.utah.edu/~csilva/papers/cgf.pdf
+// Radix Sort For Vector Multiprocessors, Marco Zagha and Guy E. Blelloch
+//------------------------------------------------------------
 
 /*#ifdef cl_khr_byte_addressable_store
 #pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
@@ -15,6 +29,12 @@
 #define LTYPE int
 #endif*/
 #define LTYPE int	// TODO
+
+//------------------------------------------------------------
+// kernel__radixLocalSort
+//
+// Purpose : 
+//------------------------------------------------------------
 
 __kernel
 void kernel__radixLocalSort(
@@ -38,7 +58,7 @@ void kernel__radixLocalSort(
     __local int localHistEnd[16];
     __local LTYPE incSum[1];
 
-    // each thread copies 4 (Cell,Tri) pairs into local shared mem
+    // Each thread copies 4 (Cell,Tri) pairs into local memory
     shared[tid4.x] = (gid4+0 < N) ? data[gid4+0] : (int2)0x7FFFFFFF;
     shared[tid4.y] = (gid4+1 < N) ? data[gid4+1] : (int2)0x7FFFFFFF;
     shared[tid4.z] = (gid4+2 < N) ? data[gid4+2] : (int2)0x7FFFFFFF;
@@ -51,9 +71,11 @@ void kernel__radixLocalSort(
 
     int srcBase = 0;
     int dstBase = blockSize4;
+	
+	//-------- 1) 4 x local 1-bit split
+	// Should find a way to use createBestScan to improve performance here
 
-    // 4 x local 1-bit split
-    int shift = bitOffset;
+    uint shift = bitOffset;
     for (int i = 0; i < 4; i++, shift++)
     {
         barrier(CLK_LOCAL_MEM_FENCE);
@@ -110,53 +132,50 @@ void kernel__radixLocalSort(
         tmp = sharedSum[tid4.x];    sharedSum[tid4.x] = sharedSum[tid4.y];  sharedSum[tid4.y] += tmp;
         tmp = sharedSum[tid4.z];    sharedSum[tid4.z] = sharedSum[tid4.w];  sharedSum[tid4.w] += tmp;
 
-        // permutation
-        for (int b = 0; b < 4; b++)
+        // Permutations
+        for(uint b = 0; b < 4; b++)
         {
-            int idx = tid4.x + b;
+            uint idx = tid4.x + b;
             barrier(CLK_LOCAL_MEM_FENCE);
+			
             int flag = (((int)shared[indices[srcBase + idx]].x) >> shift) & 0x1;
-            if (flag == 1)
-            {
-                indices[dstBase + (int)incSum[0] + idx - (int)sharedSum[idx]] = indices[srcBase + idx];
-            }
-            else
-            {
-                indices[dstBase + (int)sharedSum[idx]] = indices[srcBase + idx];
-            }
+			
+            //if (flag == 1)
+            //    indices[dstBase + (int)incSum[0] + idx - (int)sharedSum[idx]] = indices[srcBase + idx];
+            //else
+            //    indices[dstBase + (int)sharedSum[idx]] = indices[srcBase + idx];
+				
+			// Faster version for GPU (no divergence)
+			uint targetOffset = flag * ( (int)incSum[0] + idx - (int)sharedSum[idx] ) + (1-flag) * ((int)sharedSum[idx]);
+			indices[dstBase + targetOffset] = indices[srcBase + idx];
         }
 
-        // pingpong left and right halves of the indirection buffer
+        // Pingpong left and right halves of the indirection buffer
         int tmpBase = srcBase;
 		srcBase = dstBase;
 		dstBase = tmpBase;
     }
-
+	
     barrier(CLK_LOCAL_MEM_FENCE);
-    // write sorted data back to global mem
+	
+    // Write sorted data back to global mem
     if (gid4+0 < N) data[gid4+0] = shared[indices[srcBase + tid4.x]];
     if (gid4+1 < N) data[gid4+1] = shared[indices[srcBase + tid4.y]];
     if (gid4+2 < N) data[gid4+2] = shared[indices[srcBase + tid4.z]];
     if (gid4+3 < N) data[gid4+3] = shared[indices[srcBase + tid4.w]];
+	
+	//-------- 2) Histogram
 
     // init histogram values
     barrier(CLK_LOCAL_MEM_FENCE);
-    //if(blockSize >= 16) {
     if (tid < 16)
     {
         localHistStart[tid] = 0;
         localHistEnd[tid] = -1;
     }
-    /*} else {
-        if(tid == 0) {
-            for(int i = 0; i < 16; i++) {
-                localHistStart[i] = 0;
-                localHistEnd[i] = -1;
-            }
-        }
-    }*/
 
-    // calculate the histogram
+    // Start computation
+	
     barrier(CLK_LOCAL_MEM_FENCE);
     int ka, kb;
     if (tid4.x > 0)
@@ -196,32 +215,25 @@ void kernel__radixLocalSort(
 
     if (tid == 0)
     {
-        localHistEnd[(((int)shared[indices[srcBase + blockSize4-1]].x) >> bitOffset) & 0xF] = blockSize4-1;
+        localHistEnd[(((int)shared[indices[srcBase + blockSize4-1]].x) >> bitOffset) & 0xF] = blockSize4 - 1;
         localHistStart[(((int)shared[indices[srcBase]].x) >> bitOffset) & 0xF] = 0;
-        //localHist[0].x = 0;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // write histogram to global mem
+    // Write histogram to global memomry
     const int numBlocks = get_num_groups(0);
-    //if(blockSize >= 16) {
     if (tid < 16)
     {
         hist[tid * numBlocks + blockId] = localHistEnd[tid] - localHistStart[tid] + 1;
         blockHists[(blockId << 5) + tid] = localHistStart[tid];
-        //blockHists[(blockId << 5) + 16 + tid] = localHistEnd[tid];
-
     }
-    /*} else {  // too few threads in block :)
-        if(tid == 0) {
-            for(int i = 0; i < 16; i++) {
-                hist[i * numBlocks + blockId] = localHistEnd[i] - localHistStart[i] + 1;
-                blockHists[(blockId << 5) + i] = localHistStart[i];
-                //blockHists[(blockId << 5) + 16 + i] = localHistEnd[i];
-            }
-        }
-    }*/
 }
+
+//------------------------------------------------------------
+// kernel__radixPermute
+//
+// Purpose : 
+//------------------------------------------------------------
 
 __kernel
 void kernel__radixPermute(
@@ -240,32 +252,15 @@ void kernel__radixPermute(
     const int numBlocks = get_num_groups(0);
     __local int sharedHistSum[16];
     __local int localHistStart[16];
-    //__local int localHistEnd[16];
 
     // first, fetch per-block int2 histogram and int histogram sums
-    //event_t events[1];
-    //events[0] = async_work_group_copy((__local int*)localHistStart, (const __global int*)&blockHists[blockId << 5], (size_t)16, (event_t)0);
-    //events[1] = async_work_group_copy((__local int*)localHistEnd, (const __global int*)&blockHists[blockId << 5 + 16], (size_t)16, (event_t)0);
-
-    //int elementsPerThread = 16 / blockSize;
-    //if(blockSize >= 16) { // TODO - kick out?!!!
     if (tid < 16)
     {
         sharedHistSum[tid] = histSum[tid * numBlocks + blockId];
         localHistStart[tid] = blockHists[(blockId << 5) + tid];
-        //localHistEnd[tid] = blockHists[(blockId << 5) + 16 + tid];
     }
-    /*} else {  // too few threads in block :)
-        if(tid == 0)
-            for(int i = 0; i < 16; i++) {
-                sharedHistSum[i] = histSum[i * numBlocks + blockId];
-                localHistStart[i] = blockHists[(blockId << 5) + i];
-                //localHistEnd[i] = blockHists[(blockId << 5) + 16 + i];
-            }
-    }*/
 
-    // copy data
-    // each thread copies 4 (Cell,Tri) pairs into local shared mem
+    // Copy data, each thread copies 4 (Cell,Tri) pairs into local shared mem
     barrier(CLK_LOCAL_MEM_FENCE);
     int2 myData[4];
     int myShiftedKeys[4];
@@ -279,17 +274,17 @@ void kernel__radixPermute(
     myShiftedKeys[2] = ((int)myData[2].x >> bitOffset) & 0xF;
     myShiftedKeys[3] = ((int)myData[3].x >> bitOffset) & 0xF;
 
-    //wait_group_events(1, events);
-    barrier(CLK_LOCAL_MEM_FENCE);
+	// Necessary ?
+    //barrier(CLK_LOCAL_MEM_FENCE);
 
-    // compute the final indices
+    // Compute the final indices
     int4 finalOffset;
     finalOffset.x = tid4.x - localHistStart[myShiftedKeys[0]] + sharedHistSum[myShiftedKeys[0]];
     finalOffset.y = tid4.y - localHistStart[myShiftedKeys[1]] + sharedHistSum[myShiftedKeys[1]];
     finalOffset.z = tid4.z - localHistStart[myShiftedKeys[2]] + sharedHistSum[myShiftedKeys[2]];
     finalOffset.w = tid4.w - localHistStart[myShiftedKeys[3]] + sharedHistSum[myShiftedKeys[3]];
 
-    // permute the data to the final offsets
+    // Permute the data to the final offsets
     if (gid4.x < N) dataOut[finalOffset.x] = myData[0];
     if (gid4.y < N) dataOut[finalOffset.y] = myData[1];
     if (gid4.z < N) dataOut[finalOffset.z] = myData[2];
