@@ -56,7 +56,7 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(0, 0);
+	context.setup(2, 0);
 
 	// Scan
 	//test_Scan(&context);

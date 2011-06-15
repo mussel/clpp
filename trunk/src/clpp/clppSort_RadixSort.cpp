@@ -11,6 +11,8 @@
 
 clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxElements, unsigned int bits)
 {
+	_valueSize = 4;
+	_keySize = 4;
 	_clBuffer_dataSet = 0;
 	_clBuffer_dataSetOut = 0;
 
@@ -150,8 +152,6 @@ void clppSort_RadixSort::pushDatas(void* dataSet, size_t datasetSize)
 	//---- Store some values
 	_dataSet = dataSet;
 	_dataSetOut = dataSet;
-	_valueSize = 4;
-	_keySize = 4;
 	bool reallocate = datasetSize > _datasetSize;
 	_datasetSize = datasetSize;
 
@@ -192,8 +192,6 @@ void clppSort_RadixSort::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize
 	cl_int clStatus;
 
 	//---- Store some values
-	_valueSize = valueSize;
-	_keySize = keySize;
 	bool reallocate = datasetSize > _datasetSize;
 	_datasetSize = datasetSize;
 
@@ -201,10 +199,10 @@ void clppSort_RadixSort::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize
 	if (reallocate)
 	{
 		//---- Release
-		if (_clBuffer_values)
+		if (_clBuffer_dataSet)
 		{
-			clReleaseMemObject(_clBuffer_values);
-			clReleaseMemObject(_clBuffer_valuesOut);
+			clReleaseMemObject(_clBuffer_dataSet);
+			clReleaseMemObject(_clBuffer_dataSetOut);
 			clReleaseMemObject(_clBuffer_radixHist1);
 			clReleaseMemObject(_clBuffer_radixHist2);
 		}
@@ -220,8 +218,8 @@ void clppSort_RadixSort::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize
 		checkCLStatus(clStatus);
 	}
 
-	_clBuffer_values = clBuffer_dataSet;
-	_clBuffer_valuesOut = clBuffer_dataSet;
+	_clBuffer_dataSet = clBuffer_dataSet;
+	_clBuffer_dataSetOut = clBuffer_dataSet;
 }
 
 #pragma endregion

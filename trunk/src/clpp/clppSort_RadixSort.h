@@ -15,7 +15,7 @@ public:
 	void sort();
 
 	void pushDatas(void* dataSet, size_t datasetSize);
-	void pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize) {}
+	void pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize);
 
 	void popDatas();
 
