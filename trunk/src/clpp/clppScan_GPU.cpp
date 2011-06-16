@@ -29,6 +29,8 @@ clppScan_GPU::clppScan_GPU(clppContext* context, size_t valueSize, unsigned int 
 	// NVidia : 32
 	clGetKernelWorkGroupInfo(kernel__scan, _context->clDevice, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &_workgroupSize, 0);
 	//clGetKernelWorkGroupInfo(kernel__scan, _context->clDevice, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &_workgroupSize, 0);
+
+	_is_clBuffersOwner = false;
 }
 
 clppScan_GPU::~clppScan_GPU()
@@ -125,7 +127,7 @@ void clppScan_GPU::pushDatas(void* values, size_t datasetSize)
 
 	//---- Store some values
 	_values = values;
-	bool reallocate = datasetSize > _datasetSize;
+	bool reallocate = datasetSize > _datasetSize || !_is_clBuffersOwner;
 	_datasetSize = datasetSize;
 
 	//---- Copy on the device
@@ -139,6 +141,8 @@ void clppScan_GPU::pushDatas(void* values, size_t datasetSize)
 		_clBuffer_values = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _valueSize * _datasetSize, _values, &clStatus);
 		_is_clBuffersOwner = true;
 		checkCLStatus(clStatus);
+
+		_is_clBuffersOwner = true;
 	}
 	else
 		// Just resend
@@ -148,6 +152,8 @@ void clppScan_GPU::pushDatas(void* values, size_t datasetSize)
 void clppScan_GPU::pushDatas(cl_mem clBuffer_values, size_t datasetSize)
 {
 	_values = 0;
+
+	_is_clBuffersOwner = false;
 
 	_clBuffer_values = clBuffer_values;
 	_datasetSize = datasetSize;

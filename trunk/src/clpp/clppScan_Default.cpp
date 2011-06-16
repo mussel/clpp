@@ -105,7 +105,7 @@ void clppScan_Default::pushDatas(void* values, size_t datasetSize)
 
 	//---- Store some values
 	_values = values;
-	bool reallocate = datasetSize > _datasetSize;
+	bool reallocate = datasetSize > _datasetSize || !_is_clBuffersOwner;
 	bool recompute =  datasetSize != _datasetSize;
 	_datasetSize = datasetSize;
 
@@ -177,6 +177,8 @@ void clppScan_Default::pushDatas(cl_mem clBuffer_values, size_t datasetSize)
 		}
 		_blockSumsSizes[_pass] = n;
 	}
+
+	_is_clBuffersOwner = false;
 }
 
 #pragma endregion

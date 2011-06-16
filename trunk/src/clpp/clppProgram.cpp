@@ -80,6 +80,21 @@ bool clppProgram::compile(clppContext* context, string fileName)
 	return true;
 }
 
+string clppProgram::compilePreprocess(string programSource)
+{
+	string source = "";
+	if (_context->Vendor == clppVendor::Vendor_AMD)
+		source += "#define OCL_PLATFORM_AMD\n";
+	else if (_context->Vendor == clppVendor::Vendor_Intel)
+		source += "#define OCL_PLATFORM_INTEL\n";
+	else if (_context->Vendor == clppVendor::Vendor_NVidia)
+		source += "#define OCL_PLATFORM_NVIDIA\n";
+	else
+		source += "#define OCL_PLATFORM_UNKNOW\n";
+
+	return source + programSource;
+}
+
 string clppProgram::loadSource(string path)
 {
 	string kernel = "";

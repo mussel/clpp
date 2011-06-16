@@ -41,6 +41,8 @@ private:
 	cl_mem _clBuffer_radixHist1;
 	cl_mem _clBuffer_radixHist2;
 	cl_mem radixDataB;
+
+	bool _is_clBuffersOwner;
 };
 
 #endif

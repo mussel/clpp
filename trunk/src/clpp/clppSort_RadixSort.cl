@@ -16,6 +16,129 @@
 
 #define LTYPE int	// TODO
 
+#define MAX_INT2 (int2)0x7FFFFFFF
+//#define MAX_INT2 (int2)0xFFFFFFFF
+
+#ifdef OCL_PLATFORM_NVIDIA222
+
+inline LTYPE scan_simt_exclusive(__local LTYPE* input, size_t idx, const uint lane)
+{
+	if (lane > 0 ) input[idx] += input[idx - 1];
+	if (lane > 1 ) input[idx] += input[idx - 2];
+	if (lane > 3 ) input[idx] += input[idx - 4];
+	if (lane > 7 ) input[idx] += input[idx - 8];
+	if (lane > 15) input[idx] += input[idx - 16];
+		
+	return (lane > 0) ? input[idx-1] : 0;
+}
+
+inline LTYPE scan_simt_inclusive(__local LTYPE* input, size_t idx, const uint lane)
+{	
+	if (lane > 0 ) input[idx] += input[idx - 1];
+	if (lane > 1 ) input[idx] += input[idx - 2];
+	if (lane > 3 ) input[idx] += input[idx - 4];
+	if (lane > 7 ) input[idx] += input[idx - 8];
+	if (lane > 15) input[idx] += input[idx - 16];
+		
+	return input[idx];
+}
+
+inline
+void exclusive_scan(const uint tid, const int4 tid4, uint blockSize, __local LTYPE* localBuffer, __local LTYPE* incSum)
+{
+	const uint lane = tid & 31;
+	const uint simt_bid = tid >> 5;
+	
+	// Step 1: Intra-warp scan in each warp
+	LTYPE val = scan_simt_exclusive(localBuffer, tid, lane);
+	barrier(CLK_LOCAL_MEM_FENCE);
+	
+	// Step 2: Collect per-warp partial results (the sum)
+	if (lane > 30) localBuffer[simt_bid] = localBuffer[tid];
+	barrier(CLK_LOCAL_MEM_FENCE);
+	
+	// Step 3: Use 1st warp to scan per-warp results
+	//if (simt_bid == 0) scan_simt_inclusive(localBuffer, tid, lane);
+	if (simt_bid < 1) scan_simt_inclusive(localBuffer, tid, lane);
+	barrier(CLK_LOCAL_MEM_FENCE);
+	
+	// Step 4: Accumulate results from Steps 1 and 3
+	if (simt_bid > 0) val += localBuffer[simt_bid-1];
+	barrier(CLK_LOCAL_MEM_FENCE);
+	
+	// Step 5: Write and return the final result
+	localBuffer[tid] = val;
+	barrier(CLK_LOCAL_MEM_FENCE);
+	
+	// We store the biggest value (the last) to the sum-block for later use.
+    if (tid == blockSize-1)
+        incSum[0] = localBuffer[tid4.w];
+}
+
+#else
+
+inline
+void exclusive_scan(const uint tid, const int4 tid4, uint blockSize, __local LTYPE* localBuffer, __local LTYPE* incSum)
+{
+    const int tid2_0 = tid << 1;
+    const int tid2_1 = tid2_0 + 1;
+	
+	int offset = 4;
+	//int offset = 2;
+	//#pragma unroll
+	for (uint d = 16; d > 0; d >>= 1)
+    //for (int d = blockSize >> 1; d > 0; d >>= 1)
+    {
+        barrier(CLK_LOCAL_MEM_FENCE);
+		
+        if (tid < d)
+        {
+            const uint ai = mad24(offset, (tid2_1+0), -1);	// offset*(tid2_0+1)-1 = offset*(tid2_1+0)-1
+            const uint bi = mad24(offset, (tid2_1+1), -1);	// offset*(tid2_1+1)-1;
+			//int ai = (((tid << 1) + 1) << offset) - 1;
+			//int bi = (((tid << 1) + 2) << offset) - 1;
+			
+            localBuffer[bi] += localBuffer[ai];
+        }
+		
+		offset <<= 1;
+		//offset++;
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if (tid == blockSize-1)
+    {
+        incSum[0] = localBuffer[tid4.w];
+        localBuffer[tid4.w] = 0;
+    }
+
+    // expansion
+	//#pragma unroll
+    for (uint d = 1; d < 32; d <<= 1)
+	//for (int d = 1; d < blockSize; d <<= 1)
+    {
+        barrier(CLK_LOCAL_MEM_FENCE);
+		offset >>= 1;
+		//offset--;
+		
+        if (tid < d)
+        {
+            const uint ai = mad24(offset, (tid2_1+0), -1); // offset*(tid2_0+1)-1 = offset*(tid2_1+0)-1
+            const uint bi = mad24(offset, (tid2_1+1), -1); // offset*(tid2_1+1)-1;
+			//int ai = (((tid << 1) + 1) << offset) - 1;
+			//int bi = (((tid << 1) + 2) << offset) - 1;
+			
+            LTYPE tmp = localBuffer[ai];
+            localBuffer[ai] = localBuffer[bi];
+            localBuffer[bi] += tmp;
+        }
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+}
+
+#endif
+
 //------------------------------------------------------------
 // kernel__radixLocalSort
 //
@@ -47,10 +170,10 @@ void kernel__radixLocalSort(
     __local LTYPE incSum[1];
 
     // Each thread copies 4 (Cell,Tri) pairs into local memory
-    shared[tid4.x] = (gid4+0 < N) ? data[gid4+0] : (int2)0x7FFFFFFF;
-    shared[tid4.y] = (gid4+1 < N) ? data[gid4+1] : (int2)0x7FFFFFFF;
-    shared[tid4.z] = (gid4+2 < N) ? data[gid4+2] : (int2)0x7FFFFFFF;
-    shared[tid4.w] = (gid4+3 < N) ? data[gid4+3] : (int2)0x7FFFFFFF;
+    shared[tid4.x] = (gid4+0 < N) ? data[gid4+0] : MAX_INT2;
+    shared[tid4.y] = (gid4+1 < N) ? data[gid4+1] : MAX_INT2;
+    shared[tid4.z] = (gid4+2 < N) ? data[gid4+2] : MAX_INT2;
+    shared[tid4.w] = (gid4+3 < N) ? data[gid4+3] : MAX_INT2;
 
     indices[tid4.x] = tid4.x;
     indices[tid4.y] = tid4.y;
@@ -76,7 +199,11 @@ void kernel__radixLocalSort(
         sharedSum[tid4.y] += sharedSum[tid4.x];
         sharedSum[tid4.w] += sharedSum[tid4.z];
         sharedSum[tid4.w] += sharedSum[tid4.y];
+		
+		// Exclusive scan
+		exclusive_scan(tid, tid4, blockSize, sharedSum, incSum);
 
+		/*
         int offset = 2;
         for (int d = blockSize >> 1; d > 0; d >>= 1)
         {
@@ -113,6 +240,7 @@ void kernel__radixLocalSort(
         }
 
         barrier(CLK_LOCAL_MEM_FENCE);
+		*/
 		
         // local 4-element serial expansion
         LTYPE tmp;
@@ -252,10 +380,10 @@ void kernel__radixPermute(
     barrier(CLK_LOCAL_MEM_FENCE);
     int2 myData[4];
     int myShiftedKeys[4];
-    myData[0] = (gid4.x < N) ? dataIn[gid4.x] : (int2)0x7FFFFFFF;
-    myData[1] = (gid4.y < N) ? dataIn[gid4.y] : (int2)0x7FFFFFFF;
-    myData[2] = (gid4.z < N) ? dataIn[gid4.z] : (int2)0x7FFFFFFF;
-    myData[3] = (gid4.w < N) ? dataIn[gid4.w] : (int2)0x7FFFFFFF;
+    myData[0] = (gid4.x < N) ? dataIn[gid4.x] : MAX_INT2;
+    myData[1] = (gid4.y < N) ? dataIn[gid4.y] : MAX_INT2;
+    myData[2] = (gid4.z < N) ? dataIn[gid4.z] : MAX_INT2;
+    myData[3] = (gid4.w < N) ? dataIn[gid4.w] : MAX_INT2;
 
     myShiftedKeys[0] = ((int)myData[0].x >> bitOffset) & 0xF;
     myShiftedKeys[1] = ((int)myData[1].x >> bitOffset) & 0xF;

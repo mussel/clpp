@@ -40,15 +40,19 @@ clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxEle
     _clBuffer_radixHist1 = NULL;
     _clBuffer_radixHist2 = NULL;
 	_datasetSize = 0;
+	_is_clBuffersOwner = false;
 }
 
 clppSort_RadixSort::~clppSort_RadixSort()
 {
-	if (_clBuffer_dataSet)
-		clReleaseMemObject(_clBuffer_dataSet);
+	if (_is_clBuffersOwner)
+	{
+		if (_clBuffer_dataSet)
+			clReleaseMemObject(_clBuffer_dataSet);
 
-	if (_clBuffer_dataSetOut)
-		clReleaseMemObject(_clBuffer_dataSetOut);
+		if (_clBuffer_dataSetOut)
+			clReleaseMemObject(_clBuffer_dataSetOut);
+	}
 
 	if (_clBuffer_radixHist1)
 		clReleaseMemObject(_clBuffer_radixHist1);
@@ -153,7 +157,7 @@ void clppSort_RadixSort::pushDatas(void* dataSet, size_t datasetSize)
 	//---- Store some values
 	_dataSet = dataSet;
 	_dataSetOut = dataSet;
-	bool reallocate = datasetSize > _datasetSize;
+	bool reallocate = datasetSize > _datasetSize || !_is_clBuffersOwner;
 	_datasetSize = datasetSize;
 
 	//---- Prepare some buffers
@@ -182,6 +186,8 @@ void clppSort_RadixSort::pushDatas(void* dataSet, size_t datasetSize)
 
 		_clBuffer_dataSetOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize+_keySize) * _datasetSize, NULL, &clStatus);
 		checkCLStatus(clStatus);
+
+		_is_clBuffersOwner = true;
 	}
 	else
 		// Just resend
@@ -191,6 +197,8 @@ void clppSort_RadixSort::pushDatas(void* dataSet, size_t datasetSize)
 void clppSort_RadixSort::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize)
 {
 	cl_int clStatus;
+
+	_is_clBuffersOwner = false;
 
 	//---- Store some values
 	bool reallocate = datasetSize > _datasetSize;

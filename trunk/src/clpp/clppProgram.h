@@ -28,7 +28,7 @@ public:
 	virtual ~clppProgram();
 
 	bool compile(clppContext* context, string fileName);
-	virtual string compilePreprocess(string programSource) { return programSource; }
+	virtual string compilePreprocess(string programSource);
 
 	// Wait for the end of the program
 	virtual void waitCompletion();
