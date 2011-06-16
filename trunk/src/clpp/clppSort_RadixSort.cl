@@ -16,78 +16,100 @@
 
 #define LTYPE int	// TODO
 
+// Don't use FFF... because this value will be added to others... we have to avoid overflow, and so, wrong values.
 #define MAX_INT2 (int2)0x7FFFFFFF
-//#define MAX_INT2 (int2)0xFFFFFFFF
 
-#ifdef OCL_PLATFORM_NVIDIA222
+// Too slow because we use a workgroup=32. So, it seems that we are unable to fill the GPU.
 
-inline LTYPE scan_simt_exclusive(__local LTYPE* input, size_t idx, const uint lane)
+#ifdef OCL_PLATFORM_NVIDIA
+
+// Exclusive scan of 32 elements by using the SIMT capability (to avoid synchronization of work items).
+// Directly do it for 4x32 elements, simply use an offset
+inline void scan_simt_exclusive_4(__local LTYPE* input, size_t tid1, const uint lane)
 {
-	if (lane > 0 ) input[idx] += input[idx - 1];
-	if (lane > 1 ) input[idx] += input[idx - 2];
-	if (lane > 3 ) input[idx] += input[idx - 4];
-	if (lane > 7 ) input[idx] += input[idx - 8];
-	if (lane > 15) input[idx] += input[idx - 16];
-		
-	return (lane > 0) ? input[idx-1] : 0;
+	const uint tid2 = tid1 + 32;
+	const uint tid3 = tid2 + 32;
+	const uint tid4 = tid3 + 32;
+	
+	if (lane > 0 )
+	{
+		input[tid1] += input[tid1 - 1];
+		input[tid2] += input[tid2 - 1];
+		input[tid3] += input[tid3 - 1];
+		input[tid4] += input[tid4 - 1];
+	}
+	
+	if (lane > 1 )
+	{
+		input[tid1] += input[tid1 - 2];
+		input[tid2] += input[tid2 - 2];
+		input[tid3] += input[tid3 - 2];
+		input[tid4] += input[tid4 - 2];
+	}
+	
+	if (lane > 3 )
+	{
+		input[tid1] += input[tid1 - 4];
+		input[tid2] += input[tid2 - 4];
+		input[tid3] += input[tid3 - 4];
+		input[tid4] += input[tid4 - 4];
+	}
+	
+	if (lane > 7 )
+	{
+		input[tid1] += input[tid1 - 8];
+		input[tid2] += input[tid2 - 8];
+		input[tid3] += input[tid3 - 8];
+		input[tid4] += input[tid4 - 8];
+	}
+	
+	if (lane > 15)
+	{
+		input[tid1] += input[tid1 - 16];
+		input[tid2] += input[tid2 - 16];
+		input[tid3] += input[tid3 - 16];
+		input[tid4] += input[tid4 - 16];
+	}
 }
 
-inline LTYPE scan_simt_inclusive(__local LTYPE* input, size_t idx, const uint lane)
-{	
-	if (lane > 0 ) input[idx] += input[idx - 1];
-	if (lane > 1 ) input[idx] += input[idx - 2];
-	if (lane > 3 ) input[idx] += input[idx - 4];
-	if (lane > 7 ) input[idx] += input[idx - 8];
-	if (lane > 15) input[idx] += input[idx - 16];
-		
-	return input[idx];
-}
-
-inline
-void exclusive_scan(const uint tid, const int4 tid4, uint blockSize, __local LTYPE* localBuffer, __local LTYPE* incSum)
+inline 
+void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local LTYPE* localBuffer, __local LTYPE* incSum, uint size)
 {
 	const uint lane = tid & 31;
-	const uint simt_bid = tid >> 5;
 	
-	// Step 1: Intra-warp scan in each warp
-	LTYPE val = scan_simt_exclusive(localBuffer, tid, lane);
+	scan_simt_exclusive_4(localBuffer, tid, lane);
+	
+	barrier(CLK_LOCAL_MEM_FENCE);	 // NOT NECESSARY ?
+	//if (tid == blockSize-1)
+    //    incSum[0] = localBuffer[tid4.w];
+	//barrier(CLK_LOCAL_MEM_FENCE);
+	
+	__local int sum[3];
+	if (lane < 1)
+	{
+		sum[0] = localBuffer[tid + blockSize - 1];
+		sum[1] = sum[0] + localBuffer[tid + 2 * blockSize - 1];
+		sum[2] = sum[1] + localBuffer[tid + 3 * blockSize - 1];
+	}
+		
 	barrier(CLK_LOCAL_MEM_FENCE);
-	
-	// Step 2: Collect per-warp partial results (the sum)
-	if (lane > 30) localBuffer[simt_bid] = localBuffer[tid];
-	barrier(CLK_LOCAL_MEM_FENCE);
-	
-	// Step 3: Use 1st warp to scan per-warp results
-	//if (simt_bid == 0) scan_simt_inclusive(localBuffer, tid, lane);
-	if (simt_bid < 1) scan_simt_inclusive(localBuffer, tid, lane);
-	barrier(CLK_LOCAL_MEM_FENCE);
-	
-	// Step 4: Accumulate results from Steps 1 and 3
-	if (simt_bid > 0) val += localBuffer[simt_bid-1];
-	barrier(CLK_LOCAL_MEM_FENCE);
-	
-	// Step 5: Write and return the final result
-	localBuffer[tid] = val;
-	barrier(CLK_LOCAL_MEM_FENCE);
-	
-	// We store the biggest value (the last) to the sum-block for later use.
-    if (tid == blockSize-1)
-        incSum[0] = localBuffer[tid4.w];
+		
+	localBuffer[tid + blockSize] 		+= sum[0];
+	localBuffer[tid + 2 * blockSize] 	+= sum[1];
+	localBuffer[tid + 3 * blockSize] 	+= sum[2];
 }
 
 #else
 
 inline
-void exclusive_scan(const uint tid, const int4 tid4, uint blockSize, __local LTYPE* localBuffer, __local LTYPE* incSum)
+void exclusive_scan_4(const uint tid, const int4 tid4, uint blockSize, __local LTYPE* localBuffer, __local LTYPE* incSum)
 {
     const int tid2_0 = tid << 1;
     const int tid2_1 = tid2_0 + 1;
 	
 	int offset = 4;
-	//int offset = 2;
 	//#pragma unroll
 	for (uint d = 16; d > 0; d >>= 1)
-    //for (int d = blockSize >> 1; d > 0; d >>= 1)
     {
         barrier(CLK_LOCAL_MEM_FENCE);
 		
@@ -95,14 +117,11 @@ void exclusive_scan(const uint tid, const int4 tid4, uint blockSize, __local LTY
         {
             const uint ai = mad24(offset, (tid2_1+0), -1);	// offset*(tid2_0+1)-1 = offset*(tid2_1+0)-1
             const uint bi = mad24(offset, (tid2_1+1), -1);	// offset*(tid2_1+1)-1;
-			//int ai = (((tid << 1) + 1) << offset) - 1;
-			//int bi = (((tid << 1) + 2) << offset) - 1;
 			
             localBuffer[bi] += localBuffer[ai];
         }
 		
 		offset <<= 1;
-		//offset++;
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -119,14 +138,11 @@ void exclusive_scan(const uint tid, const int4 tid4, uint blockSize, __local LTY
     {
         barrier(CLK_LOCAL_MEM_FENCE);
 		offset >>= 1;
-		//offset--;
 		
         if (tid < d)
         {
             const uint ai = mad24(offset, (tid2_1+0), -1); // offset*(tid2_0+1)-1 = offset*(tid2_1+0)-1
             const uint bi = mad24(offset, (tid2_1+1), -1); // offset*(tid2_1+1)-1;
-			//int ai = (((tid << 1) + 1) << offset) - 1;
-			//int bi = (((tid << 1) + 2) << offset) - 1;
 			
             LTYPE tmp = localBuffer[ai];
             localBuffer[ai] = localBuffer[bi];
@@ -135,6 +151,24 @@ void exclusive_scan(const uint tid, const int4 tid4, uint blockSize, __local LTY
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
+}
+
+inline 
+void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local LTYPE* localBuffer, __local LTYPE* incSum, uint size)
+{
+	// local serial reduction
+	localBuffer[tid4.y] += localBuffer[tid4.x];
+	localBuffer[tid4.w] += localBuffer[tid4.z];
+	localBuffer[tid4.w] += localBuffer[tid4.y];
+		
+	// Exclusive scan starting with an offset of 4
+	exclusive_scan_4(tid, tid4, blockSize, localBuffer, incSum);
+		
+	// local 4-element serial expansion
+	LTYPE tmp;
+	tmp = localBuffer[tid4.y];    localBuffer[tid4.y] = localBuffer[tid4.w];  localBuffer[tid4.w] += tmp;
+	tmp = localBuffer[tid4.x];    localBuffer[tid4.x] = localBuffer[tid4.y];  localBuffer[tid4.y] += tmp;
+	tmp = localBuffer[tid4.z];    localBuffer[tid4.z] = localBuffer[tid4.w];  localBuffer[tid4.w] += tmp;
 }
 
 #endif
@@ -154,9 +188,9 @@ void kernel__radixLocalSort(
 	__local LTYPE* sharedSum,  // size 4*4*2 shorts (2 kB)
 	__global int2* data,       // size 4*4 int2s per block (8 kB)
 	__global int* hist,        // size 16  per block (64 B)
-	__global int* blockHists, // size 16 int2s per block (64 B)
+	__global int* blockHists,  // size 16 int2s per block (64 B)
 	const int bitOffset,       // k*4, k=0..7
-	const int N)              // N = 32 (32x int2 global)
+	const int N)               // N = 32 (32x int2 global)
 {
     const int gid4 = (int)(get_global_id(0) << 2);
     const int tid = (int)get_local_id(0);
@@ -187,66 +221,16 @@ void kernel__radixLocalSort(
 	// Should find a way to use createBestScan to improve performance here
 
     uint shift = bitOffset;
-    for (int i = 0; i < 4; i++, shift++)
+    for(uint i = 0; i < 4; i++, shift++)
     {
         barrier(CLK_LOCAL_MEM_FENCE);
         sharedSum[tid4.x] = (LTYPE)1 - ((LTYPE)(((int)shared[indices[srcBase + tid4.x]].x) >> shift) & 0x1);
         sharedSum[tid4.y] = (LTYPE)1 - ((LTYPE)(((int)shared[indices[srcBase + tid4.y]].x) >> shift) & 0x1);
         sharedSum[tid4.z] = (LTYPE)1 - ((LTYPE)(((int)shared[indices[srcBase + tid4.z]].x) >> shift) & 0x1);
         sharedSum[tid4.w] = (LTYPE)1 - ((LTYPE)(((int)shared[indices[srcBase + tid4.w]].x) >> shift) & 0x1);
-
-        // local serial reduction
-        sharedSum[tid4.y] += sharedSum[tid4.x];
-        sharedSum[tid4.w] += sharedSum[tid4.z];
-        sharedSum[tid4.w] += sharedSum[tid4.y];
 		
-		// Exclusive scan
-		exclusive_scan(tid, tid4, blockSize, sharedSum, incSum);
-
-		/*
-        int offset = 2;
-        for (int d = blockSize >> 1; d > 0; d >>= 1)
-        {
-            barrier(CLK_LOCAL_MEM_FENCE);
-            if (tid < d)
-            {
-                int ai = (((tid << 1) + 1) << offset) - 1;
-                int bi = (((tid << 1) + 2) << offset) - 1;
-                sharedSum[bi] += sharedSum[ai];
-            }
-            offset++;
-        }
-
-        barrier(CLK_LOCAL_MEM_FENCE);
-        if (tid == blockSize-1)
-        {
-            incSum[0] = sharedSum[tid4.w];
-            sharedSum[tid4.w] = 0;
-        }
-
-        // expansion
-        for (int d = 1; d < blockSize; d <<= 1)
-        {
-            barrier(CLK_LOCAL_MEM_FENCE);
-            offset--;
-            if (tid < d)
-            {
-                int ai = (((tid << 1) + 1) << offset) - 1;
-                int bi = (((tid << 1) + 2) << offset) - 1;
-                LTYPE tmp = sharedSum[ai];
-                sharedSum[ai] = sharedSum[bi];
-                sharedSum[bi] += tmp;
-            }
-        }
-
-        barrier(CLK_LOCAL_MEM_FENCE);
-		*/
-		
-        // local 4-element serial expansion
-        LTYPE tmp;
-        tmp = sharedSum[tid4.y];    sharedSum[tid4.y] = sharedSum[tid4.w];  sharedSum[tid4.w] += tmp;
-        tmp = sharedSum[tid4.x];    sharedSum[tid4.x] = sharedSum[tid4.y];  sharedSum[tid4.y] += tmp;
-        tmp = sharedSum[tid4.z];    sharedSum[tid4.z] = sharedSum[tid4.w];  sharedSum[tid4.w] += tmp;
+		// Do a scan of the 128 bits
+		exclusive_scan_128(tid, tid4, blockSize, sharedSum, incSum, N);
 
         // Permutations
         for(uint b = 0; b < 4; b++)

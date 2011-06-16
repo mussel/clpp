@@ -61,7 +61,7 @@ string clppScan_GPU::compilePreprocess(string kernel)
 	//lines << kernel << std::endl;
 	//return lines.str();
 
-	return kernel;
+	return clppScan::compilePreprocess(kernel);
 }
 
 #pragma endregion
