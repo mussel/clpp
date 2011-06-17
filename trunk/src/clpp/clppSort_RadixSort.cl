@@ -71,6 +71,13 @@ inline void scan_simt_exclusive_4(__local LTYPE* input, size_t tid1, const uint 
 	}
 }
 
+#define WGZ 32
+#define WGZ_x2 (WGZ*2)
+#define WGZ_x3 (WGZ*3)
+#define WGZ_1 (WGZ-1)
+#define WGZ_x2_1 (WGZ_x2-1)
+#define WGZ_x3_1 (WGZ_x3-1)
+
 inline 
 void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local LTYPE* localBuffer, __local LTYPE* incSum, uint size)
 {
@@ -82,23 +89,21 @@ void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local
 		
 	__local int sum[3];
 	if (lane > 30)
-	{
-		/*sum[0] = localBuffer[tid + blockSize - 1];
-		sum[1] = sum[0] + localBuffer[tid + 2 * blockSize - 1];
-		sum[2] = sum[1] + localBuffer[tid + 3 * blockSize - 1];*/
-		
-		sum[0] = localBuffer[tid4.y];
+	{		sum[0] = localBuffer[tid4.y];
 		sum[1] = sum[0] + localBuffer[tid4.z];
 		sum[2] = sum[1] + localBuffer[tid4.w];
-		
-		incSum[0] = sum[2]; // Total number of '1' in the array
 	}       
 		
 	barrier(CLK_LOCAL_MEM_FENCE);
+			
+	localBuffer[tid4.y]	+= sum[0];
+	localBuffer[tid4.z]	+= sum[1];
+	localBuffer[tid4.w]	+= sum[2];
+	
+	if (lane > 30)
+		incSum[0] = localBuffer[tid4.w]; // Total number of '1' in the array
 		
-	localBuffer[tid + blockSize] 		+= sum[0];
-	localBuffer[tid + 2 * blockSize] 	+= sum[1];
-	localBuffer[tid + 3 * blockSize] 	+= sum[2];
+	barrier(CLK_LOCAL_MEM_FENCE);
 }
 
 #else
