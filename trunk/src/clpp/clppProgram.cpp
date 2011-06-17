@@ -92,6 +92,11 @@ string clppProgram::compilePreprocess(string programSource)
 	else
 		source += "#define OCL_PLATFORM_UNKNOW\n";
 
+	if (_context->isGPU)
+		source += "#define OCL_DEVICE_GPU\n";
+	else if (_context->isCPU)
+		source += "#define OCL_DEVICE_CPU\n";
+
 	return source + programSource;
 }
 

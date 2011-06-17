@@ -16,12 +16,11 @@
 
 #define LTYPE int	// TODO
 
-// Don't use FFF... because this value will be added to others... we have to avoid overflow, and so, wrong values.
 #define MAX_INT2 (int2)0x7FFFFFFF
 
 // Too slow because we use a workgroup=32. So, it seems that we are unable to fill the GPU.
 
-#ifdef OCL_PLATFORM_NVIDIA
+#ifdef OCL_DEVICE_GPU
 
 // Exclusive scan of 32 elements by using the SIMT capability (to avoid synchronization of work items).
 // Directly do it for 4x32 elements, simply use an offset
