@@ -14,17 +14,22 @@
 // Radix Sort For Vector Multiprocessors, Marco Zagha and Guy E. Blelloch
 //------------------------------------------------------------
 
-#define LTYPE int	// TODO
+#define K_TYPE int	// TODO
 
 #define MAX_INT2 (int2)0x7FFFFFFF
 
-// Too slow because we use a workgroup=32. So, it seems that we are unable to fill the GPU.
+#define WGZ 32
+#define WGZ_x2 (WGZ*2)
+#define WGZ_x3 (WGZ*3)
+#define WGZ_1 (WGZ-1)
+#define WGZ_x2_1 (WGZ_x2-1)
+#define WGZ_x3_1 (WGZ_x3-1)
 
 #ifdef OCL_DEVICE_GPU
 
 // Exclusive scan of 32 elements by using the SIMT capability (to avoid synchronization of work items).
 // Directly do it for 4x32 elements, simply use an offset
-inline void scan_simt_exclusive_4(__local LTYPE* input, size_t tid1, const uint lane)
+inline void scan_simt_exclusive_4(__local K_TYPE* input, const int tid1, const uint lane)
 {
 	const uint tid2 = tid1 + 32;
 	const uint tid3 = tid2 + 32;
@@ -71,21 +76,58 @@ inline void scan_simt_exclusive_4(__local LTYPE* input, size_t tid1, const uint 
 	}
 }
 
-#define WGZ 32
-#define WGZ_x2 (WGZ*2)
-#define WGZ_x3 (WGZ*3)
-#define WGZ_1 (WGZ-1)
-#define WGZ_x2_1 (WGZ_x2-1)
-#define WGZ_x3_1 (WGZ_x3-1)
+inline void scan_simt_exclusive_4_OK(__local K_TYPE* input, const int4 tid4, const uint lane)
+{
+	if (lane > 0 )
+	{
+		input[tid4.x] += input[tid4.x - 1];
+		input[tid4.y] += input[tid4.y - 1];
+		input[tid4.z] += input[tid4.z - 1];
+		input[tid4.w] += input[tid4.w - 1];
+	}
+	
+	if (lane > 1 )
+	{
+		input[tid4.x] += input[tid4.x - 2];
+		input[tid4.y] += input[tid4.y - 2];
+		input[tid4.z] += input[tid4.z - 2];
+		input[tid4.w] += input[tid4.w - 2];
+	}
+	
+	if (lane > 3 )
+	{
+		input[tid4.x] += input[tid4.x - 4];
+		input[tid4.y] += input[tid4.y - 4];
+		input[tid4.z] += input[tid4.z - 4];
+		input[tid4.w] += input[tid4.w - 4];
+	}
+	
+	if (lane > 7 )
+	{
+		input[tid4.x] += input[tid4.x - 8];
+		input[tid4.y] += input[tid4.y - 8];
+		input[tid4.z] += input[tid4.z - 8];
+		input[tid4.w] += input[tid4.w - 8];
+	}
+	
+	if (lane > 15)
+	{
+		input[tid4.x] += input[tid4.x - 16];
+		input[tid4.y] += input[tid4.y - 16];
+		input[tid4.z] += input[tid4.z - 16];
+		input[tid4.w] += input[tid4.w - 16];
+	}
+}
 
 inline 
-void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local LTYPE* localBuffer, __local LTYPE* incSum, uint size)
+void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local K_TYPE* localBuffer, __local K_TYPE* incSum, uint size)
 {
 	const uint lane = tid & 31;
 	
+	//scan_simt_exclusive_4_OK(localBuffer, tid4, lane);
 	scan_simt_exclusive_4(localBuffer, tid, lane);
 	
-	barrier(CLK_LOCAL_MEM_FENCE);	 // NOT NECESSARY ?
+	barrier(CLK_LOCAL_MEM_FENCE);	 // NOT NECESSARY => SIMT = 32 = WGZ
 		
 	__local int sum[3];
 	if (lane > 30)
@@ -109,7 +151,7 @@ void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local
 #else
 
 inline
-void exclusive_scan_4(const uint tid, const int4 tid4, uint blockSize, __local LTYPE* localBuffer, __local LTYPE* incSum)
+void exclusive_scan_4(const uint tid, const int4 tid4, uint blockSize, __local K_TYPE* localBuffer, __local K_TYPE* incSum)
 {
     const int tid2_0 = tid << 1;
     const int tid2_1 = tid2_0 + 1;
@@ -151,7 +193,7 @@ void exclusive_scan_4(const uint tid, const int4 tid4, uint blockSize, __local L
             const uint ai = mad24(offset, (tid2_1+0), -1); // offset*(tid2_0+1)-1 = offset*(tid2_1+0)-1
             const uint bi = mad24(offset, (tid2_1+1), -1); // offset*(tid2_1+1)-1;
 			
-            LTYPE tmp = localBuffer[ai];
+            K_TYPE tmp = localBuffer[ai];
             localBuffer[ai] = localBuffer[bi];
             localBuffer[bi] += tmp;
         }
@@ -161,7 +203,7 @@ void exclusive_scan_4(const uint tid, const int4 tid4, uint blockSize, __local L
 }
 
 inline 
-void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local LTYPE* localBuffer, __local LTYPE* incSum, uint size)
+void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local K_TYPE* localBuffer, __local K_TYPE* incSum, uint size)
 {
 	// local serial reduction
 	localBuffer[tid4.y] += localBuffer[tid4.x];
@@ -172,7 +214,7 @@ void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local
 	exclusive_scan_4(tid, tid4, blockSize, localBuffer, incSum);
 		
 	// local 4-element serial expansion
-	LTYPE tmp;
+	K_TYPE tmp;
 	tmp = localBuffer[tid4.y];    localBuffer[tid4.y] = localBuffer[tid4.w];  localBuffer[tid4.w] += tmp;
 	tmp = localBuffer[tid4.x];    localBuffer[tid4.x] = localBuffer[tid4.y];  localBuffer[tid4.y] += tmp;
 	tmp = localBuffer[tid4.z];    localBuffer[tid4.z] = localBuffer[tid4.w];  localBuffer[tid4.w] += tmp;
@@ -191,8 +233,8 @@ void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local
 __kernel
 void kernel__radixLocalSort(
 	__local int2* shared,      // size 4*4 int2s (8 kB)
-	__local LTYPE* indices,    // size 4*4 shorts (4 kB)
-	__local LTYPE* sharedSum,  // size 4*4*2 shorts (2 kB)
+	__local K_TYPE* indices,    // size 4*4 shorts (4 kB)
+	__local K_TYPE* sharedSum,  // size 4*4*2 shorts (2 kB)
 	__global int2* data,       // size 4*4 int2s per block (8 kB)
 	__global int* hist,        // size 16  per block (64 B)
 	__global int* blockHists,  // size 16 int2s per block (64 B)
@@ -208,7 +250,7 @@ void kernel__radixLocalSort(
 
     __local int localHistStart[16];
     __local int localHistEnd[16];
-    __local LTYPE incSum[1];
+    __local K_TYPE incSum[1];
 
     // Each thread copies 4 (Cell,Tri) pairs into local memory
     shared[tid4.x] = (gid4+0 < N) ? data[gid4+0] : MAX_INT2;
@@ -231,10 +273,10 @@ void kernel__radixLocalSort(
     for(uint i = 0; i < 4; i++, shift++)
     {
         barrier(CLK_LOCAL_MEM_FENCE);
-        sharedSum[tid4.x] = (LTYPE)1 - ((LTYPE)(((int)shared[indices[srcBase + tid4.x]].x) >> shift) & 0x1);
-        sharedSum[tid4.y] = (LTYPE)1 - ((LTYPE)(((int)shared[indices[srcBase + tid4.y]].x) >> shift) & 0x1);
-        sharedSum[tid4.z] = (LTYPE)1 - ((LTYPE)(((int)shared[indices[srcBase + tid4.z]].x) >> shift) & 0x1);
-        sharedSum[tid4.w] = (LTYPE)1 - ((LTYPE)(((int)shared[indices[srcBase + tid4.w]].x) >> shift) & 0x1);
+        sharedSum[tid4.x] = (K_TYPE)1 - ((K_TYPE)(((int)shared[indices[srcBase + tid4.x]].x) >> shift) & 0x1);
+        sharedSum[tid4.y] = (K_TYPE)1 - ((K_TYPE)(((int)shared[indices[srcBase + tid4.y]].x) >> shift) & 0x1);
+        sharedSum[tid4.z] = (K_TYPE)1 - ((K_TYPE)(((int)shared[indices[srcBase + tid4.z]].x) >> shift) & 0x1);
+        sharedSum[tid4.w] = (K_TYPE)1 - ((K_TYPE)(((int)shared[indices[srcBase + tid4.w]].x) >> shift) & 0x1);
 		
 		// Do a scan of the 128 bits
 		exclusive_scan_128(tid, tid4, blockSize, sharedSum, incSum, N);
