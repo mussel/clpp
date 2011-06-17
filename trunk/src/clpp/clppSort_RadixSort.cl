@@ -25,11 +25,11 @@
 #define WGZ_x2_1 (WGZ_x2-1)
 #define WGZ_x3_1 (WGZ_x3-1)
 
-#ifdef OCL_DEVICE_GPU
+ #if defined(OCL_DEVICE_GPU) && defined(OCL_PLATFORM_NVIDIA)
 
 // Exclusive scan of 32 elements by using the SIMT capability (to avoid synchronization of work items).
 // Directly do it for 4x32 elements, simply use an offset
-inline void scan_simt_exclusive_4(__local K_TYPE* input, const int tid1, const uint lane)
+inline void scan_simt_exclusive_4_V1(__local K_TYPE* input, const int tid1, const uint lane)
 {
 	const uint tid2 = tid1 + 32;
 	const uint tid3 = tid2 + 32;
@@ -76,7 +76,7 @@ inline void scan_simt_exclusive_4(__local K_TYPE* input, const int tid1, const u
 	}
 }
 
-inline void scan_simt_exclusive_4_OK(__local K_TYPE* input, const int4 tid4, const uint lane)
+inline void scan_simt_exclusive_4_V2(__local K_TYPE* input, const int4 tid4, const uint lane)
 {
 	if (lane > 0 )
 	{
@@ -124,25 +124,88 @@ void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local
 {
 	const uint lane = tid & 31;
 	
-	//scan_simt_exclusive_4_OK(localBuffer, tid4, lane);
-	scan_simt_exclusive_4(localBuffer, tid, lane);
+	//scan_simt_exclusive_4_V2(localBuffer, tid4, lane);
+	scan_simt_exclusive_4_V1(localBuffer, tid, lane);
 	
 	barrier(CLK_LOCAL_MEM_FENCE);	 // NOT NECESSARY => SIMT = 32 = WGZ
 		
 	__local int sum[3];
 	if (lane > 30)
-	{		sum[0] = localBuffer[tid4.y];
-		sum[1] = sum[0] + localBuffer[tid4.z];
-		sum[2] = sum[1] + localBuffer[tid4.w];
+	{
+		sum[0] = localBuffer[31];
+		sum[1] = sum[0] + localBuffer[63];
+		sum[2] = sum[1] + localBuffer[95];
 	}       
 		
 	barrier(CLK_LOCAL_MEM_FENCE);
 			
-	localBuffer[tid4.y]	+= sum[0];
-	localBuffer[tid4.z]	+= sum[1];
-	localBuffer[tid4.w]	+= sum[2];
+	localBuffer[tid + 32]	+= sum[0];
+	localBuffer[tid + 64]	+= sum[1];
+	localBuffer[tid + 96]	+= sum[2];
+	
+	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	if (lane > 30)
+		incSum[0] = localBuffer[127]; // Total number of '1' in the array
+		
+	barrier(CLK_LOCAL_MEM_FENCE);
+}
+
+inline 
+void exclusive_scan_128_v2(const uint tid, const int4 tid4, uint blockSize, __local K_TYPE* localBuffer, __local K_TYPE* incSum, uint size)
+{
+	localBuffer[tid4.y] += localBuffer[tid4.x];
+	localBuffer[tid4.z] += localBuffer[tid4.y];
+	localBuffer[tid4.w] += localBuffer[tid4.z];
+	
+	if (lane > 0 )
+	{
+		K_TYPE sum = localBuffer[tid4.x - 1];
+		localBuffer[tid4.x] += sum;
+		localBuffer[tid4.y] += sum;
+		localBuffer[tid4.z] += sum;
+		localBuffer[tid4.w] += sum;
+	}
+	
+	if (lane > 1 )
+	{
+		K_TYPE sum = localBuffer[tid4.x - 2];
+		localBuffer[tid4.x] += sum;
+		localBuffer[tid4.y] += sum;
+		localBuffer[tid4.z] += sum;
+		localBuffer[tid4.w] += sum;
+	}
+	
+	if (lane > 3 )
+	{
+		K_TYPE sum = localBuffer[tid4.x - 4];
+		localBuffer[tid4.x] += sum;
+		localBuffer[tid4.y] += sum;
+		localBuffer[tid4.z] += sum;
+		localBuffer[tid4.w] += sum;
+	}
+	
+	if (lane > 7 )
+	{
+		K_TYPE sum = localBuffer[tid4.x - 8];
+		localBuffer[tid4.x] += sum;
+		localBuffer[tid4.y] += sum;
+		localBuffer[tid4.z] += sum;
+		localBuffer[tid4.w] += sum;
+	}
+	
+	if (lane > 15)
+	{
+		K_TYPE sum = localBuffer[tid4.x - 16];
+		localBuffer[tid4.x] += sum;
+		localBuffer[tid4.y] += sum;
+		localBuffer[tid4.z] += sum;
+		localBuffer[tid4.w] += sum;
+	}
+	
+	barrier(CLK_LOCAL_MEM_FENCE);
+	
+	if (tid > 30)
 		incSum[0] = localBuffer[tid4.w]; // Total number of '1' in the array
 		
 	barrier(CLK_LOCAL_MEM_FENCE);
@@ -267,27 +330,34 @@ void kernel__radixLocalSort(
     int dstBase = blockSize4;
 	
 	//-------- 1) 4 x local 1-bit split
-	// Should find a way to use createBestScan to improve performance here
 
     uint shift = bitOffset;
     for(uint i = 0; i < 4; i++, shift++)
     {
+		//---- Setup the array of 4 bits (of level shift)
+		// Create the '1s' array as explained at : http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html
+		// In fact we simply inverse the bits
         barrier(CLK_LOCAL_MEM_FENCE);
-        sharedSum[tid4.x] = (K_TYPE)1 - ((K_TYPE)(((int)shared[indices[srcBase + tid4.x]].x) >> shift) & 0x1);
-        sharedSum[tid4.y] = (K_TYPE)1 - ((K_TYPE)(((int)shared[indices[srcBase + tid4.y]].x) >> shift) & 0x1);
-        sharedSum[tid4.z] = (K_TYPE)1 - ((K_TYPE)(((int)shared[indices[srcBase + tid4.z]].x) >> shift) & 0x1);
-        sharedSum[tid4.w] = (K_TYPE)1 - ((K_TYPE)(((int)shared[indices[srcBase + tid4.w]].x) >> shift) & 0x1);
+        sharedSum[tid4.x] = !((shared[indices[srcBase + tid4.x]].x >> shift) & 0x1);
+        sharedSum[tid4.y] = !((shared[indices[srcBase + tid4.y]].x >> shift) & 0x1);
+        sharedSum[tid4.z] = !((shared[indices[srcBase + tid4.z]].x >> shift) & 0x1);
+        sharedSum[tid4.w] = !((shared[indices[srcBase + tid4.w]].x >> shift) & 0x1);
 		
-		// Do a scan of the 128 bits
+		//--- Do a scan of the 128 bits and retreive the total number of '1' in 'incSum'
 		exclusive_scan_128(tid, tid4, blockSize, sharedSum, incSum, N);
 
-        // Permutations
+        //---- Permutations
+		#pragma unroll
         for(uint b = 0; b < 4; b++)
         {
             uint idx = tid4.x + b;
             barrier(CLK_LOCAL_MEM_FENCE);
 			
             int flag = (((int)shared[indices[srcBase + idx]].x) >> shift) & 0x1;
+			
+			// Rule :
+			// t = idx - scan[idx] + total_count_bits_at0
+			// pos = flag ? t : scan[idx]
 			
             //if (flag == 1)
             //    indices[dstBase + (int)incSum[0] + idx - (int)sharedSum[idx]] = indices[srcBase + idx];
