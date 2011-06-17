@@ -79,19 +79,20 @@ void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local
 	scan_simt_exclusive_4(localBuffer, tid, lane);
 	
 	barrier(CLK_LOCAL_MEM_FENCE);	 // NOT NECESSARY ?
-	
-	//barrier(CLK_LOCAL_MEM_FENCE);
-	
+		
 	__local int sum[3];
-	if (lane < 1)
+	if (lane > 30)
 	{
-		sum[0] = localBuffer[tid + blockSize - 1];
+		/*sum[0] = localBuffer[tid + blockSize - 1];
 		sum[1] = sum[0] + localBuffer[tid + 2 * blockSize - 1];
-		sum[2] = sum[1] + localBuffer[tid + 3 * blockSize - 1];
-	}
-	
-	if (tid == blockSize-1)
-        incSum[0] = localBuffer[tid4.w];
+		sum[2] = sum[1] + localBuffer[tid + 3 * blockSize - 1];*/
+		
+		sum[0] = localBuffer[tid4.y];
+		sum[1] = sum[0] + localBuffer[tid4.z];
+		sum[2] = sum[1] + localBuffer[tid4.w];
+		
+		incSum[0] = sum[2]; // Total number of '1' in the array
+	}       
 		
 	barrier(CLK_LOCAL_MEM_FENCE);
 		
