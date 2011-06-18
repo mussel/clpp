@@ -154,6 +154,8 @@ void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local
 inline 
 void exclusive_scan_128_v2(const uint tid, const int4 tid4, uint blockSize, __local K_TYPE* localBuffer, __local K_TYPE* incSum, uint size)
 {
+	const uint lane = tid & 31;
+
 	localBuffer[tid4.y] += localBuffer[tid4.x];
 	localBuffer[tid4.z] += localBuffer[tid4.y];
 	localBuffer[tid4.w] += localBuffer[tid4.z];
@@ -297,7 +299,7 @@ __kernel
 void kernel__radixLocalSort(
 	__local int2* shared,      // size 4*4 int2s (8 kB)
 	__local K_TYPE* indices,    // size 4*4 shorts (4 kB)
-	__local K_TYPE* sharedSum,  // size 4*4*2 shorts (2 kB)
+	//__local K_TYPE* sharedSumOLD,  // size 4*4*2 shorts (2 kB)
 	__global int2* data,       // size 4*4 int2s per block (8 kB)
 	__global int* hist,        // size 16  per block (64 B)
 	__global int* blockHists,  // size 16 int2s per block (64 B)
@@ -310,6 +312,8 @@ void kernel__radixLocalSort(
     const int blockId = (int)get_group_id(0);
     const int blockSize = (int)get_local_size(0);
     const int blockSize4 = (blockSize << 2);
+	
+	__local K_TYPE sharedSum[WGZ * 4];
 
     __local int localHistStart[16];
     __local int localHistEnd[16];
