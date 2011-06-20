@@ -12,7 +12,7 @@ string clppProgram::_basePath;
 
 clppProgram::clppProgram()
 {
-	_clProgram =0;
+	_clProgram = 0;
 	_context = 0;
 }
 

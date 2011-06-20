@@ -19,6 +19,8 @@ public:
 
 	void popDatas();
 
+	string compilePreprocess(string kernel);
+
 private:
 	size_t _datasetSize;	// The number of keys to sort
 

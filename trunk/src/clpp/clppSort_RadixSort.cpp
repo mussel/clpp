@@ -17,10 +17,10 @@ clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxEle
 	_clBuffer_dataSet = 0;
 	_clBuffer_dataSetOut = 0;
 
+	_bits = bits;
+
 	if (!compile(context, "clppSort_RadixSort.cl"))
 		return;
-
-	_bits = bits;
 
 	//---- Prepare all the kernels
 	cl_int clStatus;
@@ -32,7 +32,7 @@ clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxEle
 	checkCLStatus(clStatus);
 
 	//---- Get the workgroup size
-	clGetKernelWorkGroupInfo(_kernel_RadixLocalSort, _context->clDevice, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &_workgroupSize, 0);
+	//clGetKernelWorkGroupInfo(_kernel_RadixLocalSort, _context->clDevice, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &_workgroupSize, 0);
 	_workgroupSize = 32;
 
 	_scan = clpp::createBestScan(context, sizeof(int), maxElements);
@@ -65,6 +65,78 @@ clppSort_RadixSort::~clppSort_RadixSort()
 
 #pragma endregion
 
+string clppSort_RadixSort::compilePreprocess(string kernel)
+{
+	string source;
+
+	//if (_templateType == Int)
+	{
+		switch(_bits)
+		{
+		case 32:
+			source = "#define MAX_INT2 (int2)(0x7FFFFFFF,0)";
+			break;
+		case 28:
+			source = "#define MAX_INT2 (int2)(0x7FFFFFF,0)";
+			break;
+		case 24:
+			source = "#define MAX_INT2 (int2)(0x7FFFFF,0)";
+			break;
+		case 20:
+			source = "#define MAX_INT2 (int2)(0x7FFFF,0)";
+			break;
+		case 16:
+			source = "#define MAX_INT2 (int2)(0x7FFF,0)";
+			break;
+		case 12:
+			source = "#define MAX_INT2 (int2)(0x7FF,0)";
+			break;
+		case 8:
+			source = "#define MAX_INT2 (int2)(0x7F,0)";
+			break;
+		case 4:
+			source = "#define MAX_INT2 (int2)(0x7,0)";
+			break;
+		}
+
+		source += "\n#define K_TYPE int\n";
+	}
+	/*else if (_templateType == UInt)
+	{
+		switch(_bits)
+		{
+		case 32:
+			source = "#define MAX_INT2 (int2)0xFFFFFFFF";
+			break;
+		case 28:
+			source = "#define MAX_INT2 (int2)0xFFFFFFF";
+			break;
+		case 24:
+			source = "#define MAX_INT2 (int2)0xFFFFFF";
+			break;
+		case 20:
+			source = "#define MAX_INT2 (int2)0xFFFFF";
+			break;
+		case 16:
+			source = "#define MAX_INT2 (int2)0xFFFF";
+			break;
+		case 12:
+			source = "#define MAX_INT2 (int2)0xFFF";
+			break;
+		case 8:
+			source = "#define MAX_INT2 (int2)0xFF";
+			break;
+		case 4:
+			source = "#define MAX_INT2 (int2)0xF";
+			break;
+		}
+
+		source += "\n#define K_TYPE uint\n";
+	}*/
+
+	return clppSort::compilePreprocess(source + kernel);
+}
+
 #pragma region sort
 
 inline int roundUpDiv(int A, int B) { return (A + B - 1) / (B); }
@@ -94,6 +166,9 @@ void clppSort_RadixSort::sort()
 		radixPermute(dataA, dataB, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset, _datasetSize);
 
         std::swap(dataA, dataB);
+
+		//clStatus = clFinish(_context->clQueue);
+		//checkCLStatus(clStatus);
     }
 }
 

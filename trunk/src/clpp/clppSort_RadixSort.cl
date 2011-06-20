@@ -14,10 +14,6 @@
 // Radix Sort For Vector Multiprocessors, Marco Zagha and Guy E. Blelloch
 //------------------------------------------------------------
 
-#define K_TYPE int
-
-#define MAX_INT2 (int2)0x7FFFFFFF
-
 #define WGZ 32
 #define WGZ_x2 (WGZ*2)
 #define WGZ_x3 (WGZ*3)
@@ -371,7 +367,7 @@ __kernel
 void kernel__radixPermute(
 	__global const int2* dataIn,		// size 4*4 int2s per block
 	__global int2* dataOut,				// size 4*4 int2s per block
-	__global const int* histSum,		// size 16  per block (64 B)
+	__global const int* histSum,		// size 16 per block (64 B)
 	__global const int* blockHists,		// size 16 int2s per block (64 B)
 	const int bitOffset,				// k*4, k=0..7
 	const int N)						// N = 32 (32x int2 global)
@@ -391,11 +387,12 @@ void kernel__radixPermute(
         sharedHistSum[tid] = histSum[tid * numBlocks + blockId];
         localHistStart[tid] = blockHists[(blockId << 5) + tid];
     }
+	
+	BARRIER_LOCAL;
 
     // Copy data, each thread copies 4 (Cell,Tri) pairs into local shared mem
-    BARRIER_LOCAL;
     int2 myData[4];
-    int myShiftedKeys[4];
+    uint myShiftedKeys[4];
     myData[0] = (gid4.x < N) ? dataIn[gid4.x] : MAX_INT2;
     myData[1] = (gid4.y < N) ? dataIn[gid4.y] : MAX_INT2;
     myData[2] = (gid4.z < N) ? dataIn[gid4.z] : MAX_INT2;
@@ -417,8 +414,13 @@ void kernel__radixPermute(
     finalOffset.w = tid4.w - localHistStart[myShiftedKeys[3]] + sharedHistSum[myShiftedKeys[3]];
 
     // Permute the data to the final offsets
-    if (gid4.x < N) dataOut[finalOffset.x] = myData[0];
-    if (gid4.y < N) dataOut[finalOffset.y] = myData[1];
-    if (gid4.z < N) dataOut[finalOffset.z] = myData[2];
-    if (gid4.w < N) dataOut[finalOffset.w] = myData[3];
+    //if (gid4.x < N) dataOut[finalOffset.x] = myData[0];
+    //if (gid4.y < N) dataOut[finalOffset.y] = myData[1];
+    //if (gid4.z < N) dataOut[finalOffset.z] = myData[2];
+    //if (gid4.w < N) dataOut[finalOffset.w] = myData[3];
+	
+	if (finalOffset.x < N) dataOut[finalOffset.x] = myData[0];
+    if (finalOffset.y < N) dataOut[finalOffset.y] = myData[1];
+    if (finalOffset.z < N) dataOut[finalOffset.z] = myData[2];
+    if (finalOffset.w < N) dataOut[finalOffset.w] = myData[3];
 }
