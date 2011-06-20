@@ -244,6 +244,7 @@ void kernel__radixLocalSort(
 	//-------- 1) 4 x local 1-bit split
 
     uint shift = bitOffset;
+	//#pragma unroll
     for(uint i = 0; i < 4; i++, shift++)
     {
 		//---- Setup the array of 4 bits (of level shift)
@@ -392,7 +393,7 @@ void kernel__radixPermute(
     }
 
     // Copy data, each thread copies 4 (Cell,Tri) pairs into local shared mem
-    BARRIER_LOCAL
+    BARRIER_LOCAL;
     int2 myData[4];
     int myShiftedKeys[4];
     myData[0] = (gid4.x < N) ? dataIn[gid4.x] : MAX_INT2;
@@ -406,7 +407,7 @@ void kernel__radixPermute(
     myShiftedKeys[3] = ((int)myData[3].x >> bitOffset) & 0xF;
 
 	// Necessary ?
-    //barrier(CLK_LOCAL_MEM_FENCE);
+    //BARRIER_LOCAL;
 
     // Compute the final indices
     int4 finalOffset;

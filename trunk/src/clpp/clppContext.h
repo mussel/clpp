@@ -23,6 +23,9 @@ public:
 	// Setup with a specific platform and device
 	void setup(unsigned int platformId, unsigned int deviceId);
 
+	// Returns the SIMT Capability of the device.
+	int GetSIMTCapability();
+
 	// Informations
 	bool isGPU;
 	bool isCPU;

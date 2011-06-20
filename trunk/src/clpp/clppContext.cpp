@@ -114,3 +114,20 @@ char* clppContext::stristr(const char *String, const char *Pattern)
     }
     return(NULL);
 }
+
+int clppContext::GetSIMTCapability()
+{
+	// NVidia : 32
+	if (Vendor == clppVendor::Vendor_NVidia && isGPU)
+		return 32;
+
+	if (Vendor == clppVendor::Vendor_AMD && isGPU)
+	{
+		// ATI : Actually the wavefront size is only 64 for the highend cards(48XX, 58XX, 57XX), but 32 for the middleend cards and 16 for the lowend cards.	
+		//clGetKernelWorkGroupInfo(kernel__scan, _context->clDevice, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &_workgroupSize, 0);
+		//clGetKernelWorkGroupInfo(kernel__scan, _context->clDevice, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &_workgroupSize, 0);
+		return 64;
+	}
+
+	return 1;
+}
