@@ -14,7 +14,7 @@
 // Radix Sort For Vector Multiprocessors, Marco Zagha and Guy E. Blelloch
 //------------------------------------------------------------
 
-#define K_TYPE int	// TODO
+#define K_TYPE int
 
 #define MAX_INT2 (int2)0x7FFFFFFF
 
@@ -25,17 +25,29 @@
 #define WGZ_x2_1 (WGZ_x2-1)
 #define WGZ_x3_1 (WGZ_x3-1)
 
- #if defined(OCL_DEVICE_GPU) && defined(OCL_PLATFORM_NVIDIA)
+#if defined(OCL_DEVICE_GPU) && defined(OCL_PLATFORM_NVIDIA)
 
-// Exclusive scan of 32 elements by using the SIMT capability (to avoid synchronization of work items).
+// Because our workgroup size = SIMT size, we use the natural synchronization provided by SIMT.
+// So, we don't need any barrier to synchronize
+#define BARRIER_LOCAL 
+
+#else
+
+#define BARRIER_LOCAL barrier(CLK_LOCAL_MEM_FENCE);
+
+#endif
+
+#if defined(OCL_DEVICE_GPU) && defined(OCL_PLATFORM_NVIDIA)
+
+// Exclusive scan of 4 buckets of 32 elements by using the SIMT capability (to avoid synchronization of work items).
 // Directly do it for 4x32 elements, simply use an offset
-inline void scan_simt_exclusive_4_V1(__local K_TYPE* input, const int tid1, const uint lane)
+inline void scan_simt_inclusive_4(__local K_TYPE* input, const int tid1)
 {
 	const uint tid2 = tid1 + 32;
 	const uint tid3 = tid2 + 32;
 	const uint tid4 = tid3 + 32;
 	
-	if (lane > 0 )
+	if (tid1 > 0 )
 	{
 		input[tid1] += input[tid1 - 1];
 		input[tid2] += input[tid2 - 1];
@@ -43,7 +55,7 @@ inline void scan_simt_exclusive_4_V1(__local K_TYPE* input, const int tid1, cons
 		input[tid4] += input[tid4 - 1];
 	}
 	
-	if (lane > 1 )
+	if (tid1 > 1 )
 	{
 		input[tid1] += input[tid1 - 2];
 		input[tid2] += input[tid2 - 2];
@@ -51,7 +63,7 @@ inline void scan_simt_exclusive_4_V1(__local K_TYPE* input, const int tid1, cons
 		input[tid4] += input[tid4 - 2];
 	}
 	
-	if (lane > 3 )
+	if (tid1 > 3 )
 	{
 		input[tid1] += input[tid1 - 4];
 		input[tid2] += input[tid2 - 4];
@@ -59,7 +71,7 @@ inline void scan_simt_exclusive_4_V1(__local K_TYPE* input, const int tid1, cons
 		input[tid4] += input[tid4 - 4];
 	}
 	
-	if (lane > 7 )
+	if (tid1 > 7 )
 	{
 		input[tid1] += input[tid1 - 8];
 		input[tid2] += input[tid2 - 8];
@@ -67,7 +79,7 @@ inline void scan_simt_exclusive_4_V1(__local K_TYPE* input, const int tid1, cons
 		input[tid4] += input[tid4 - 8];
 	}
 	
-	if (lane > 15)
+	if (tid1 > 15)
 	{
 		input[tid1] += input[tid1 - 16];
 		input[tid2] += input[tid2 - 16];
@@ -76,141 +88,37 @@ inline void scan_simt_exclusive_4_V1(__local K_TYPE* input, const int tid1, cons
 	}
 }
 
-inline void scan_simt_exclusive_4_V2(__local K_TYPE* input, const int4 tid4, const uint lane)
-{
-	if (lane > 0 )
-	{
-		input[tid4.x] += input[tid4.x - 1];
-		input[tid4.y] += input[tid4.y - 1];
-		input[tid4.z] += input[tid4.z - 1];
-		input[tid4.w] += input[tid4.w - 1];
-	}
-	
-	if (lane > 1 )
-	{
-		input[tid4.x] += input[tid4.x - 2];
-		input[tid4.y] += input[tid4.y - 2];
-		input[tid4.z] += input[tid4.z - 2];
-		input[tid4.w] += input[tid4.w - 2];
-	}
-	
-	if (lane > 3 )
-	{
-		input[tid4.x] += input[tid4.x - 4];
-		input[tid4.y] += input[tid4.y - 4];
-		input[tid4.z] += input[tid4.z - 4];
-		input[tid4.w] += input[tid4.w - 4];
-	}
-	
-	if (lane > 7 )
-	{
-		input[tid4.x] += input[tid4.x - 8];
-		input[tid4.y] += input[tid4.y - 8];
-		input[tid4.z] += input[tid4.z - 8];
-		input[tid4.w] += input[tid4.w - 8];
-	}
-	
-	if (lane > 15)
-	{
-		input[tid4.x] += input[tid4.x - 16];
-		input[tid4.y] += input[tid4.y - 16];
-		input[tid4.z] += input[tid4.z - 16];
-		input[tid4.w] += input[tid4.w - 16];
-	}
-}
-
 inline 
 void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local K_TYPE* localBuffer, __local K_TYPE* incSum, uint size)
 {
-	const uint lane = tid & 31;
+	scan_simt_inclusive_4(localBuffer, tid);
 	
-	//scan_simt_exclusive_4_V2(localBuffer, tid4, lane);
-	scan_simt_exclusive_4_V1(localBuffer, tid, lane);
-	
-	barrier(CLK_LOCAL_MEM_FENCE);	 // NOT NECESSARY => SIMT = 32 = WGZ
+	BARRIER_LOCAL;
 		
 	__local int sum[3];
-	if (lane > 30)
+	__local int first;
+	if (tid > 30)
 	{
-		sum[0] = localBuffer[31];
+		first = localBuffer[0];
+		sum[0] = localBuffer[31] - first; // <= To exclusive
 		sum[1] = sum[0] + localBuffer[63];
 		sum[2] = sum[1] + localBuffer[95];
 	}       
 		
-	barrier(CLK_LOCAL_MEM_FENCE);
+	BARRIER_LOCAL;
 			
+	// Convert into exclusive scan and add the sum to the other buckets
+	localBuffer[tid]		-= first;
 	localBuffer[tid + 32]	+= sum[0];
 	localBuffer[tid + 64]	+= sum[1];
 	localBuffer[tid + 96]	+= sum[2];
 	
-	barrier(CLK_LOCAL_MEM_FENCE);
-	
-	if (lane > 30)
-		incSum[0] = localBuffer[127]; // Total number of '1' in the array
-		
-	barrier(CLK_LOCAL_MEM_FENCE);
-}
-
-inline 
-void exclusive_scan_128_v2(const uint tid, const int4 tid4, uint blockSize, __local K_TYPE* localBuffer, __local K_TYPE* incSum, uint size)
-{
-	const uint lane = tid & 31;
-
-	localBuffer[tid4.y] += localBuffer[tid4.x];
-	localBuffer[tid4.z] += localBuffer[tid4.y];
-	localBuffer[tid4.w] += localBuffer[tid4.z];
-	
-	if (lane > 0 )
-	{
-		K_TYPE sum = localBuffer[tid4.x - 1];
-		localBuffer[tid4.x] += sum;
-		localBuffer[tid4.y] += sum;
-		localBuffer[tid4.z] += sum;
-		localBuffer[tid4.w] += sum;
-	}
-	
-	if (lane > 1 )
-	{
-		K_TYPE sum = localBuffer[tid4.x - 2];
-		localBuffer[tid4.x] += sum;
-		localBuffer[tid4.y] += sum;
-		localBuffer[tid4.z] += sum;
-		localBuffer[tid4.w] += sum;
-	}
-	
-	if (lane > 3 )
-	{
-		K_TYPE sum = localBuffer[tid4.x - 4];
-		localBuffer[tid4.x] += sum;
-		localBuffer[tid4.y] += sum;
-		localBuffer[tid4.z] += sum;
-		localBuffer[tid4.w] += sum;
-	}
-	
-	if (lane > 7 )
-	{
-		K_TYPE sum = localBuffer[tid4.x - 8];
-		localBuffer[tid4.x] += sum;
-		localBuffer[tid4.y] += sum;
-		localBuffer[tid4.z] += sum;
-		localBuffer[tid4.w] += sum;
-	}
-	
-	if (lane > 15)
-	{
-		K_TYPE sum = localBuffer[tid4.x - 16];
-		localBuffer[tid4.x] += sum;
-		localBuffer[tid4.y] += sum;
-		localBuffer[tid4.z] += sum;
-		localBuffer[tid4.w] += sum;
-	}
-	
-	barrier(CLK_LOCAL_MEM_FENCE);
+	BARRIER_LOCAL;
 	
 	if (tid > 30)
-		incSum[0] = localBuffer[tid4.w]; // Total number of '1' in the array
+		incSum[0] = localBuffer[127]; // Total number of '1' in the array
 		
-	barrier(CLK_LOCAL_MEM_FENCE);
+	BARRIER_LOCAL;
 }
 
 #else
@@ -341,7 +249,7 @@ void kernel__radixLocalSort(
 		//---- Setup the array of 4 bits (of level shift)
 		// Create the '1s' array as explained at : http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html
 		// In fact we simply inverse the bits
-        barrier(CLK_LOCAL_MEM_FENCE);
+        BARRIER_LOCAL;
         sharedSum[tid4.x] = !((shared[indices[srcBase + tid4.x]].x >> shift) & 0x1);
         sharedSum[tid4.y] = !((shared[indices[srcBase + tid4.y]].x >> shift) & 0x1);
         sharedSum[tid4.z] = !((shared[indices[srcBase + tid4.z]].x >> shift) & 0x1);
@@ -355,7 +263,7 @@ void kernel__radixLocalSort(
         for(uint b = 0; b < 4; b++)
         {
             uint idx = tid4.x + b;
-            barrier(CLK_LOCAL_MEM_FENCE);
+            BARRIER_LOCAL;
 			
             int flag = (((int)shared[indices[srcBase + idx]].x) >> shift) & 0x1;
 			
@@ -379,7 +287,7 @@ void kernel__radixLocalSort(
 		dstBase = tmpBase;
     }
 	
-    barrier(CLK_LOCAL_MEM_FENCE);
+    BARRIER_LOCAL;
 	
     // Write sorted data back to global mem
     if (gid4+0 < N) data[gid4+0] = shared[indices[srcBase + tid4.x]];
@@ -390,7 +298,7 @@ void kernel__radixLocalSort(
 	//-------- 2) Histogram
 
     // init histogram values
-    barrier(CLK_LOCAL_MEM_FENCE);
+    BARRIER_LOCAL;
     if (tid < 16)
     {
         localHistStart[tid] = 0;
@@ -399,7 +307,7 @@ void kernel__radixLocalSort(
 
     // Start computation
 	
-    barrier(CLK_LOCAL_MEM_FENCE);
+    BARRIER_LOCAL;
     int ka, kb;
     if (tid4.x > 0)
     {
@@ -441,7 +349,7 @@ void kernel__radixLocalSort(
         localHistEnd[(((int)shared[indices[srcBase + blockSize4-1]].x) >> bitOffset) & 0xF] = blockSize4 - 1;
         localHistStart[(((int)shared[indices[srcBase]].x) >> bitOffset) & 0xF] = 0;
     }
-    barrier(CLK_LOCAL_MEM_FENCE);
+    BARRIER_LOCAL;
 
     // Write histogram to global memomry
     const int numBlocks = get_num_groups(0);
@@ -484,7 +392,7 @@ void kernel__radixPermute(
     }
 
     // Copy data, each thread copies 4 (Cell,Tri) pairs into local shared mem
-    barrier(CLK_LOCAL_MEM_FENCE);
+    BARRIER_LOCAL
     int2 myData[4];
     int myShiftedKeys[4];
     myData[0] = (gid4.x < N) ? dataIn[gid4.x] : MAX_INT2;

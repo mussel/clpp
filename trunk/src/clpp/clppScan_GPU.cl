@@ -77,12 +77,10 @@ inline T scan_workgroup_exclusive(__local T* localBuf, const uint idx, const uin
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	// Step 2: Collect per-warp partial results (the sum)
-	//if (lane == 31) localBuf[simt_bid] = localBuf[idx];
 	if (lane > 30) localBuf[simt_bid] = localBuf[idx];
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	// Step 3: Use 1st warp to scan per-warp results
-	//if (simt_bid == 0) scan_simt_inclusive(localBuf, idx, lane);
 	if (simt_bid < 1) scan_simt_inclusive(localBuf, idx, lane);
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
