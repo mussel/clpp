@@ -45,7 +45,7 @@ void test_Sort_KV(clppContext* context);
 //unsigned int datasetSize = 384000;
 //unsigned int datasetSize = 400000;
 
-unsigned int datasetSizes[8] = {128000, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
+unsigned int datasetSizes[8] = {16000, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
 unsigned int datasetSizesCount = 6;
 
 StopWatch* stopWatcher = new StopWatch();
@@ -129,7 +129,7 @@ void test_Sort(clppContext* context)
 
 void test_Sort_KV(clppContext* context)
 {
-	unsigned int BITS = 32;
+	unsigned int BITS = 16;
 
 	//---- Satish Radix-sort
 	cout << "--------------- Satish sort Key-Value" << endl;
@@ -281,32 +281,34 @@ void makeRandomUint32Vector(unsigned int* a, unsigned int numElements, unsigned 
     }
 }
 
-void makeRandomUint32Vector_KV(unsigned int* a, unsigned int numElements, unsigned int keybits)
-{
-    //srand(95123);
-	keybits--; // To work in signed version
-	unsigned int maxValue = (1 << keybits) - 1;
-    for(unsigned int i = 0; i < numElements; i++)
-	{
-		a[i * 2 + 0] = rand() % maxValue;
-		//if (a[i * 2 + 0] > maxValue)
-		//	a[i * 2 + 0] = maxValue;
-		a[i * 2 + 1] = i;
-    }
-}
-
 //void makeRandomUint32Vector_KV(unsigned int* a, unsigned int numElements, unsigned int keybits)
 //{
-//    srand(95123);
-//	unsigned int max = (1<<keybits) - 1;
+//    //srand(95123);
+//	keybits--; // To work in signed version
+//	unsigned int maxValue = (1 << keybits) - 1;
 //    for(unsigned int i = 0; i < numElements; i++)
 //	{
-//		float r = (float)rand()/RAND_MAX;
-//		a[i * 2 + 0] = r * max;
-//		//a[i * 2 + 0] = rand();
+//		a[i * 2 + 0] = rand() % maxValue;
+//		//if (a[i * 2 + 0] > maxValue)
+//		//	a[i * 2 + 0] = maxValue;
 //		a[i * 2 + 1] = i;
 //    }
 //}
+
+//#define KEYBITS 16
+
+void makeRandomUint32Vector_KV(unsigned int* a, unsigned int numElements, const unsigned int keybits)
+{
+    srand(95123);
+	//unsigned int max = (1<<keybits);
+    for(unsigned int i = 0; i < numElements; i++)
+	{
+		//float r = (float)rand()/RAND_MAX;
+		//a[i * 2 + 0] = (int)(r * (float)max);
+		a[i * 2 + 0] = rand() % keybits;
+		a[i * 2 + 1] = i;
+    }
+}
 
 void makeRandomUint32Vector_i(unsigned int* a, unsigned int numElements, unsigned int keybits)
 {

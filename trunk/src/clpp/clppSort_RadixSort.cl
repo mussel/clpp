@@ -215,6 +215,7 @@ void kernel__radixLocalSort(
     const int4 tid4 = (int4)(tid << 2) + (const int4)(0,1,2,3);
     const int blockId = (int)get_group_id(0);
     const int blockSize = (int)get_local_size(0);
+	//const int blockSize = WGZ;
     const int blockSize4 = (blockSize << 2);
 	
 	__local K_TYPE sharedSum[WGZ * 4];
