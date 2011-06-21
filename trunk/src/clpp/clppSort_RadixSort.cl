@@ -87,29 +87,39 @@ inline void scan_simt_inclusive_4(__local K_TYPE* input, const int tid1)
 inline 
 void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local K_TYPE* localBuffer, __local K_TYPE* incSum, uint size)
 {
+	// Do 4 inclusive scan (4 buckets of 32)
 	scan_simt_inclusive_4(localBuffer, tid);
 	
 	BARRIER_LOCAL;
 		
+	// Convert into a scan of 128 items
 	__local int sum[3];
-	__local int first;
 	if (tid > 30)
 	{
-		first = localBuffer[0];
-		sum[0] = localBuffer[31] - first; // <= To exclusive
+		sum[0] = localBuffer[31];
 		sum[1] = sum[0] + localBuffer[63];
 		sum[2] = sum[1] + localBuffer[95];
 	}       
 		
 	BARRIER_LOCAL;
 			
-	// Convert into exclusive scan and add the sum to the other buckets
-	localBuffer[tid]		-= first;
+	// Add the sum to the other buckets
 	localBuffer[tid + 32]	+= sum[0];
 	localBuffer[tid + 64]	+= sum[1];
 	localBuffer[tid + 96]	+= sum[2];
 	
 	BARRIER_LOCAL;
+	
+	// To exclusive scan
+	K_TYPE v1 = (tid > 0) ? localBuffer[tid4.x - 1] : 0;
+	K_TYPE v2 = localBuffer[tid4.y - 1];
+	K_TYPE v3 = localBuffer[tid4.z - 1];
+	K_TYPE v4 = localBuffer[tid4.w - 1];
+
+	localBuffer[tid4.x] = v1;
+	localBuffer[tid4.y] = v2;
+	localBuffer[tid4.z] = v3;
+	localBuffer[tid4.w] = v4;
 	
 	if (tid > 30)
 		incSum[0] = localBuffer[127]; // Total number of '1' in the array
@@ -152,7 +162,6 @@ void exclusive_scan_4(const uint tid, const int4 tid4, uint blockSize, __local K
     // expansion
 	//#pragma unroll
     for (uint d = 1; d < 32; d <<= 1)
-	//for (int d = 1; d < blockSize; d <<= 1)
     {
         barrier(CLK_LOCAL_MEM_FENCE);
 		offset >>= 1;
@@ -210,7 +219,7 @@ void kernel__radixLocalSort(
 	const int bitOffset,       // k*4, k=0..7
 	const int N)               // N = 32 (32x int2 global)
 {
-    const int gid4 = (int)(get_global_id(0) << 2);
+    const int4 gid4 = (int4)(get_global_id(0) << 2) + (const int4)(0,1,2,3);
     const int tid = (int)get_local_id(0);
     const int4 tid4 = (int4)(tid << 2) + (const int4)(0,1,2,3);
     const int blockId = (int)get_group_id(0);
@@ -225,10 +234,10 @@ void kernel__radixLocalSort(
     __local K_TYPE incSum[1];
 
     // Each thread copies 4 (Cell,Tri) pairs into local memory
-    shared[tid4.x] = (gid4+0 < N) ? data[gid4+0] : MAX_INT2;
-    shared[tid4.y] = (gid4+1 < N) ? data[gid4+1] : MAX_INT2;
-    shared[tid4.z] = (gid4+2 < N) ? data[gid4+2] : MAX_INT2;
-    shared[tid4.w] = (gid4+3 < N) ? data[gid4+3] : MAX_INT2;
+    shared[tid4.x] = (gid4.x < N) ? data[gid4.x] : MAX_INT2;
+    shared[tid4.y] = (gid4.y < N) ? data[gid4.y] : MAX_INT2;
+    shared[tid4.z] = (gid4.z < N) ? data[gid4.z] : MAX_INT2;
+    shared[tid4.w] = (gid4.w < N) ? data[gid4.w] : MAX_INT2;
 
     indices[tid4.x] = tid4.x;
     indices[tid4.y] = tid4.y;
@@ -253,8 +262,19 @@ void kernel__radixLocalSort(
         sharedSum[tid4.z] = !((shared[indices[srcBase + tid4.z]].x >> shift) & 0x1);
         sharedSum[tid4.w] = !((shared[indices[srcBase + tid4.w]].x >> shift) & 0x1);
 		
+		/*sharedSum[tid4.x] = shared[srcBase + tid4.x].x;
+        sharedSum[tid4.y] = shared[srcBase + tid4.y].x;
+        sharedSum[tid4.z] = shared[srcBase + tid4.z].x;
+        sharedSum[tid4.w] = shared[srcBase + tid4.w].x;*/
+		
 		//--- Do a scan of the 128 bits and retreive the total number of '1' in 'incSum'
 		exclusive_scan_128(tid, tid4, blockSize, sharedSum, incSum, N);
+		
+		/*if (gid4.x < N) data[gid4.x].x = sharedSum[tid4.x];
+		if (gid4.y < N) data[gid4.y].x = sharedSum[tid4.y];
+		if (gid4.z < N) data[gid4.z].x = sharedSum[tid4.z];
+		if (gid4.w < N) data[gid4.w].x = sharedSum[tid4.w];
+		return;*/
 
         //---- Permutations
 		#pragma unroll
@@ -287,11 +307,11 @@ void kernel__radixLocalSort(
 	
     BARRIER_LOCAL;
 	
-    // Write sorted data back to global mem
-    if (gid4+0 < N) data[gid4+0] = shared[indices[srcBase + tid4.x]];
-    if (gid4+1 < N) data[gid4+1] = shared[indices[srcBase + tid4.y]];
-    if (gid4+2 < N) data[gid4+2] = shared[indices[srcBase + tid4.z]];
-    if (gid4+3 < N) data[gid4+3] = shared[indices[srcBase + tid4.w]];
+	// Write sorted data back to global mem
+    if (gid4.x < N) data[gid4.x] = shared[indices[srcBase + tid4.x]];
+    if (gid4.y < N) data[gid4.y] = shared[indices[srcBase + tid4.y]];
+    if (gid4.z < N) data[gid4.z] = shared[indices[srcBase + tid4.z]];
+    if (gid4.w < N) data[gid4.w] = shared[indices[srcBase + tid4.w]];
 	
 	//-------- 2) Histogram
 

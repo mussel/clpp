@@ -103,6 +103,12 @@ void clppSort_RadixSort::sort()
 		// 1) Each workgroup sorts its tile by using local memory
 		// 2) Create an histogram of d=2^b digits entries
         radixLocal(dataA, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset, _datasetSize);
+
+		//************************************
+
+		clEnqueueReadBuffer(_context->clQueue, dataA, CL_TRUE, 0, (_valueSize + _keySize) * _datasetSize, _dataSetOut, 0, NULL, NULL);
+
+		//************************************
 		
 		// 3) Scan the p*2^b = p*(16) entry histogram table. Stored in column-major order, computes global digit offsets.
 		_scan->pushDatas(_clBuffer_radixHist1, 16 * numBlocks);

@@ -1,5 +1,5 @@
 // In order to test that no value has been loosed ! Can take time to check !
-#define PARAM_CHECK_HASLOOSEDVALUES 1
+#define PARAM_CHECK_HASLOOSEDVALUES 0
 
 // The number of bits to sort
 #define PARAM_SORT_BITS 32
@@ -287,10 +287,9 @@ void makeRandomUint32Vector_KV(unsigned int* a, unsigned int numElements, const 
 	unsigned int max = (1<<keybits-1) - 1; // Max 'signed' value
     for(unsigned int i = 0; i < numElements; i++)
 	{
-		a[i * 2 + 0] = rand() % max;
+		//a[i * 2 + 0] = rand() % max;
+		a[i * 2 + 0] = i;
 		a[i * 2 + 1] = i;
-		if (a[i * 2 + 0] > max)
-			return;
     }
 }
 
