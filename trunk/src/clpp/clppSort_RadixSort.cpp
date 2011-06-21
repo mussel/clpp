@@ -71,66 +71,12 @@ string clppSort_RadixSort::compilePreprocess(string kernel)
 
 	//if (_templateType == Int)
 	{
-		switch(_bits)
-		{
-		case 32:
-			source = "#define MAX_INT2 (int2)(0x7FFFFFFF,0)";
-			break;
-		case 28:
-			source = "#define MAX_INT2 (int2)(0x7FFFFFF,0)";
-			break;
-		case 24:
-			source = "#define MAX_INT2 (int2)(0x7FFFFF,0)";
-			break;
-		case 20:
-			source = "#define MAX_INT2 (int2)(0x7FFFF,0)";
-			break;
-		case 16:
-			source = "#define MAX_INT2 (int2)(0x7FFF,0)";
-			break;
-		case 12:
-			source = "#define MAX_INT2 (int2)(0x7FF,0)";
-			break;
-		case 8:
-			source = "#define MAX_INT2 (int2)(0x7F,0)";
-			break;
-		case 4:
-			source = "#define MAX_INT2 (int2)(0x7,0)";
-			break;
-		}
-
+		source = "#define MAX_INT2 (int2)(0x7FFFFFFF,0xFFFFFFFF)";
 		source += "\n#define K_TYPE int\n";
 	}
 	/*else if (_templateType == UInt)
 	{
-		switch(_bits)
-		{
-		case 32:
-			source = "#define MAX_INT2 (int2)0xFFFFFFFF";
-			break;
-		case 28:
-			source = "#define MAX_INT2 (int2)0xFFFFFFF";
-			break;
-		case 24:
-			source = "#define MAX_INT2 (int2)0xFFFFFF";
-			break;
-		case 20:
-			source = "#define MAX_INT2 (int2)0xFFFFF";
-			break;
-		case 16:
-			source = "#define MAX_INT2 (int2)0xFFFF";
-			break;
-		case 12:
-			source = "#define MAX_INT2 (int2)0xFFF";
-			break;
-		case 8:
-			source = "#define MAX_INT2 (int2)0xFF";
-			break;
-		case 4:
-			source = "#define MAX_INT2 (int2)0xF";
-			break;
-		}
-
+		source = "#define MAX_INT2 (int2)0xFFFFFFFF";
 		source += "\n#define K_TYPE uint\n";
 	}*/
 

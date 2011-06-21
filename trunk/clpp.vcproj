@@ -357,10 +357,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\clpp\clppScan_Merrill.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\src\clpp\clppSort.cpp"
 				>
 			</File>
@@ -412,10 +408,6 @@
 			</File>
 			<File
 				RelativePath=".\src\clpp\clppScan_GPU.h"
-				>
-			</File>
-			<File
-				RelativePath=".\src\clpp\clppScan_Merrill.h"
 				>
 			</File>
 			<File

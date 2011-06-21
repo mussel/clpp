@@ -1,3 +1,6 @@
+// In order to test that no value has been loosed ! Can take time to check !
+#define CHECK_HASLOOSEDVALUES 1
+
 #include <stdlib.h>
 #include <algorithm>
 
@@ -28,6 +31,7 @@ void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int dataset
 
 bool checkIsSorted(unsigned int* tocheck, size_t datasetSize, string algorithmName);
 bool checkIsSortedKV(unsigned int* tocheck, size_t datasetSize, string algorithmName);
+bool checkHasLooseDatasKV(unsigned int* unsorted, unsigned int* sorted, size_t datasetSize, string algorithmName);
 
 void test_Scan(clppContext* context);
 void test_Sort(clppContext* context);
@@ -129,7 +133,7 @@ void test_Sort(clppContext* context)
 
 void test_Sort_KV(clppContext* context)
 {
-	unsigned int BITS = 16;
+	unsigned int BITS = 32;
 
 	//---- Satish Radix-sort
 	cout << "--------------- Satish sort Key-Value" << endl;
@@ -220,11 +224,13 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
 
 void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int datasetSize, unsigned int bits)
 {
-	unsigned int* datas = (unsigned int*)malloc(2 * datasetSize * sizeof(int));
-	makeRandomUint32Vector_KV(datas, datasetSize, bits);
+	unsigned int* unsortedDatas = (unsigned int*)malloc(2 * datasetSize * sizeof(int));
+	unsigned int* sortedDatas = (unsigned int*)malloc(2 * datasetSize * sizeof(int));
+	makeRandomUint32Vector_KV(unsortedDatas, datasetSize, bits);
+	memcpy(sortedDatas, unsortedDatas, sizeof(int) * 2 * datasetSize);
 
 	//---- Push the datas
- 	sort->pushDatas(datas, datasetSize);
+ 	sort->pushDatas(sortedDatas, datasetSize);
 
 	//---- Sort
 	stopWatcher->StartTimer();
@@ -236,10 +242,14 @@ void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int dataset
 
 	//---- Check if it is sorted
 	sort->popDatas();
-	checkIsSortedKV(datas, datasetSize, sort->getName());
+	checkIsSortedKV(sortedDatas, datasetSize, sort->getName());
+#if CHECK_HASLOOSEDVALUES
+	checkHasLooseDatasKV(unsortedDatas, sortedDatas, datasetSize, sort->getName());
+#endif
 
 	//---- Free
-	free(datas);
+	free(sortedDatas);
+	free(unsortedDatas);
 }
 
 #pragma endregion
@@ -281,32 +291,16 @@ void makeRandomUint32Vector(unsigned int* a, unsigned int numElements, unsigned 
     }
 }
 
-//void makeRandomUint32Vector_KV(unsigned int* a, unsigned int numElements, unsigned int keybits)
-//{
-//    //srand(95123);
-//	keybits--; // To work in signed version
-//	unsigned int maxValue = (1 << keybits) - 1;
-//    for(unsigned int i = 0; i < numElements; i++)
-//	{
-//		a[i * 2 + 0] = rand() % maxValue;
-//		//if (a[i * 2 + 0] > maxValue)
-//		//	a[i * 2 + 0] = maxValue;
-//		a[i * 2 + 1] = i;
-//    }
-//}
-
-//#define KEYBITS 16
-
 void makeRandomUint32Vector_KV(unsigned int* a, unsigned int numElements, const unsigned int keybits)
 {
     srand(95123);
-	//unsigned int max = (1<<keybits);
+	unsigned int max = (1<<keybits-1) - 1; // Max 'signed' value
     for(unsigned int i = 0; i < numElements; i++)
 	{
-		//float r = (float)rand()/RAND_MAX;
-		//a[i * 2 + 0] = (int)(r * (float)max);
-		a[i * 2 + 0] = rand() % keybits;
+		a[i * 2 + 0] = rand() % max;
 		a[i * 2 + 1] = i;
+		if (a[i * 2 + 0] > max)
+			return;
     }
 }
 
@@ -331,6 +325,33 @@ bool checkIsSorted(unsigned int* tocheck, size_t datasetSize, string algorithmNa
 			return false;
 		}
 		previous = tocheck[i];
+	}
+
+	return true;
+}
+
+bool checkHasLooseDatasKV(unsigned int* unsorted, unsigned int* sorted, size_t datasetSize, string algorithmName)
+{
+	for(size_t i = 0; i < datasetSize; i++)
+	{
+		unsigned int key = unsorted[i * 2];
+		unsigned int value = unsorted[i * 2 + 1];
+		bool hasFound = false;
+		for(size_t j = 0; j < datasetSize; j++)
+		{
+			unsigned int sortedKey = sorted[j * 2];
+			unsigned int sortedValue = sorted[j * 2 + 1];			
+
+			hasFound = (key == sortedKey && value == sortedValue);
+			if (hasFound)	
+				break;
+		}
+
+		if (!hasFound)
+		{
+			cout << "Algorithm FAILED, we have loose some datas : " << algorithmName << endl;
+			return false;
+		}
 	}
 
 	return true;

@@ -29,7 +29,7 @@
 
 #else
 
-#define BARRIER_LOCAL barrier(CLK_LOCAL_MEM_FENCE);
+#define BARRIER_LOCAL barrier(CLK_LOCAL_MEM_FENCE)
 
 #endif
 
@@ -393,7 +393,7 @@ void kernel__radixPermute(
 
     // Copy data, each thread copies 4 (Cell,Tri) pairs into local shared mem
     int2 myData[4];
-    uint myShiftedKeys[4];
+    int myShiftedKeys[4];
     myData[0] = (gid4.x < N) ? dataIn[gid4.x] : MAX_INT2;
     myData[1] = (gid4.y < N) ? dataIn[gid4.y] : MAX_INT2;
     myData[2] = (gid4.z < N) ? dataIn[gid4.z] : MAX_INT2;
@@ -415,10 +415,10 @@ void kernel__radixPermute(
     finalOffset.w = tid4.w - localHistStart[myShiftedKeys[3]] + sharedHistSum[myShiftedKeys[3]];
 
     // Permute the data to the final offsets
-    //if (gid4.x < N) dataOut[finalOffset.x] = myData[0];
-    //if (gid4.y < N) dataOut[finalOffset.y] = myData[1];
-    //if (gid4.z < N) dataOut[finalOffset.z] = myData[2];
-    //if (gid4.w < N) dataOut[finalOffset.w] = myData[3];
+    /*if (gid4.x < N) dataOut[finalOffset.x] = myData[0];
+    if (gid4.y < N) dataOut[finalOffset.y] = myData[1];
+    if (gid4.z < N) dataOut[finalOffset.z] = myData[2];
+    if (gid4.w < N) dataOut[finalOffset.w] = myData[3];*/
 	
 	if (finalOffset.x < N) dataOut[finalOffset.x] = myData[0];
     if (finalOffset.y < N) dataOut[finalOffset.y] = myData[1];
