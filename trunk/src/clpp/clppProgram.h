@@ -19,6 +19,9 @@
 
 #include "clpp/clppContext.h"
 
+//enum clppVendor { Vendor_Unknown, Vendor_NVidia, Vendor_AMD, Vendor_Intel };
+
+
 using namespace std;
 
 class clppProgram

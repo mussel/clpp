@@ -8,7 +8,7 @@ hostname = socket.gethostname()
 print platform
 print hostname
 src = [Glob('src/clpp/*.cpp')]
-env = Environment(CPPPATH='./src/')
+env = Environment(CPPPATH='./src')
 if platform[:6] == 'macosx':
  	print "Nous sommes sur un mac!"
  	env.Replace(LIBS  = '',
