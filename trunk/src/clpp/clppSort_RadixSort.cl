@@ -25,7 +25,7 @@
 
 // Because our workgroup size = SIMT size, we use the natural synchronization provided by SIMT.
 // So, we don't need any barrier to synchronize
-#define BARRIER_LOCAL 
+#define BARRIER_LOCAL
 
 #else
 

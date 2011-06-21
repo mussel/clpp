@@ -1,5 +1,8 @@
 // In order to test that no value has been loosed ! Can take time to check !
-#define CHECK_HASLOOSEDVALUES 1
+#define PARAM_CHECK_HASLOOSEDVALUES 1
+
+// The number of bits to sort
+#define PARAM_SORT_BITS 32
 
 #include <stdlib.h>
 #include <algorithm>
@@ -8,7 +11,6 @@
 #include "clpp/clppScan.h"
 #include "clpp/clppScan_Default.h"
 #include "clpp/clppScan_GPU.h"
-#include "clpp/clppScan_Merrill.h"
 
 #include "clpp/clppSort_Blelloch.h"
 #include "clpp/clppSort_CPU.h"
@@ -36,18 +38,6 @@ bool checkHasLooseDatasKV(unsigned int* unsorted, unsigned int* sorted, size_t d
 void test_Scan(clppContext* context);
 void test_Sort(clppContext* context);
 void test_Sort_KV(clppContext* context);
-
-//unsigned int datasetSize = 1280000;
-//unsigned int datasetSize = 128000;
-//unsigned int datasetSize = 8192;
-//unsigned int datasetSize = 131072;
-//unsigned int datasetSize = 1<<10;
-//unsigned int datasetSize = 1<<17;
-//unsigned int datasetSize = 1<<21;
-//unsigned int datasetSize = _N;
-//unsigned int datasetSize = 1<<23;  // has to match _N for Blelloch ?
-//unsigned int datasetSize = 384000;
-//unsigned int datasetSize = 400000;
 
 unsigned int datasetSizes[8] = {16000, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
 unsigned int datasetSizesCount = 6;
@@ -133,7 +123,7 @@ void test_Sort(clppContext* context)
 
 void test_Sort_KV(clppContext* context)
 {
-	unsigned int BITS = 32;
+	unsigned int BITS = PARAM_SORT_BITS;
 
 	//---- Satish Radix-sort
 	cout << "--------------- Satish sort Key-Value" << endl;
@@ -243,7 +233,7 @@ void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int dataset
 	//---- Check if it is sorted
 	sort->popDatas();
 	checkIsSortedKV(sortedDatas, datasetSize, sort->getName());
-#if CHECK_HASLOOSEDVALUES
+#if PARAM_CHECK_HASLOOSEDVALUES
 	checkHasLooseDatasKV(unsortedDatas, sortedDatas, datasetSize, sort->getName());
 #endif
 
