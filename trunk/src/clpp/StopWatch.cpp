@@ -35,6 +35,13 @@ double StopWatch::GetElapsedTime()
 
 #if defined(__linux__) || defined(__APPLE__)
 
+StopWatch::StopWatch()
+{
+	// timer.start.QuadPart = 0;
+	// timer.stop.QuadPart = 0; 
+	// QueryPerformanceFrequency(&frequency);
+}
+
 void StopWatch::StartTimer( )
 {
 	start = ClockTime();

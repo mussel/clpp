@@ -2,6 +2,7 @@
 
 #include<assert.h>
 #include <iostream>
+#include <string.h>
 
 using namespace std;
 
@@ -31,6 +32,7 @@ void clppContext::setup(unsigned int platformId, unsigned int deviceId)
 	assert(clStatus == CL_SUCCESS);
 
 	platformId = min(platformId, platformsCount - 1);
+	platformId= platformsCount - 1;
 	clPlatform = platforms[platformId];
 
 	clGetPlatformInfo (clPlatform, CL_PLATFORM_VENDOR, sizeof(infoStr), infoStr, &infoLen);
@@ -118,10 +120,10 @@ char* clppContext::stristr(const char *String, const char *Pattern)
 int clppContext::GetSIMTCapability()
 {
 	// NVidia : 32
-	if (Vendor == clppVendor::Vendor_NVidia && isGPU)
+	if (Vendor == Vendor_NVidia && isGPU)
 		return 32;
 
-	if (Vendor == clppVendor::Vendor_AMD && isGPU)
+	if (Vendor == Vendor_AMD && isGPU)
 	{
 		// ATI : Actually the wavefront size is only 64 for the highend cards(48XX, 58XX, 57XX), but 32 for the middleend cards and 16 for the lowend cards.	
 		//clGetKernelWorkGroupInfo(kernel__scan, _context->clDevice, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &_workgroupSize, 0);

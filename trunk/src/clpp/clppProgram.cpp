@@ -83,11 +83,11 @@ bool clppProgram::compile(clppContext* context, string fileName)
 string clppProgram::compilePreprocess(string programSource)
 {
 	string source = "";
-	if (_context->Vendor == clppVendor::Vendor_AMD)
+	if (_context->Vendor == Vendor_AMD)
 		source += "#define OCL_PLATFORM_AMD\n";
-	else if (_context->Vendor == clppVendor::Vendor_Intel)
+	else if (_context->Vendor == Vendor_Intel)
 		source += "#define OCL_PLATFORM_INTEL\n";
-	else if (_context->Vendor == clppVendor::Vendor_NVidia)
+	else if (_context->Vendor == Vendor_NVidia)
 		source += "#define OCL_PLATFORM_NVIDIA\n";
 	else
 		source += "#define OCL_PLATFORM_UNKNOW\n";

@@ -9,7 +9,7 @@
 #define _BITS 5  // number of bits in the radix
 
 // these parameters can be changed
-#define _ITEMS  64 // number of items in a group
+#define _ITEMS  32// number of items in a group
 #define _GROUPS 32 // the number of virtual processors is _ITEMS * _GROUPS
 #define  _HISTOSPLIT 512 // number of splits of the histogram
 
@@ -18,7 +18,7 @@
 // (for other sizes, pad the list with big values)
 //#define _N (_ITEMS * _GROUPS * 16)  
 //#define _N (1<<23)  // maximal size of the list  
-#define _N (1 << 18)  // maximal size of the list  
+#define _N (1 << 21)  // maximal size of the list  
 
 #define PERMUT 0  // store the final permutation
 #define TRANSPOSE
