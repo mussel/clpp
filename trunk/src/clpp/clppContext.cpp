@@ -36,11 +36,14 @@ void clppContext::setup(unsigned int platformId, unsigned int deviceId)
 	clPlatform = platforms[platformId];
 
 	clGetPlatformInfo (clPlatform, CL_PLATFORM_VENDOR, sizeof(infoStr), infoStr, &infoLen);
+	//clGetPlatformInfo (clPlatform, CL_DEVICE_VENDOR, sizeof(infoStr), infoStr, &infoLen);
 	if (stristr(infoStr, "Intel") != NULL)
 		Vendor = Vendor_Intel;
-	if (stristr(infoStr, "AMD") != NULL)
+	else if (stristr(infoStr, "AMD") != NULL)
 		Vendor = Vendor_AMD;
-	if (stristr(infoStr, "NVidia") != NULL)
+	else if (stristr(infoStr, "NVidia") != NULL)
+		Vendor = Vendor_NVidia;
+	else if (stristr(infoStr, "Apple") != NULL)
 		Vendor = Vendor_NVidia;
 
 	//---- Devices

@@ -287,8 +287,8 @@ void makeRandomUint32Vector_KV(unsigned int* a, unsigned int numElements, const 
 	unsigned int max = (1<<keybits-1) - 1; // Max 'signed' value
     for(unsigned int i = 0; i < numElements; i++)
 	{
-		//a[i * 2 + 0] = rand() % max;
-		a[i * 2 + 0] = i;
+		a[i * 2 + 0] = rand() % max;
+		//a[i * 2 + 0] = i;
 		a[i * 2 + 1] = i;
     }
 }
