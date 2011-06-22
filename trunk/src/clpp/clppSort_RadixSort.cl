@@ -26,11 +26,23 @@
 #define WGZ_x3_1 (WGZ_x3-1)
 #define WGZ_x4_1 (WGZ_x4-1)
 
+//#define EXTRACT_KEY_BIT(VALUE,BIT) ((((uint)VALUE)>>BIT)&0x1)
+//#define EXTRACT_KEY_4BITS(VALUE,BIT) ((((uint)VALUE)>>BIT)&0x0F)
+
+#if KEYS_ONLY
+#define KEY(DATA) (DATA)
+#else
+#define KEY(DATA) (DATA.x)
+#endif
+
+#define EXTRACT_KEY_BIT(VALUE,BIT) ((((uint)KEY(VALUE))>>(uint)BIT)&0x1)
+#define EXTRACT_KEY_4BITS(VALUE,BIT) ((((uint)KEY(VALUE))>>(uint)BIT)&0xF)
+
 #if defined(OCL_DEVICE_GPU) && defined(OCL_PLATFORM_NVIDIA)
 
 // Because our workgroup size = SIMT size, we use the natural synchronization provided by SIMT.
 // So, we don't need any barrier to synchronize
-#define BARRIER_LOCAL
+#define BARRIER_LOCAL barrier(CLK_GLOBAL_MEM_FENCE)
 
 // Sometimes using barrier give a faster sort... but it is random !!!
 //#define BARRIER_LOCAL barrier(CLK_LOCAL_MEM_FENCE)
@@ -265,10 +277,11 @@ void kernel__radixLocalSort(
 		// Create the '1s' array as explained at : http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html
 		// In fact we simply inverse the bits
         BARRIER_LOCAL;
-        localBitsScan[tid4.x] = !((localData[indices[srcBase + tid4.x]].x >> shift) & 0x1);
-        localBitsScan[tid4.y] = !((localData[indices[srcBase + tid4.y]].x >> shift) & 0x1);
-        localBitsScan[tid4.z] = !((localData[indices[srcBase + tid4.z]].x >> shift) & 0x1);
-        localBitsScan[tid4.w] = !((localData[indices[srcBase + tid4.w]].x >> shift) & 0x1);
+		
+        localBitsScan[tid4.x] = ! EXTRACT_KEY_BIT(localData[indices[srcBase + tid4.x]], shift);
+        localBitsScan[tid4.y] = ! EXTRACT_KEY_BIT(localData[indices[srcBase + tid4.y]], shift);
+        localBitsScan[tid4.z] = ! EXTRACT_KEY_BIT(localData[indices[srcBase + tid4.z]], shift);
+        localBitsScan[tid4.w] = ! EXTRACT_KEY_BIT(localData[indices[srcBase + tid4.w]], shift);
 		
 		//--- Do a scan of the 128 bits and retreive the total number of '1' in 'incSum'
 		exclusive_scan_128(tid, tid4, localBitsScan, incSum, N);
@@ -280,7 +293,7 @@ void kernel__radixLocalSort(
             uint idx = tid4.x + b;
             BARRIER_LOCAL;
 			
-            int flag = (((int)localData[indices[srcBase + idx]].x) >> shift) & 0x1;
+			uint flag = EXTRACT_KEY_BIT(localData[indices[srcBase + idx]], shift);
 			
 			// Rule :
 			// t = idx - scan[idx] + total_count_bits_at0
@@ -326,8 +339,8 @@ void kernel__radixLocalSort(
     int ka, kb;
     if (tid4.x > 0)
     {
-        ka = (((int)localData[indices[srcBase + tid4.x-0]].x) >> bitOffset) & 0xF;
-        kb = (((int)localData[indices[srcBase + tid4.x-1]].x) >> bitOffset) & 0xF;
+        ka = EXTRACT_KEY_4BITS(localData[indices[srcBase + tid4.x-0]], bitOffset);
+        kb = EXTRACT_KEY_4BITS(localData[indices[srcBase + tid4.x-1]], bitOffset);
         if (ka != kb)
         {
             localHistEnd[kb] = tid4.x - 1;
@@ -335,34 +348,34 @@ void kernel__radixLocalSort(
         }
     }
 
-    ka = (((int)localData[indices[srcBase + tid4.y]].x) >> bitOffset) & 0xF;
-    kb = (((int)localData[indices[srcBase + tid4.x]].x) >> bitOffset) & 0xF;
+    ka = EXTRACT_KEY_4BITS(localData[indices[srcBase + tid4.y]], bitOffset);
+    kb = EXTRACT_KEY_4BITS(localData[indices[srcBase + tid4.x]], bitOffset);
     if (ka != kb)
     {
         localHistEnd[kb] = tid4.x;
         localHistStart[ka] = tid4.y;
     }
 
-    ka = (((int)localData[indices[srcBase + tid4.z]].x) >> bitOffset) & 0xF;
-    kb = (((int)localData[indices[srcBase + tid4.y]].x) >> bitOffset) & 0xF;
+    ka = EXTRACT_KEY_4BITS(localData[indices[srcBase + tid4.z]], bitOffset);
+    kb = EXTRACT_KEY_4BITS(localData[indices[srcBase + tid4.y]], bitOffset);
     if (ka != kb)
     {
         localHistEnd[kb] = tid4.y;
         localHistStart[ka] = tid4.z;
     }
 
-    ka = (((int)localData[indices[srcBase + tid4.w]].x) >> bitOffset) & 0xF;
-    kb = (((int)localData[indices[srcBase + tid4.z]].x) >> bitOffset) & 0xF;
+    ka = EXTRACT_KEY_4BITS(localData[indices[srcBase + tid4.w]], bitOffset);
+    kb = EXTRACT_KEY_4BITS(localData[indices[srcBase + tid4.z]], bitOffset);
     if (ka != kb)
     {
         localHistEnd[kb] = tid4.z;
         localHistStart[ka] = tid4.w;
     }
 
-    if (tid == 0)
+    if (tid < 1)
     {
-        localHistEnd[(((int)localData[indices[srcBase + WGZ_x4-1]].x) >> bitOffset) & 0xF] = WGZ_x4 - 1;
-        localHistStart[(((int)localData[indices[srcBase]].x) >> bitOffset) & 0xF] = 0;
+		localHistEnd[EXTRACT_KEY_4BITS(localData[indices[srcBase + WGZ_x4-1]], bitOffset)] = WGZ_x4 - 1;
+		localHistStart[EXTRACT_KEY_4BITS(localData[indices[srcBase]], bitOffset)] = 0;
     }
     BARRIER_LOCAL;
 
@@ -383,12 +396,12 @@ void kernel__radixLocalSort(
 
 __kernel
 void kernel__radixPermute(
-	__global const int2* dataIn,		// size 4*4 int2s per block
-	__global int2* dataOut,				// size 4*4 int2s per block
+	__global const KV_TYPE* dataIn,		// size 4*4 int2s per block
+	__global KV_TYPE* dataOut,				// size 4*4 int2s per block
 	__global const int* histSum,		// size 16 per block (64 B)
 	__global const int* blockHists,		// size 16 int2s per block (64 B)
 	const int bitOffset,				// k*4, k=0..7
-	const int N)						// N = 32 (32x int2 global)
+	const int N)						// N = 32 (32x KV_TYPE global)
 {
     const int4 gid4 = ((const int4)(get_global_id(0) << 2)) + (const int4)(0,1,2,3);
     const int tid = get_local_id(0);
@@ -398,7 +411,7 @@ void kernel__radixPermute(
     __local int sharedHistSum[16];
     __local int localHistStart[16];
 
-    // Fetch per-block int2 histogram and int histogram sums
+    // Fetch per-block KV_TYPE histogram and int histogram sums
     if (tid < 16)
     {
         sharedHistSum[tid] = histSum[tid * numBlocks + blockId];
@@ -408,17 +421,17 @@ void kernel__radixPermute(
 	BARRIER_LOCAL;
 
     // Copy data, each thread copies 4 (Cell,Tri) pairs into local memory
-    int2 myData[4];
+    KV_TYPE myData[4];
     int myShiftedKeys[4];
     myData[0] = (gid4.x < N) ? dataIn[gid4.x] : MAX_KV_TYPE;
     myData[1] = (gid4.y < N) ? dataIn[gid4.y] : MAX_KV_TYPE;
     myData[2] = (gid4.z < N) ? dataIn[gid4.z] : MAX_KV_TYPE;
     myData[3] = (gid4.w < N) ? dataIn[gid4.w] : MAX_KV_TYPE;
 
-    myShiftedKeys[0] = ((int)myData[0].x >> bitOffset) & 0xF;
-    myShiftedKeys[1] = ((int)myData[1].x >> bitOffset) & 0xF;
-    myShiftedKeys[2] = ((int)myData[2].x >> bitOffset) & 0xF;
-    myShiftedKeys[3] = ((int)myData[3].x >> bitOffset) & 0xF;
+    myShiftedKeys[0] = EXTRACT_KEY_4BITS(myData[0], bitOffset);
+    myShiftedKeys[1] = EXTRACT_KEY_4BITS(myData[1], bitOffset);
+    myShiftedKeys[2] = EXTRACT_KEY_4BITS(myData[2], bitOffset);
+    myShiftedKeys[3] = EXTRACT_KEY_4BITS(myData[3], bitOffset);
 
 	// Necessary ?
     //BARRIER_LOCAL;

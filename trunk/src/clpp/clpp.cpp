@@ -21,5 +21,5 @@ clppSort* clpp::createBestSort(clppContext* context, unsigned int maxElements, u
 
 clppSort* clpp::createBestSortKV(clppContext* context, unsigned int maxElements, unsigned int bits)
 {
-	return new clppSort_RadixSort(context, maxElements, bits);
+	return new clppSort_RadixSort(context, maxElements, bits, true);
 }

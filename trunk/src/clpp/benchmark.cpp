@@ -15,7 +15,6 @@
 #include "clpp/clppSort_Blelloch.h"
 #include "clpp/clppSort_CPU.h"
 #include "clpp/clppSort_RadixSort.h"
-//#include "clpp/clppSort_Merill.h"
 
 #include <string.h>
 
@@ -31,15 +30,14 @@ void benchmark_scan(clppContext* context, clppScan* scan, int datasetSize);
 void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSize);
 void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int datasetSize, unsigned int bits);
 
-bool checkIsSorted(unsigned int* tocheck, size_t datasetSize, string algorithmName);
-bool checkIsSortedKV(unsigned int* tocheck, size_t datasetSize, string algorithmName);
+bool checkIsSorted(unsigned int* tocheck, size_t datasetSize, string algorithmName, bool keysOnly);
 bool checkHasLooseDatasKV(unsigned int* unsorted, unsigned int* sorted, size_t datasetSize, string algorithmName);
 
 void test_Scan(clppContext* context);
 void test_Sort(clppContext* context);
 void test_Sort_KV(clppContext* context);
 
-unsigned int datasetSizes[8] = {16000, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
+unsigned int datasetSizes[8] = {262144, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
 unsigned int datasetSizesCount = 6;
 
 StopWatch* stopWatcher = new StopWatch();
@@ -50,7 +48,7 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(0, 0);
+	context.setup(2, 0);
 
 	// Scan
 	//test_Scan(&context);
@@ -111,6 +109,15 @@ void test_Sort(clppContext* context)
 		benchmark_sort(*context, clppsort, datasetSizes[i]);	
 	}
 
+	//---- Satish Radix-sort
+	cout << "--------------- Satish sort Key" << endl;
+	for(unsigned int i = 0; i < datasetSizesCount; i++)
+	{
+		clppSort* clppsort = new clppSort_RadixSort(context, datasetSizes[i], PARAM_SORT_BITS, true);
+		benchmark_sort(*context, clppsort, datasetSizes[i]);
+		delete clppsort;
+	}
+
 	// Merill
 	//memcpy(keys, keysCopy, datasetSize * sizeof(int));
 	//clppsort = new clppSort_Merill(context, datasetSize); // 128 = work group size
@@ -123,14 +130,12 @@ void test_Sort(clppContext* context)
 
 void test_Sort_KV(clppContext* context)
 {
-	unsigned int BITS = PARAM_SORT_BITS;
-
 	//---- Satish Radix-sort
 	cout << "--------------- Satish sort Key-Value" << endl;
 	for(unsigned int i = 0; i < datasetSizesCount; i++)
 	{
-		clppSort* clppsort = new clppSort_RadixSort(context, datasetSizes[i], BITS);
-		benchmark_sort_KV(*context, clppsort, datasetSizes[i], BITS);
+		clppSort* clppsort = new clppSort_RadixSort(context, datasetSizes[i], PARAM_SORT_BITS, false);
+		benchmark_sort_KV(*context, clppsort, datasetSizes[i], PARAM_SORT_BITS);
 		delete clppsort;
 	}
 }
@@ -202,7 +207,7 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
 
 	//---- Check if it is sorted
 	sort->popDatas();
-	checkIsSorted(keys, datasetSize, sort->getName());
+	checkIsSorted(keys, datasetSize, sort->getName(), true);
 
 	//---- Free
 	free(keys);
@@ -232,7 +237,7 @@ void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int dataset
 
 	//---- Check if it is sorted
 	sort->popDatas();
-	checkIsSortedKV(sortedDatas, datasetSize, sort->getName());
+	checkIsSorted(sortedDatas, datasetSize, sort->getName(), false);
 #if PARAM_CHECK_HASLOOSEDVALUES
 	checkHasLooseDatasKV(unsortedDatas, sortedDatas, datasetSize, sort->getName());
 #endif
@@ -303,17 +308,18 @@ void makeRandomUint32Vector_i(unsigned int* a, unsigned int numElements, unsigne
 
 #pragma region checkIsSorted
 
-bool checkIsSorted(unsigned int* tocheck, size_t datasetSize, string algorithmName)
+bool checkIsSorted(unsigned int* tocheck, size_t datasetSize, string algorithmName, bool keysOnly)
 {
+	int mult = keysOnly ? 1 : 2;
 	int previous = 0;
 	for(size_t i = 0; i < datasetSize; i++)
 	{
-		if (previous > tocheck[i])
+		if (previous > tocheck[i*mult])
 		{
 			cout << "Algorithm FAILED : " << algorithmName << endl;
 			return false;
 		}
-		previous = tocheck[i];
+		previous = tocheck[i*mult];
 	}
 
 	return true;
@@ -341,22 +347,6 @@ bool checkHasLooseDatasKV(unsigned int* unsorted, unsigned int* sorted, size_t d
 			cout << "Algorithm FAILED, we have loose some datas : " << algorithmName << endl;
 			return false;
 		}
-	}
-
-	return true;
-}
-
-bool checkIsSortedKV(unsigned int* tocheck, size_t datasetSize, string algorithmName)
-{
-	int previous = 0;
-	for(size_t i = 0; i < datasetSize; i++)
-	{
-		if (previous > tocheck[i*2])
-		{
-			cout << "Algorithm FAILED : " << algorithmName << endl;
-			return false;
-		}
-		previous = tocheck[i*2];
 	}
 
 	return true;

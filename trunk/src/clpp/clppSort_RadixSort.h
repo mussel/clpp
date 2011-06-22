@@ -7,7 +7,7 @@
 class clppSort_RadixSort : public clppSort
 {
 public:
-	clppSort_RadixSort(clppContext* context, unsigned int maxElements, unsigned int bits);
+	clppSort_RadixSort(clppContext* context, unsigned int maxElements, unsigned int bits, bool keysOnly);
 	~clppSort_RadixSort();
 
 	string getName() { return "Radix sort"; }
@@ -22,6 +22,7 @@ public:
 	string compilePreprocess(string kernel);
 
 private:
+	bool _keysOnly;			// Key-Values or Keys-only
 	size_t _datasetSize;	// The number of keys to sort
 
 	void* _dataSetOut;

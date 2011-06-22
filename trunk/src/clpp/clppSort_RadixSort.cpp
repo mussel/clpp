@@ -10,8 +10,9 @@
 
 #pragma region Constructor
 
-clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxElements, unsigned int bits)
+clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxElements, unsigned int bits, bool keysOnly)
 {
+	_keysOnly = keysOnly;
 	_valueSize = 4;
 	_keySize = 4;
 	_clBuffer_dataSet = 0;
@@ -73,10 +74,13 @@ string clppSort_RadixSort::compilePreprocess(string kernel)
 
 	//if (_templateType == Int)
 	{
-		source = "#define MAX_KV_TYPE (int2)(0x7FFFFFFF,0xFFFFFFFF)\n";
+		source = _keysOnly ? "#define MAX_KV_TYPE (int)(0x7FFFFFFF)\n" : "#define MAX_KV_TYPE (int2)(0x7FFFFFFF,0xFFFFFFFF)\n";
 		source += "#define K_TYPE int\n";
-		source += "#define KV_TYPE int2\n";
+		source += _keysOnly ? "#define KV_TYPE int\n" : "#define KV_TYPE int2\n";
 		source += "#define K_TYPE_IDENTITY 0\n";
+
+		if (_keysOnly)
+			source += "#define KEYS_ONLY 1\n";
 	}
 	/*else if (_templateType == UInt)
 	{
@@ -135,7 +139,10 @@ void clppSort_RadixSort::radixLocal(cl_mem data, cl_mem hist, cl_mem blockHists,
     unsigned int a = 0;
     unsigned int Ndiv4 = roundUpDiv(_datasetSize, 4);
 
-	clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, (_valueSize+_keySize) * 2 * 4 * _workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)
+	if (_keysOnly)
+		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, _keySize * 2 * 4 * _workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)
+	else
+		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, (_valueSize+_keySize) * 2 * 4 * _workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, LTYPE_SIZE * 4 * 2 * _workgroupSize, (const void*)NULL);			// 4*4*2 shorts
     //clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, LTYPE_SIZE * 4 * _workgroupSize, (const void*)NULL);				// sharedSum, 4*4 shorts
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)&data);
@@ -206,15 +213,27 @@ void clppSort_RadixSort::pushDatas(void* dataSet, size_t datasetSize)
 	    
 		_clBuffer_radixHist1 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * 16 * numBlocks, NULL, &clStatus);
 		checkCLStatus(clStatus);
-		_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize+_keySize) * 16 * numBlocks, NULL, &clStatus);
+
+		_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * 2 * 16 * numBlocks, NULL, &clStatus);
 		checkCLStatus(clStatus);
 
 		//---- Copy on the device
-		_clBuffer_dataSet = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, (_valueSize+_keySize) * _datasetSize, _dataSet, &clStatus);
-		checkCLStatus(clStatus);
+		if (_keysOnly)
+		{
+			_clBuffer_dataSet = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _keySize * _datasetSize, _dataSet, &clStatus);
+			checkCLStatus(clStatus);
 
-		_clBuffer_dataSetOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize+_keySize) * _datasetSize, NULL, &clStatus);
-		checkCLStatus(clStatus);
+			_clBuffer_dataSetOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * _datasetSize, NULL, &clStatus);
+			checkCLStatus(clStatus);
+		}
+		else
+		{
+			_clBuffer_dataSet = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, (_valueSize+_keySize) * _datasetSize, _dataSet, &clStatus);
+			checkCLStatus(clStatus);
+
+			_clBuffer_dataSetOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize+_keySize) * _datasetSize, NULL, &clStatus);
+			checkCLStatus(clStatus);
+		}
 
 		_is_clBuffersOwner = true;
 	}
@@ -266,7 +285,11 @@ void clppSort_RadixSort::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize
 
 void clppSort_RadixSort::popDatas()
 {
-	cl_int clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, (_valueSize + _keySize) * _datasetSize, _dataSetOut, 0, NULL, NULL);
+	cl_int clStatus;
+	if (_keysOnly)
+		clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, _keySize * _datasetSize, _dataSetOut, 0, NULL, NULL);
+	else
+		clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, (_valueSize + _keySize) * _datasetSize, _dataSetOut, 0, NULL, NULL);
 	checkCLStatus(clStatus);
 }
 
