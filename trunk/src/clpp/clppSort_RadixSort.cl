@@ -14,10 +14,14 @@
 // Radix Sort For Vector Multiprocessors, Marco Zagha and Guy E. Blelloch
 //------------------------------------------------------------
 
+#pragma OPENCL EXTENSION cl_amd_printf : enable
+
 #define WGZ 32
 #define WGZ_x2 (WGZ*2)
 #define WGZ_x3 (WGZ*3)
+#define WGZ_x4 (WGZ*4)
 #define WGZ_1 (WGZ-1)
+#define WGZ_2 (WGZ-2)
 #define WGZ_x2_1 (WGZ_x2-1)
 #define WGZ_x3_1 (WGZ_x3-1)
 
@@ -33,7 +37,7 @@
 
 #endif
 
-#if defined(OCL_DEVICE_GPU) && defined(OCL_PLATFORM_NVIDIA)
+#if defined(OCL_DEVICE_GPU) && defined(OCL_PLATFORM_NVIDIA_OLD)
 
 // Exclusive scan of 4 buckets of 32 elements by using the SIMT capability (to avoid synchronization of work items).
 // Directly do it for 4x32 elements, simply use an offset
@@ -85,7 +89,7 @@ inline void scan_simt_inclusive_4(__local K_TYPE* input, const int tid1)
 }
 
 inline 
-void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local K_TYPE* localBuffer, __local K_TYPE* incSum, uint size)
+void exclusive_scan_128(const uint tid, const int4 tid4, __local K_TYPE* localBuffer, __local K_TYPE* incSum, uint size)
 {
 	// Do 4 inclusive scan (4 buckets of 32)
 	scan_simt_inclusive_4(localBuffer, tid);
@@ -94,11 +98,11 @@ void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local
 		
 	// Convert into a scan of 128 items
 	__local int sum[3];
-	if (tid > 30)
+	if (tid > WGZ_2)
 	{
-		sum[0] = localBuffer[31];
-		sum[1] = sum[0] + localBuffer[63];
-		sum[2] = sum[1] + localBuffer[95];
+		sum[0] = localBuffer[WGZ_1];
+		sum[1] = sum[0] + localBuffer[WGZ_x2_1];
+		sum[2] = sum[1] + localBuffer[WGZ_x3_1];
 	}       
 		
 	BARRIER_LOCAL;
@@ -121,7 +125,7 @@ void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local
 	localBuffer[tid4.z] = v3;
 	localBuffer[tid4.w] = v4;
 	
-	if (tid > 30)
+	if (tid > WGZ_2)
 		incSum[0] = localBuffer[127]; // Total number of '1' in the array
 		
 	BARRIER_LOCAL;
@@ -130,7 +134,7 @@ void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local
 #else
 
 inline
-void exclusive_scan_4(const uint tid, const int4 tid4, uint blockSize, __local K_TYPE* localBuffer, __local K_TYPE* incSum)
+void exclusive_scan_4(const uint tid, const int4 tid4, __local K_TYPE* localBuffer, __local K_TYPE* incSum)
 {
     const int tid2_0 = tid << 1;
     const int tid2_1 = tid2_0 + 1;
@@ -153,7 +157,7 @@ void exclusive_scan_4(const uint tid, const int4 tid4, uint blockSize, __local K
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
-    if (tid == blockSize-1)
+    if (tid > WGZ_2)
     {
         incSum[0] = localBuffer[tid4.w];
         localBuffer[tid4.w] = 0;
@@ -181,7 +185,7 @@ void exclusive_scan_4(const uint tid, const int4 tid4, uint blockSize, __local K
 }
 
 inline 
-void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local K_TYPE* localBuffer, __local K_TYPE* incSum, uint size)
+void exclusive_scan_128(const uint tid, const int4 tid4, __local K_TYPE* localBuffer, __local K_TYPE* incSum, uint size)
 {
 	// local serial reduction
 	localBuffer[tid4.y] += localBuffer[tid4.x];
@@ -189,7 +193,7 @@ void exclusive_scan_128(const uint tid, const int4 tid4, uint blockSize, __local
 	localBuffer[tid4.w] += localBuffer[tid4.y];
 		
 	// Exclusive scan starting with an offset of 4
-	exclusive_scan_4(tid, tid4, blockSize, localBuffer, incSum);
+	exclusive_scan_4(tid, tid4, localBuffer, incSum);
 		
 	// local 4-element serial expansion
 	K_TYPE tmp;
@@ -223,9 +227,6 @@ void kernel__radixLocalSort(
     const int tid = (int)get_local_id(0);
     const int4 tid4 = (int4)(tid << 2) + (const int4)(0,1,2,3);
     const int blockId = (int)get_group_id(0);
-    const int blockSize = (int)get_local_size(0);
-	//const int blockSize = WGZ;
-    const int blockSize4 = (blockSize << 2);
 	
 	__local K_TYPE sharedSum[WGZ * 4];
 
@@ -245,7 +246,7 @@ void kernel__radixLocalSort(
     indices[tid4.w] = tid4.w;
 
     int srcBase = 0;
-    int dstBase = blockSize4;
+    int dstBase = WGZ_x4;
 	
 	//-------- 1) 4 x local 1-bit split
 
@@ -268,7 +269,7 @@ void kernel__radixLocalSort(
         sharedSum[tid4.w] = shared[srcBase + tid4.w].x;*/
 		
 		//--- Do a scan of the 128 bits and retreive the total number of '1' in 'incSum'
-		exclusive_scan_128(tid, tid4, blockSize, sharedSum, incSum, N);
+		exclusive_scan_128(tid, tid4, sharedSum, incSum, N);
 		
 		/*if (gid4.x < N) data[gid4.x].x = sharedSum[tid4.x];
 		if (gid4.y < N) data[gid4.y].x = sharedSum[tid4.y];
@@ -364,7 +365,7 @@ void kernel__radixLocalSort(
 
     if (tid == 0)
     {
-        localHistEnd[(((int)shared[indices[srcBase + blockSize4-1]].x) >> bitOffset) & 0xF] = blockSize4 - 1;
+        localHistEnd[(((int)shared[indices[srcBase + WGZ_x4-1]].x) >> bitOffset) & 0xF] = WGZ_x4 - 1;
         localHistStart[(((int)shared[indices[srcBase]].x) >> bitOffset) & 0xF] = 0;
     }
     BARRIER_LOCAL;
@@ -409,7 +410,7 @@ void kernel__radixPermute(
         localHistStart[tid] = blockHists[(blockId << 5) + tid];
     }
 	
-	BARRIER_LOCAL;
+	barrier(CLK_LOCAL_MEM_FENCE);
 
     // Copy data, each thread copies 4 (Cell,Tri) pairs into local shared mem
     int2 myData[4];
@@ -435,11 +436,6 @@ void kernel__radixPermute(
     finalOffset.w = tid4.w - localHistStart[myShiftedKeys[3]] + sharedHistSum[myShiftedKeys[3]];
 
     // Permute the data to the final offsets
-    /*if (gid4.x < N) dataOut[finalOffset.x] = myData[0];
-    if (gid4.y < N) dataOut[finalOffset.y] = myData[1];
-    if (gid4.z < N) dataOut[finalOffset.z] = myData[2];
-    if (gid4.w < N) dataOut[finalOffset.w] = myData[3];*/
-	
 	if (finalOffset.x < N) dataOut[finalOffset.x] = myData[0];
     if (finalOffset.y < N) dataOut[finalOffset.y] = myData[1];
     if (finalOffset.z < N) dataOut[finalOffset.z] = myData[2];

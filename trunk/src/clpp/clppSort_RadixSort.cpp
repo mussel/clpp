@@ -65,23 +65,29 @@ clppSort_RadixSort::~clppSort_RadixSort()
 
 #pragma endregion
 
+#pragma region compilePreprocess
+
 string clppSort_RadixSort::compilePreprocess(string kernel)
 {
 	string source;
 
 	//if (_templateType == Int)
 	{
-		source = "#define MAX_INT2 (int2)(0x7FFFFFFF,0xFFFFFFFF)";
-		source += "\n#define K_TYPE int\n";
+		source = "#define MAX_INT2 (int2)(0x7FFFFFFF,0xFFFFFFFF)\n";
+		source += "#define K_TYPE int\n";
+		source += "#define K_TYPE_IDENTITY 0\n";
 	}
 	/*else if (_templateType == UInt)
 	{
 		source = "#define MAX_INT2 (int2)0xFFFFFFFF";
 		source += "\n#define K_TYPE uint\n";
+		source += "#define K_TYPE_IDENTITY 0\n";
 	}*/
 
 	return clppSort::compilePreprocess(source + kernel);
 }
+
+#pragma endregion
 
 #pragma region sort
 
@@ -106,7 +112,7 @@ void clppSort_RadixSort::sort()
 
 		//************************************
 
-		clEnqueueReadBuffer(_context->clQueue, dataA, CL_TRUE, 0, (_valueSize + _keySize) * _datasetSize, _dataSetOut, 0, NULL, NULL);
+		//clEnqueueReadBuffer(_context->clQueue, dataA, CL_TRUE, 0, (_valueSize + _keySize) * _datasetSize, _dataSetOut, 0, NULL, NULL);
 
 		//************************************
 		
