@@ -32,7 +32,6 @@ void clppContext::setup(unsigned int platformId, unsigned int deviceId)
 	assert(clStatus == CL_SUCCESS);
 
 	platformId = min(platformId, platformsCount - 1);
-	platformId= platformsCount - 1;
 	clPlatform = platforms[platformId];
 
 	clGetPlatformInfo (clPlatform, CL_PLATFORM_VENDOR, sizeof(infoStr), infoStr, &infoLen);

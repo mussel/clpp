@@ -30,7 +30,10 @@
 
 // Because our workgroup size = SIMT size, we use the natural synchronization provided by SIMT.
 // So, we don't need any barrier to synchronize
-#define BARRIER_LOCAL barrier(CLK_LOCAL_MEM_FENCE)
+#define BARRIER_LOCAL
+
+// Sometimes using barrier give a faster sort... but it is random !!!
+//#define BARRIER_LOCAL barrier(CLK_LOCAL_MEM_FENCE)
 
 #else
 
