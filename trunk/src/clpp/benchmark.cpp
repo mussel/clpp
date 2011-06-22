@@ -37,8 +37,8 @@ void test_Scan(clppContext* context);
 void test_Sort(clppContext* context);
 void test_Sort_KV(clppContext* context);
 
-unsigned int datasetSizes[8] = {262144, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
-unsigned int datasetSizesCount = 1;
+unsigned int datasetSizes[8] = {16000, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
+unsigned int datasetSizesCount = 6;
 
 StopWatch* stopWatcher = new StopWatch();
 
@@ -54,10 +54,10 @@ int main(int argc, const char** argv)
 	//test_Scan(&context);
 
 	// Sorting : key
-	test_Sort(&context);
+	//test_Sort(&context);
 
 	// Sorting : key + value
-	//test_Sort_KV(&context);
+	test_Sort_KV(&context);
 }
 
 #pragma region test_Scan
