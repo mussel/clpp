@@ -34,8 +34,8 @@ private:
 
 	unsigned int _bits;
 
-	void radixLocal(cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset, const unsigned int N);
-	void radixPermute(cl_mem dataIn, cl_mem dataOut, cl_mem histScan, cl_mem blockHists, int bitOffset, const unsigned int N);
+	void radixLocal(cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset);
+	void radixPermute(cl_mem dataIn, cl_mem dataOut, cl_mem histScan, cl_mem blockHists, int bitOffset);
 	void freeUpRadixMems();
 
 	clppScan* _scan;

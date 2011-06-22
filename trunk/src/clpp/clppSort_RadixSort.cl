@@ -43,7 +43,7 @@
 
 #if defined(OCL_DEVICE_GPU) && defined(OCL_PLATFORM_NVIDIA)
 
-// Exclusive scan of 4 buckets of 32 elements by using the SIMT capability (to avoid synchronization of work items).
+// Inclusive scan of 4 buckets of 32 elements by using the SIMT capability (to avoid synchronization of work items).
 // Directly do it for 4x32 elements, simply use an offset
 inline void scan_simt_inclusive_4(__local K_TYPE* input, const int tid1)
 {
@@ -219,32 +219,33 @@ void exclusive_scan_128(const uint tid, const int4 tid4, __local K_TYPE* localBu
 
 __kernel
 void kernel__radixLocalSort(
-	__local int2* shared,      // size 4*4 int2s (8 kB)
-	__local K_TYPE* indices,    // size 4*4 shorts (4 kB)
-	//__local K_TYPE* sharedSumOLD,  // size 4*4*2 shorts (2 kB)
-	__global int2* data,       // size 4*4 int2s per block (8 kB)
-	__global int* hist,        // size 16  per block (64 B)
-	__global int* blockHists,  // size 16 int2s per block (64 B)
-	const int bitOffset,       // k*4, k=0..7
-	const int N)               // N = 32 (32x int2 global)
+	__local KV_TYPE* localData,			// size 4*4 int2s (8 kB)
+	__local K_TYPE* indices,			// size 4*4 shorts (4 kB)
+	//__local K_TYPE* localBitsScanOLD,	// size 4*4*2 shorts (2 kB)
+	__global KV_TYPE* data,				// size 4*4 int2s per block (8 kB)
+	__global int* hist,					// size 16  per block (64 B)
+	__global int* blockHists,			// size 16 int2s per block (64 B)
+	const int bitOffset,				// k*4, k=0..7
+	const int N)						// Total number of items to sort
 {
     const int4 gid4 = (int4)(get_global_id(0) << 2) + (const int4)(0,1,2,3);
     const int tid = (int)get_local_id(0);
     const int4 tid4 = (int4)(tid << 2) + (const int4)(0,1,2,3);
     const int blockId = (int)get_group_id(0);
 	
-	//__local int2 shared[WGZ_x4 * 4]; // 2 KV array of 128 items (2 for permutations)
-	__local K_TYPE sharedSum[WGZ_x4];
+	// DOES NOT WORK !!!!
+	//__local KV_TYPE localData[WGZ_x4 * 2]; // 2 KV array of 128 items (2 for permutations)
+	__local K_TYPE localBitsScan[WGZ_x4];
 
     __local int localHistStart[16];
     __local int localHistEnd[16];
     __local K_TYPE incSum[1];
 
     // Each thread copies 4 (Cell,Tri) pairs into local memory
-    shared[tid4.x] = (gid4.x < N) ? data[gid4.x] : MAX_INT2;
-    shared[tid4.y] = (gid4.y < N) ? data[gid4.y] : MAX_INT2;
-    shared[tid4.z] = (gid4.z < N) ? data[gid4.z] : MAX_INT2;
-    shared[tid4.w] = (gid4.w < N) ? data[gid4.w] : MAX_INT2;
+    localData[tid4.x] = (gid4.x < N) ? data[gid4.x] : MAX_KV_TYPE;
+    localData[tid4.y] = (gid4.y < N) ? data[gid4.y] : MAX_KV_TYPE;
+    localData[tid4.z] = (gid4.z < N) ? data[gid4.z] : MAX_KV_TYPE;
+    localData[tid4.w] = (gid4.w < N) ? data[gid4.w] : MAX_KV_TYPE;
 	
     indices[tid4.x] = tid4.x;
     indices[tid4.y] = tid4.y;
@@ -257,20 +258,20 @@ void kernel__radixLocalSort(
 	//-------- 1) 4 x local 1-bit split
 
     uint shift = bitOffset;
-	//#pragma unroll
+	//#pragma unroll // SLOWER !!
     for(uint i = 0; i < 4; i++, shift++)
     {
 		//---- Setup the array of 4 bits (of level shift)
 		// Create the '1s' array as explained at : http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html
 		// In fact we simply inverse the bits
         BARRIER_LOCAL;
-        sharedSum[tid4.x] = !((shared[indices[srcBase + tid4.x]].x >> shift) & 0x1);
-        sharedSum[tid4.y] = !((shared[indices[srcBase + tid4.y]].x >> shift) & 0x1);
-        sharedSum[tid4.z] = !((shared[indices[srcBase + tid4.z]].x >> shift) & 0x1);
-        sharedSum[tid4.w] = !((shared[indices[srcBase + tid4.w]].x >> shift) & 0x1);
+        localBitsScan[tid4.x] = !((localData[indices[srcBase + tid4.x]].x >> shift) & 0x1);
+        localBitsScan[tid4.y] = !((localData[indices[srcBase + tid4.y]].x >> shift) & 0x1);
+        localBitsScan[tid4.z] = !((localData[indices[srcBase + tid4.z]].x >> shift) & 0x1);
+        localBitsScan[tid4.w] = !((localData[indices[srcBase + tid4.w]].x >> shift) & 0x1);
 		
 		//--- Do a scan of the 128 bits and retreive the total number of '1' in 'incSum'
-		exclusive_scan_128(tid, tid4, sharedSum, incSum, N);
+		exclusive_scan_128(tid, tid4, localBitsScan, incSum, N);
 
         //---- Permutations
 		#pragma unroll
@@ -279,19 +280,19 @@ void kernel__radixLocalSort(
             uint idx = tid4.x + b;
             BARRIER_LOCAL;
 			
-            int flag = (((int)shared[indices[srcBase + idx]].x) >> shift) & 0x1;
+            int flag = (((int)localData[indices[srcBase + idx]].x) >> shift) & 0x1;
 			
 			// Rule :
 			// t = idx - scan[idx] + total_count_bits_at0
 			// pos = flag ? t : scan[idx]
 			
             //if (flag == 1)
-            //    indices[dstBase + (int)incSum[0] + idx - (int)sharedSum[idx]] = indices[srcBase + idx];
+            //    indices[dstBase + (int)incSum[0] + idx - (int)localBitsScan[idx]] = indices[srcBase + idx];
             //else
-            //    indices[dstBase + (int)sharedSum[idx]] = indices[srcBase + idx];
+            //    indices[dstBase + (int)localBitsScan[idx]] = indices[srcBase + idx];
 				
 			// Faster version for GPU (no divergence)
-			uint targetOffset = flag * ( (int)incSum[0] + idx - (int)sharedSum[idx] ) + (1-flag) * ((int)sharedSum[idx]);
+			uint targetOffset = flag * ( (int)incSum[0] + idx - (int)localBitsScan[idx] ) + (1-flag) * ((int)localBitsScan[idx]);
 			indices[dstBase + targetOffset] = indices[srcBase + idx];
         }
 
@@ -304,10 +305,10 @@ void kernel__radixLocalSort(
     BARRIER_LOCAL;
 	
 	// Write sorted data back to global mem
-    if (gid4.x < N) data[gid4.x] = shared[indices[srcBase + tid4.x]];
-    if (gid4.y < N) data[gid4.y] = shared[indices[srcBase + tid4.y]];
-    if (gid4.z < N) data[gid4.z] = shared[indices[srcBase + tid4.z]];
-    if (gid4.w < N) data[gid4.w] = shared[indices[srcBase + tid4.w]];
+    if (gid4.x < N) data[gid4.x] = localData[indices[srcBase + tid4.x]];
+    if (gid4.y < N) data[gid4.y] = localData[indices[srcBase + tid4.y]];
+    if (gid4.z < N) data[gid4.z] = localData[indices[srcBase + tid4.z]];
+    if (gid4.w < N) data[gid4.w] = localData[indices[srcBase + tid4.w]];
 	
 	//-------- 2) Histogram
 
@@ -325,8 +326,8 @@ void kernel__radixLocalSort(
     int ka, kb;
     if (tid4.x > 0)
     {
-        ka = (((int)shared[indices[srcBase + tid4.x-0]].x) >> bitOffset) & 0xF;
-        kb = (((int)shared[indices[srcBase + tid4.x-1]].x) >> bitOffset) & 0xF;
+        ka = (((int)localData[indices[srcBase + tid4.x-0]].x) >> bitOffset) & 0xF;
+        kb = (((int)localData[indices[srcBase + tid4.x-1]].x) >> bitOffset) & 0xF;
         if (ka != kb)
         {
             localHistEnd[kb] = tid4.x - 1;
@@ -334,24 +335,24 @@ void kernel__radixLocalSort(
         }
     }
 
-    ka = (((int)shared[indices[srcBase + tid4.y]].x) >> bitOffset) & 0xF;
-    kb = (((int)shared[indices[srcBase + tid4.x]].x) >> bitOffset) & 0xF;
+    ka = (((int)localData[indices[srcBase + tid4.y]].x) >> bitOffset) & 0xF;
+    kb = (((int)localData[indices[srcBase + tid4.x]].x) >> bitOffset) & 0xF;
     if (ka != kb)
     {
         localHistEnd[kb] = tid4.x;
         localHistStart[ka] = tid4.y;
     }
 
-    ka = (((int)shared[indices[srcBase + tid4.z]].x) >> bitOffset) & 0xF;
-    kb = (((int)shared[indices[srcBase + tid4.y]].x) >> bitOffset) & 0xF;
+    ka = (((int)localData[indices[srcBase + tid4.z]].x) >> bitOffset) & 0xF;
+    kb = (((int)localData[indices[srcBase + tid4.y]].x) >> bitOffset) & 0xF;
     if (ka != kb)
     {
         localHistEnd[kb] = tid4.y;
         localHistStart[ka] = tid4.z;
     }
 
-    ka = (((int)shared[indices[srcBase + tid4.w]].x) >> bitOffset) & 0xF;
-    kb = (((int)shared[indices[srcBase + tid4.z]].x) >> bitOffset) & 0xF;
+    ka = (((int)localData[indices[srcBase + tid4.w]].x) >> bitOffset) & 0xF;
+    kb = (((int)localData[indices[srcBase + tid4.z]].x) >> bitOffset) & 0xF;
     if (ka != kb)
     {
         localHistEnd[kb] = tid4.z;
@@ -360,8 +361,8 @@ void kernel__radixLocalSort(
 
     if (tid == 0)
     {
-        localHistEnd[(((int)shared[indices[srcBase + WGZ_x4-1]].x) >> bitOffset) & 0xF] = WGZ_x4 - 1;
-        localHistStart[(((int)shared[indices[srcBase]].x) >> bitOffset) & 0xF] = 0;
+        localHistEnd[(((int)localData[indices[srcBase + WGZ_x4-1]].x) >> bitOffset) & 0xF] = WGZ_x4 - 1;
+        localHistStart[(((int)localData[indices[srcBase]].x) >> bitOffset) & 0xF] = 0;
     }
     BARRIER_LOCAL;
 
@@ -393,7 +394,6 @@ void kernel__radixPermute(
     const int tid = get_local_id(0);
     const int4 tid4 = ((int4)(tid << 2)) + (int4)(0,1,2,3);
     const int blockId = get_group_id(0);
-    const int blockSize = get_local_size(0);
     const int numBlocks = get_num_groups(0);
     __local int sharedHistSum[16];
     __local int localHistStart[16];
@@ -407,13 +407,13 @@ void kernel__radixPermute(
 	
 	BARRIER_LOCAL;
 
-    // Copy data, each thread copies 4 (Cell,Tri) pairs into local shared mem
+    // Copy data, each thread copies 4 (Cell,Tri) pairs into local memory
     int2 myData[4];
     int myShiftedKeys[4];
-    myData[0] = (gid4.x < N) ? dataIn[gid4.x] : MAX_INT2;
-    myData[1] = (gid4.y < N) ? dataIn[gid4.y] : MAX_INT2;
-    myData[2] = (gid4.z < N) ? dataIn[gid4.z] : MAX_INT2;
-    myData[3] = (gid4.w < N) ? dataIn[gid4.w] : MAX_INT2;
+    myData[0] = (gid4.x < N) ? dataIn[gid4.x] : MAX_KV_TYPE;
+    myData[1] = (gid4.y < N) ? dataIn[gid4.y] : MAX_KV_TYPE;
+    myData[2] = (gid4.z < N) ? dataIn[gid4.z] : MAX_KV_TYPE;
+    myData[3] = (gid4.w < N) ? dataIn[gid4.w] : MAX_KV_TYPE;
 
     myShiftedKeys[0] = ((int)myData[0].x >> bitOffset) & 0xF;
     myShiftedKeys[1] = ((int)myData[1].x >> bitOffset) & 0xF;

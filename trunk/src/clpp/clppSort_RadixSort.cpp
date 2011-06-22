@@ -73,14 +73,16 @@ string clppSort_RadixSort::compilePreprocess(string kernel)
 
 	//if (_templateType == Int)
 	{
-		source = "#define MAX_INT2 (int2)(0x7FFFFFFF,0xFFFFFFFF)\n";
+		source = "#define MAX_KV_TYPE (int2)(0x7FFFFFFF,0xFFFFFFFF)\n";
 		source += "#define K_TYPE int\n";
+		source += "#define KV_TYPE int2\n";
 		source += "#define K_TYPE_IDENTITY 0\n";
 	}
 	/*else if (_templateType == UInt)
 	{
-		source = "#define MAX_INT2 (int2)0xFFFFFFFF";
-		source += "\n#define K_TYPE uint\n";
+		source = "#define MAX_KV_TYPE (int2)0xFFFFFFFF\n";
+		source += "#define K_TYPE uint\n";
+		source += "#define KV_TYPE uint2\n";
 		source += "#define K_TYPE_IDENTITY 0\n";
 	}*/
 
@@ -108,20 +110,14 @@ void clppSort_RadixSort::sort()
 	{
 		// 1) Each workgroup sorts its tile by using local memory
 		// 2) Create an histogram of d=2^b digits entries
-        radixLocal(dataA, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset, _datasetSize);
-
-		//************************************
-
-		//clEnqueueReadBuffer(_context->clQueue, dataA, CL_TRUE, 0, (_valueSize + _keySize) * _datasetSize, _dataSetOut, 0, NULL, NULL);
-
-		//************************************
+        radixLocal(dataA, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset);
 		
 		// 3) Scan the p*2^b = p*(16) entry histogram table. Stored in column-major order, computes global digit offsets.
 		_scan->pushDatas(_clBuffer_radixHist1, 16 * numBlocks);
 		_scan->scan();
         
 		// 4) Prefix sum results are used to scatter each work-group's elements to their correct position.
-		radixPermute(dataA, dataB, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset, _datasetSize);
+		radixPermute(dataA, dataB, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset);
 
         std::swap(dataA, dataB);
 
@@ -130,23 +126,23 @@ void clppSort_RadixSort::sort()
     }
 }
 
-void clppSort_RadixSort::radixLocal(cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset, const unsigned int N)
+void clppSort_RadixSort::radixLocal(cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset)
 {
     int LTYPE_SIZE = sizeof(cl_int);
     //if (extensions->contains("cl_khr_byte_addressable_store"))
     //    LTYPE_SIZE = sizeof(cl_int);
     cl_int clStatus;
     unsigned int a = 0;
-    unsigned int Ndiv4 = roundUpDiv(N, 4);
+    unsigned int Ndiv4 = roundUpDiv(_datasetSize, 4);
 
-	clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, (_valueSize+_keySize) * 4 * _workgroupSize, (const void*)NULL);	// shared,    4*4 int2s
-    clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, LTYPE_SIZE * 4 * 2 * _workgroupSize, (const void*)NULL);		// indices,   4*4*2 shorts
-    //clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, LTYPE_SIZE * 4 * _workgroupSize, (const void*)NULL);			// sharedSum, 4*4 shorts
+	clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, (_valueSize+_keySize) * 2 * 4 * _workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)
+    clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, LTYPE_SIZE * 4 * 2 * _workgroupSize, (const void*)NULL);			// 4*4*2 shorts
+    //clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, LTYPE_SIZE * 4 * _workgroupSize, (const void*)NULL);				// sharedSum, 4*4 shorts
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)&data);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)&hist);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)&blockHists);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(int), (const void*)&bitOffset);
-    clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(unsigned int), (const void*)&N);
+    clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(unsigned int), (const void*)&_datasetSize);
     checkCLStatus(clStatus);
 
 	size_t global[1] = {toMultipleOf(Ndiv4, _workgroupSize)};
@@ -157,18 +153,18 @@ void clppSort_RadixSort::radixLocal(cl_mem data, cl_mem hist, cl_mem blockHists,
     //checkCLStatus(clStatus);
 }
 
-void clppSort_RadixSort::radixPermute(cl_mem dataIn, cl_mem dataOut, cl_mem histScan, cl_mem blockHists, int bitOffset, const unsigned int N)
+void clppSort_RadixSort::radixPermute(cl_mem dataIn, cl_mem dataOut, cl_mem histScan, cl_mem blockHists, int bitOffset)
 {
     cl_int clStatus;
     unsigned int a = 0;
-    unsigned int Ndiv4 = roundUpDiv(N, 4);
+    unsigned int Ndiv4 = roundUpDiv(_datasetSize, 4);
 
     clStatus  = clSetKernelArg(_kernel_RadixPermute, a++, sizeof(cl_mem), (const void*)&dataIn);
     clStatus |= clSetKernelArg(_kernel_RadixPermute, a++, sizeof(cl_mem), (const void*)&dataOut);
     clStatus |= clSetKernelArg(_kernel_RadixPermute, a++, sizeof(cl_mem), (const void*)&histScan);
     clStatus |= clSetKernelArg(_kernel_RadixPermute, a++, sizeof(cl_mem), (const void*)&blockHists);
     clStatus |= clSetKernelArg(_kernel_RadixPermute, a++, sizeof(int), (const void*)&bitOffset);
-    clStatus |= clSetKernelArg(_kernel_RadixPermute, a++, sizeof(unsigned int), (const void*)&N);
+    clStatus |= clSetKernelArg(_kernel_RadixPermute, a++, sizeof(unsigned int), (const void*)&_datasetSize);
     checkCLStatus(clStatus);
     
 	size_t global[1] = {toMultipleOf(Ndiv4, _workgroupSize)};
