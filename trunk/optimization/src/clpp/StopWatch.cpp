@@ -14,7 +14,7 @@ StopWatch::StopWatch()
 	QueryPerformanceFrequency(&frequency);
 }
  
-void StopWatch::StartTimer( )
+void StopWatch::StartTimer()
 {
 	QueryPerformanceCounter(&timer.start);
 }

@@ -29,14 +29,16 @@ private:
 	cl_mem _clBuffer_dataSetOut;
 
 	cl_kernel _kernel_RadixLocalSort;
+	cl_kernel _kernel_LocalHistogram;
 	cl_kernel _kernel_RadixPermute;	
 
 	size_t _workgroupSize;
 
 	unsigned int _bits;
 
-	void radixLocal(cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset);
-	void radixPermute(cl_mem dataIn, cl_mem dataOut, cl_mem histScan, cl_mem blockHists, int bitOffset);
+	void radixLocal(const size_t* global, const size_t* local, cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset);
+	void localHistogram(const size_t* global, const size_t* local, cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset);
+	void radixPermute(const size_t* global, const size_t* local, cl_mem dataIn, cl_mem dataOut, cl_mem histScan, cl_mem blockHists, int bitOffset, unsigned int numBlocks);
 	void freeUpRadixMems();
 
 	clppScan* _scan;
