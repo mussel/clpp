@@ -37,7 +37,7 @@ void test_Scan(clppContext* context);
 void test_Sort(clppContext* context);
 void test_Sort_KV(clppContext* context);
 
-unsigned int datasetSizes[8] = {262144, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
+unsigned int datasetSizes[8] = {16000, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
 unsigned int datasetSizesCount = 6;
 
 StopWatch* stopWatcher = new StopWatch();
@@ -199,11 +199,16 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
 
 	//---- Sort
 	stopWatcher->StartTimer();
-	sort->sort();
-	sort->waitCompletion();
+	for(int i = 0; i < 20; i++)
+	{
+		sort->sort();
+		sort->waitCompletion();
+	}
 	stopWatcher->StopTimer();
 
-	cout << "Performance for data-set size[" << datasetSize << "] time (ms): " << stopWatcher->GetElapsedTime() << endl;
+	float time = stopWatcher->GetElapsedTime() / 20;
+	float kps = (1000 / time) * datasetSize;
+	cout << "Performance for data-set size[" << datasetSize << "] time (ms): " << time << " KPS[" << (int)kps << "]" << endl;
 
 	//---- Check if it is sorted
 	sort->popDatas();

@@ -139,7 +139,7 @@ void exclusive_scan_128(const uint tid, const int4 tid4, __local uint* localBuff
 	BARRIER_LOCAL;
 }
 */
-
+/*
 // Inclusive scan of 4 buckets of 32 elements by using the SIMT capability (to avoid synchronization of work items).
 // Directly do it for 4x32 elements, simply use an offset
 inline void scan_simt_inclusive_4(__local uint* input, const int tid1)
@@ -232,7 +232,38 @@ void exclusive_scan_128(const uint tid, const int4 tid4, __local uint* localBuff
 		
 	BARRIER_LOCAL;
 }
+*/
 
+inline 
+void exclusive_scan_128(const uint tid, int4 tid4, __local uint* localBuffer, __local uint* bitsOnCount)
+{
+	// We don't use the same tid4 !
+	tid4 = (int4)(tid << 2) + (const int4)(0,1,2,3);
+	
+	localBuffer[tid4.y] += localBuffer[tid4.x];
+	localBuffer[tid4.z] += localBuffer[tid4.y];
+	localBuffer[tid4.w] += localBuffer[tid4.z];
+	
+	// Inclusive scan
+	if (tid > 0 )	localBuffer[tid4.w] += localBuffer[tid4.w - 1*4];
+	if (tid > 1 )	localBuffer[tid4.w] += localBuffer[tid4.w - 2*4];
+	if (tid > 3 )	localBuffer[tid4.w] += localBuffer[tid4.w - 4*4];
+	if (tid > 7 )	localBuffer[tid4.w] += localBuffer[tid4.w - 8*4];
+	if (tid > 15)	localBuffer[tid4.w] += localBuffer[tid4.w - 16*4];
+	
+	// Total number of '1' in the array, retreived from the inclusive scan
+	if (tid > WGZ_2)
+		bitsOnCount[0] = localBuffer[WGZ_x4_1];
+	
+	// 1 - To exclusive scan
+	// 2 - Add the sums
+	int toAdd = (tid > 0) ? localBuffer[tid4.x-1] : 0;
+		
+	localBuffer[tid4.w] = localBuffer[tid4.z] + toAdd;
+	localBuffer[tid4.z] = localBuffer[tid4.y] + toAdd;
+	localBuffer[tid4.y] = localBuffer[tid4.x] + toAdd;
+	localBuffer[tid4.x] = toAdd;
+}
 #else
 
 inline
@@ -322,9 +353,9 @@ void kernel__radixLocalSort(
 	const int N)						// Total number of items to sort
 {
 	const int tid = (int)get_local_id(0);
-	const int groupId = get_group_id(0);
-	
+		
 #if defined(OCL_DEVICE_GPU) && defined(OCL_PLATFORM_NVIDIA)
+	const int groupId = get_group_id(0);
     const int4 tid4 = ((const int4)tid) + (const int4)(0,WGZ,WGZ_x2,WGZ_x3);		
 	const int4 gid4 = tid4 + ((const int4)groupId<<2);
 #else
@@ -346,7 +377,7 @@ void kernel__radixLocalSort(
 	//-------- 1) 4 x local 1-bit split
 
 	__local KV_TYPE* localTemp = localData + WGZ_x4;
-	//#pragma unroll // SLOWER !!
+	#pragma unroll // SLOWER on some cards!!
     for(uint shift = bitOffset; shift < (bitOffset+4); shift++) // Radix 4
     {
 		BARRIER_LOCAL;
