@@ -1,5 +1,8 @@
+//#define BENCHMARK
 #include "clpp/clppSort_RadixSort.h"
 #include "clpp/clpp.h"
+
+#include "clpp/StopWatch.h"
 
 #include "clpp/clppScan_Default.h"
 
@@ -26,6 +29,9 @@ clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxEle
 	cl_int clStatus;
 
 	_kernel_RadixLocalSort = clCreateKernel(_clProgram, "kernel__radixLocalSort", &clStatus);
+	checkCLStatus(clStatus);
+
+	_kernel_LocalHistogram = clCreateKernel(_clProgram, "kernel__localHistogram", &clStatus);
 	checkCLStatus(clStatus);
 
 	_kernel_RadixPermute = clCreateKernel(_clProgram, "kernel__radixPermute", &clStatus);
@@ -104,8 +110,14 @@ void clppSort_RadixSort::sort()
 	// work-items, depending on the concrete device and each work-item processes more than one
 	// stream element, usually 4, in order to hide latencies.
 
+	StopWatch sw;
+
 	cl_int clStatus;
     unsigned int numBlocks = roundUpDiv(_datasetSize, _workgroupSize * 4);
+	unsigned int Ndiv4 = roundUpDiv(_datasetSize, 4);
+
+	size_t global[1] = {toMultipleOf(Ndiv4, _workgroupSize)};
+    size_t local[1] = {_workgroupSize};
 
 	cl_mem dataA = _clBuffer_dataSet;
     cl_mem dataB = _clBuffer_dataSetOut;
@@ -113,27 +125,59 @@ void clppSort_RadixSort::sort()
 	{
 		// 1) Each workgroup sorts its tile by using local memory
 		// 2) Create an histogram of d=2^b digits entries
-        radixLocal(dataA, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset);
+#ifdef BENCHMARK
+		sw.StartTimer();
+#endif
+
+        radixLocal(global, local, dataA, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset);
+
+#ifdef BENCHMARK
+		sw.StopTimer();
+		cout << "Local sort       " << sw.GetElapsedTime() << endl;
+
+		sw.StartTimer();
+#endif
+
+        localHistogram(global, local, dataA, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset);
+
+#ifdef BENCHMARK
+		sw.StopTimer();
+		cout << "Local histogram  " << sw.GetElapsedTime() << endl;
+
+		//**********
+		//clEnqueueReadBuffer(_context->clQueue, dataA, CL_TRUE, 0, sizeof(int) * _datasetSize, _dataSetOut, 0, NULL, NULL);
+		//**********
 		
 		// 3) Scan the p*2^b = p*(16) entry histogram table. Stored in column-major order, computes global digit offsets.
+		sw.StartTimer();
+#endif
+
 		_scan->pushDatas(_clBuffer_radixHist1, 16 * numBlocks);
 		_scan->scan();
+
+#ifdef BENCHMARK
+		_scan->waitCompletion();
+		sw.StopTimer();
+		cout << "Global scan      " << sw.GetElapsedTime() << endl;
         
 		// 4) Prefix sum results are used to scatter each work-group's elements to their correct position.
-		radixPermute(dataA, dataB, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset);
+		sw.StartTimer();
+#endif
+
+		radixPermute(global, local, dataA, dataB, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset, numBlocks);
+
+#ifdef BENCHMARK
+		sw.StopTimer();
+		cout << "Global reorder   " << sw.GetElapsedTime() << endl;
+#endif
 
         std::swap(dataA, dataB);
-
-		//clStatus = clFinish(_context->clQueue);
-		//checkCLStatus(clStatus);
     }
 }
 
-void clppSort_RadixSort::radixLocal(cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset)
+void clppSort_RadixSort::radixLocal(const size_t* global, const size_t* local, cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset)
 {
     int LTYPE_SIZE = sizeof(cl_int);
-    //if (extensions->contains("cl_khr_byte_addressable_store"))
-    //    LTYPE_SIZE = sizeof(cl_int);
     cl_int clStatus;
     unsigned int a = 0;
     unsigned int Ndiv4 = roundUpDiv(_datasetSize, 4);
@@ -142,43 +186,49 @@ void clppSort_RadixSort::radixLocal(cl_mem data, cl_mem hist, cl_mem blockHists,
 		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, _keySize * 2 * 4 * _workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)
 	else
 		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, (_valueSize+_keySize) * 2 * 4 * _workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)
-    clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, LTYPE_SIZE * 4 * 2 * _workgroupSize, (const void*)NULL);			// 4*4*2 shorts
-    //clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, LTYPE_SIZE * 4 * _workgroupSize, (const void*)NULL);				// sharedSum, 4*4 shorts
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)&data);
-    clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)&hist);
-    clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)&blockHists);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(int), (const void*)&bitOffset);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(unsigned int), (const void*)&_datasetSize);
+	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_RadixLocalSort, 1, NULL, global, local, 0, NULL, NULL);
+
+#ifdef BENCHMARK
+    clStatus |= clFinish(_context->clQueue);
     checkCLStatus(clStatus);
-
-	size_t global[1] = {toMultipleOf(Ndiv4, _workgroupSize)};
-    size_t local[1] = {_workgroupSize};
-	clStatus = clEnqueueNDRangeKernel(_context->clQueue, _kernel_RadixLocalSort, 1, NULL, global, local, 0, NULL, NULL);
-
-    //clStatus |= clFinish(_context->clQueue);
-    //checkCLStatus(clStatus);
+#endif
 }
 
-void clppSort_RadixSort::radixPermute(cl_mem dataIn, cl_mem dataOut, cl_mem histScan, cl_mem blockHists, int bitOffset)
+void clppSort_RadixSort::localHistogram(const size_t* global, const size_t* local, cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset)
+{
+	cl_int clStatus;
+	clStatus = clSetKernelArg(_kernel_LocalHistogram, 0, sizeof(cl_mem), (const void*)&data);
+	clStatus |= clSetKernelArg(_kernel_LocalHistogram, 1, sizeof(int), (const void*)&bitOffset);
+	clStatus |= clSetKernelArg(_kernel_LocalHistogram, 2, sizeof(cl_mem), (const void*)&hist);
+	clStatus |= clSetKernelArg(_kernel_LocalHistogram, 3, sizeof(cl_mem), (const void*)&blockHists);
+	clStatus |= clSetKernelArg(_kernel_LocalHistogram, 4, sizeof(unsigned int), (const void*)&_datasetSize);
+	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_LocalHistogram, 1, NULL, global, local, 0, NULL, NULL);	
+
+#ifdef BENCHMARK
+    clStatus |= clFinish(_context->clQueue);
+    checkCLStatus(clStatus);
+#endif
+}
+
+void clppSort_RadixSort::radixPermute(const size_t* global, const size_t* local, cl_mem dataIn, cl_mem dataOut, cl_mem histScan, cl_mem blockHists, int bitOffset, unsigned int numBlocks)
 {
     cl_int clStatus;
-    unsigned int a = 0;
-    unsigned int Ndiv4 = roundUpDiv(_datasetSize, 4);
+    clStatus  = clSetKernelArg(_kernel_RadixPermute, 0, sizeof(cl_mem), (const void*)&dataIn);
+    clStatus |= clSetKernelArg(_kernel_RadixPermute, 1, sizeof(cl_mem), (const void*)&dataOut);
+    clStatus |= clSetKernelArg(_kernel_RadixPermute, 2, sizeof(cl_mem), (const void*)&histScan);
+    clStatus |= clSetKernelArg(_kernel_RadixPermute, 3, sizeof(cl_mem), (const void*)&blockHists);
+    clStatus |= clSetKernelArg(_kernel_RadixPermute, 4, sizeof(int), (const void*)&bitOffset);
+    clStatus |= clSetKernelArg(_kernel_RadixPermute, 5, sizeof(unsigned int), (const void*)&_datasetSize);
+	clStatus |= clSetKernelArg(_kernel_RadixPermute, 6, sizeof(unsigned int), (const void*)&numBlocks);
+    clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_RadixPermute, 1, NULL, global, local, 0, NULL, NULL);
 
-    clStatus  = clSetKernelArg(_kernel_RadixPermute, a++, sizeof(cl_mem), (const void*)&dataIn);
-    clStatus |= clSetKernelArg(_kernel_RadixPermute, a++, sizeof(cl_mem), (const void*)&dataOut);
-    clStatus |= clSetKernelArg(_kernel_RadixPermute, a++, sizeof(cl_mem), (const void*)&histScan);
-    clStatus |= clSetKernelArg(_kernel_RadixPermute, a++, sizeof(cl_mem), (const void*)&blockHists);
-    clStatus |= clSetKernelArg(_kernel_RadixPermute, a++, sizeof(int), (const void*)&bitOffset);
-    clStatus |= clSetKernelArg(_kernel_RadixPermute, a++, sizeof(unsigned int), (const void*)&_datasetSize);
+#ifdef BENCHMARK
+    clStatus |= clFinish(_context->clQueue);
     checkCLStatus(clStatus);
-    
-	size_t global[1] = {toMultipleOf(Ndiv4, _workgroupSize)};
-    size_t local[1] = {_workgroupSize};
-    clStatus = clEnqueueNDRangeKernel(_context->clQueue, _kernel_RadixPermute, 1, NULL, global, local, 0, NULL, NULL);
-
-    //clStatus |= clFinish(_context->clQueue);
-    //checkCLStatus(clStatus);
+#endif
 }
 
 #pragma endregion
@@ -268,7 +318,7 @@ void clppSort_RadixSort::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize
 	    
 		// column size = 2^b = 16
 		// row size = numblocks
-		_clBuffer_radixHist1 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * 16 * numBlocks, NULL, &clStatus);
+		_clBuffer_radixHist1 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * 16 * numBlocks, NULL, &clStatus);
 		checkCLStatus(clStatus);
 		_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize + _keySize) * 16 * numBlocks, NULL, &clStatus);
 		checkCLStatus(clStatus);
