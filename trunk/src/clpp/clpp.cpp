@@ -16,10 +16,10 @@ clppScan* clpp::createBestScan(clppContext* context, size_t valueSize, unsigned 
 
 clppSort* clpp::createBestSort(clppContext* context, unsigned int maxElements, unsigned int bits)
 {
-	return new clppSort_Blelloch(context, maxElements);
+	return new clppSort_RadixSort(context, maxElements, bits, true);
 }
 
 clppSort* clpp::createBestSortKV(clppContext* context, unsigned int maxElements, unsigned int bits)
 {
-	return new clppSort_RadixSort(context, maxElements, bits, true);
+	return new clppSort_RadixSort(context, maxElements, bits, false);
 }
