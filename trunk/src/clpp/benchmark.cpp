@@ -204,17 +204,17 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
 	for(int i = 0; i < PARAM_BENCHMARK_LOOPS; i++)
 	{
 		sort->sort();
-		sort->waitCompletion();
+		sort->waitCompletion();	
 	}
 	stopWatcher->StopTimer();
-
-	float time = stopWatcher->GetElapsedTime() / PARAM_BENCHMARK_LOOPS;
-	float kps = (1000 / time) * datasetSize;
-	cout << "Performance for data-set size[" << datasetSize << "] time (ms): " << time << " KPS[" << (int)kps << "]" << endl;
 
 	//---- Check if it is sorted
 	sort->popDatas();
 	checkIsSorted(keys, datasetSize, sort->getName(), true);
+
+	float time = stopWatcher->GetElapsedTime() / PARAM_BENCHMARK_LOOPS;
+	float kps = (1000 / time) * datasetSize;
+	cout << "Performance for data-set size[" << datasetSize << "] time (ms): " << time << " KPS[" << (int)kps << "]" << endl;
 
 	//---- Free
 	free(keys);

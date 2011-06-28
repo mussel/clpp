@@ -14,6 +14,8 @@
 // Radix Sort For Vector Multiprocessors, Marco Zagha and Guy E. Blelloch
 //------------------------------------------------------------
 
+// To do : visiting logic and multi-scan.
+
 #pragma OPENCL EXTENSION cl_amd_printf : enable
 
 #define WGZ 32
@@ -25,9 +27,6 @@
 #define WGZ_x2_1 (WGZ_x2-1)
 #define WGZ_x3_1 (WGZ_x3-1)
 #define WGZ_x4_1 (WGZ_x4-1)
-
-//#define EXTRACT_KEY_BIT(VALUE,BIT) ((((uint)VALUE)>>BIT)&0x1)
-//#define EXTRACT_KEY_4BITS(VALUE,BIT) ((((uint)VALUE)>>BIT)&0x0F)
 
 #if KEYS_ONLY
 #define KEY(DATA) (DATA)
@@ -59,19 +58,19 @@
 #if defined(OCL_DEVICE_GPU) && defined(OCL_PLATFORM_NVIDIA)
 
 inline 
-int4 exclusive_scan_128(const int tid, int4 initialValue, __local int* bitsOnCount)
+uint4 exclusive_scan_128(const uint tid, uint4 initialValue, __local uint* bitsOnCount)
 {
-	__local int localBuffer[64];
+	__local uint localBuffer[64];
 		
 	// local scan
-	int4 localBits = initialValue;
+	uint4 localBits = initialValue;
 	localBits.y += localBits.x;
 	localBits.z += localBits.y;
 	localBits.w += localBits.z;
 	
 	// Scan each 4st values (The sums)
 	
-	int tid2 = tid + 32;
+	uint tid2 = tid + 32;
 	
 	localBuffer[tid] = 0;
 	localBuffer[tid2] = localBits.w;
@@ -177,6 +176,13 @@ void exclusive_scan_128(const uint tid, const int4 tid4, __local uint* localBuff
 
 #if defined(OCL_DEVICE_GPU) && defined(OCL_PLATFORM_NVIDIA)
 
+// Return U>>1
+uint4 shr128(uint4 u)
+{
+  uint4 h = (u<<(uint4)(31)) & (uint4)(0x80000000,0x80000000,0x80000000,0); // Bits to move down
+  return (u>>(uint4)(1)) | h.wxyz;
+}
+
 __kernel
 void kernel__radixLocalSort(
 	__local KV_TYPE* localData,			// size 4*4 int2s (8 kB)
@@ -184,14 +190,12 @@ void kernel__radixLocalSort(
 	const int bitOffset,				// k*4, k=0..7
 	const int N)						// Total number of items to sort
 {
-	const int tid = (uint)get_local_id(0);
-		
-	const int groupId = get_group_id(0);
-    const int4 tid4 = ((const int4)tid) + (const int4)(0,WGZ,WGZ_x2,WGZ_x3);		
-	const int4 gid4 = tid4 + ((const int4)groupId<<2);
-    
+	const uint tid = (uint)get_local_id(0);		
+    const uint4 tid4 = ((const uint4)tid) + (const uint4)(0,WGZ,WGZ_x2,WGZ_x3);		
+	const uint4 gid4 = tid4 + ((const uint4)get_group_id(0)<<2);
+	
 	// Local memory
-    __local int bitsOnCount[1];
+    __local uint bitsOnCount[1];
 
     // Each thread copies 4 (Cell,Tri) pairs into local memory
     localData[tid4.x] = (gid4.x < N) ? data[gid4.x] : MAX_KV_TYPE;
@@ -202,7 +206,7 @@ void kernel__radixLocalSort(
 	//-------- 1) 4 x local 1-bit split
 
 	__local KV_TYPE* localTemp = localData + WGZ_x4;
-	//#pragma unroll // SLOWER on some cards!!
+	#pragma unroll // SLOWER on some cards (cheap cards) and with small data-sets !!
     for(uint shift = bitOffset; shift < (bitOffset+4); shift++) // Radix 4
     {
 		BARRIER_LOCAL;
@@ -211,19 +215,19 @@ void kernel__radixLocalSort(
 		// Create the '1s' array as explained at : http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html
 		// In fact we simply inverse the bits	
 		// Local copy and bits extraction
-		int4 flags;
+		uint4 flags;
 		flags.x = ! EXTRACT_KEY_BIT(localData[tid4.x], shift);
         flags.y = ! EXTRACT_KEY_BIT(localData[tid4.y], shift);
         flags.z = ! EXTRACT_KEY_BIT(localData[tid4.z], shift);
         flags.w = ! EXTRACT_KEY_BIT(localData[tid4.w], shift);
 								
 		//---- Do a scan of the 128 bits and retreive the total number of '1' in 'bitsOnCount'
-		int4 localBitsScan = exclusive_scan_128(tid, flags, bitsOnCount);
+		uint4 localBitsScan = exclusive_scan_128(tid, flags, bitsOnCount);
 		
 		BARRIER_LOCAL;
 		
 		//---- Relocate to the right position	
-		int4 offset = (1 - flags) * ((int4)(bitsOnCount[0]) + tid4 - localBitsScan) + flags * localBitsScan;
+		uint4 offset = (1-flags) * ((uint4)(bitsOnCount[0]) + tid4 - localBitsScan) + flags * localBitsScan;
 		localTemp[offset.x] = localData[tid4.x];
 		localTemp[offset.y] = localData[tid4.y];
 		localTemp[offset.z] = localData[tid4.z];
@@ -236,7 +240,7 @@ void kernel__radixLocalSort(
 		localData = localTemp;
 		localTemp = swBuf;
 		
-		//barrier(CLK_LOCAL_MEM_FENCE); // NO CRASH !!			
+		BARRIER_LOCAL;
     }
 	
 	// FASTER !!
@@ -444,29 +448,25 @@ void kernel__radixPermute(
 	BARRIER_LOCAL;
 	
 	KV_TYPE myData;
-    int myShiftedKeys;
-	int finalOffset;	
+    uint myShiftedKeys;
+	uint finalOffset;	
 
 	myData = (gid4.x < N) ? dataIn[gid4.x] : MAX_KV_TYPE;
-	//myData = dataIn[gid4.x];
     myShiftedKeys = EXTRACT_KEY_4BITS(myData, bitOffset);
 	finalOffset = tid4.x - localHistStart[myShiftedKeys] + sharedHistSum[myShiftedKeys];
 	if (finalOffset < N) dataOut[finalOffset] = myData;
 	
 	myData = (gid4.y < N) ? dataIn[gid4.y] : MAX_KV_TYPE;
-	//myData = dataIn[gid4.y];
     myShiftedKeys = EXTRACT_KEY_4BITS(myData, bitOffset);
 	finalOffset = tid4.y - localHistStart[myShiftedKeys] + sharedHistSum[myShiftedKeys];
 	if (finalOffset < N) dataOut[finalOffset] = myData;
 	
 	myData = (gid4.z < N) ? dataIn[gid4.z] : MAX_KV_TYPE;
-	//myData = dataIn[gid4.z];
     myShiftedKeys = EXTRACT_KEY_4BITS(myData, bitOffset);
 	finalOffset = tid4.z - localHistStart[myShiftedKeys] + sharedHistSum[myShiftedKeys];
 	if (finalOffset < N) dataOut[finalOffset] = myData;
 
 	myData = (gid4.w < N) ? dataIn[gid4.w] : MAX_KV_TYPE;	
-	//myData = dataIn[gid4.w];
     myShiftedKeys = EXTRACT_KEY_4BITS(myData, bitOffset);
     finalOffset = tid4.w - localHistStart[myShiftedKeys] + sharedHistSum[myShiftedKeys];
     if (finalOffset < N) dataOut[finalOffset] = myData;
@@ -484,10 +484,10 @@ void kernel__radixPermute(
 	const uint N,
 	const int numBlocks)
 {
-    const int4 gid4 = ((const int4)(get_global_id(0) << 2)) + (const int4)(0,1,2,3);
-    const int tid = get_local_id(0);
-    const int4 tid4 = ((int4)(tid << 2)) + (int4)(0,1,2,3);
-    const int blockId = get_group_id(0);
+    const uint4 gid4 = ((const uint4)(get_global_id(0) << 2)) + (const uint4)(0,1,2,3);
+    const uint tid = get_local_id(0);
+    const uint4 tid4 = ((const uint4)(tid << 2)) + (const uint4)(0,1,2,3);
+    
     //const int numBlocks = get_num_groups(0); // Can be passed as a parameter !
     __local int sharedHistSum[16];
     __local int localHistStart[16];
@@ -495,6 +495,7 @@ void kernel__radixPermute(
     // Fetch per-block KV_TYPE histogram and int histogram sums
     if (tid < 16)
     {
+		const uint blockId = get_group_id(0);
         sharedHistSum[tid] = histSum[tid * numBlocks + blockId];
 		//localHistStart[tid] = blockHists[(blockId << 4) + tid];
         localHistStart[tid] = blockHists[(blockId << 5) + tid];
@@ -504,7 +505,7 @@ void kernel__radixPermute(
 
     // Copy data, each thread copies 4 (Cell,Tri) pairs into local memory
     KV_TYPE myData[4];
-    int myShiftedKeys[4];
+    uint myShiftedKeys[4];
     myData[0] = (gid4.x < N) ? dataIn[gid4.x] : MAX_KV_TYPE;
     myData[1] = (gid4.y < N) ? dataIn[gid4.y] : MAX_KV_TYPE;
     myData[2] = (gid4.z < N) ? dataIn[gid4.z] : MAX_KV_TYPE;
@@ -519,7 +520,7 @@ void kernel__radixPermute(
     //BARRIER_LOCAL;
 
     // Compute the final indices
-    int4 finalOffset;
+    uint4 finalOffset;
     finalOffset.x = tid4.x - localHistStart[myShiftedKeys[0]] + sharedHistSum[myShiftedKeys[0]];
     finalOffset.y = tid4.y - localHistStart[myShiftedKeys[1]] + sharedHistSum[myShiftedKeys[1]];
     finalOffset.z = tid4.z - localHistStart[myShiftedKeys[2]] + sharedHistSum[myShiftedKeys[2]];
