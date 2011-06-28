@@ -59,12 +59,12 @@
 #if defined(OCL_DEVICE_GPU) && defined(OCL_PLATFORM_NVIDIA)
 
 inline 
-uint4 exclusive_scan_128(const uint tid, uint4 initialValue, __local uint* bitsOnCount)
+int4 exclusive_scan_128(const int tid, int4 initialValue, __local int* bitsOnCount)
 {
-	__local uint localBuffer[64];
+	__local int localBuffer[64];
 		
 	// local scan
-	uint4 localBits = initialValue;
+	int4 localBits = initialValue;
 	localBits.y += localBits.x;
 	localBits.z += localBits.y;
 	localBits.w += localBits.z;
@@ -88,9 +88,10 @@ uint4 exclusive_scan_128(const uint tid, uint4 initialValue, __local uint* bitsO
 	
 	// 1 - To exclusive scan
 	// 2 - Add the sums
-	uint toAdd = (tid > 0) ? localBuffer[tid2-1] : 0;
+	//int toAdd = (tid > 0) ? localBuffer[tid2-1] : 0;
+	//return localBits - initialValue + toAdd;
 	
-	return localBits - initialValue + toAdd;
+	return localBits - initialValue + localBuffer[tid2-1];
 }
 
 #else
@@ -183,14 +184,14 @@ void kernel__radixLocalSort(
 	const int bitOffset,				// k*4, k=0..7
 	const int N)						// Total number of items to sort
 {
-	const uint tid = (uint)get_local_id(0);
+	const int tid = (uint)get_local_id(0);
 		
-	const uint groupId = get_group_id(0);
-    const uint4 tid4 = ((const uint4)tid) + (const uint4)(0,WGZ,WGZ_x2,WGZ_x3);		
-	const uint4 gid4 = tid4 + ((const uint4)groupId<<2);
+	const int groupId = get_group_id(0);
+    const int4 tid4 = ((const int4)tid) + (const int4)(0,WGZ,WGZ_x2,WGZ_x3);		
+	const int4 gid4 = tid4 + ((const int4)groupId<<2);
     
 	// Local memory
-    __local uint bitsOnCount[1];
+    __local int bitsOnCount[1];
 
     // Each thread copies 4 (Cell,Tri) pairs into local memory
     localData[tid4.x] = (gid4.x < N) ? data[gid4.x] : MAX_KV_TYPE;
@@ -201,7 +202,7 @@ void kernel__radixLocalSort(
 	//-------- 1) 4 x local 1-bit split
 
 	__local KV_TYPE* localTemp = localData + WGZ_x4;
-	#pragma unroll // SLOWER on some cards!!
+	//#pragma unroll // SLOWER on some cards!!
     for(uint shift = bitOffset; shift < (bitOffset+4); shift++) // Radix 4
     {
 		BARRIER_LOCAL;
@@ -210,19 +211,19 @@ void kernel__radixLocalSort(
 		// Create the '1s' array as explained at : http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html
 		// In fact we simply inverse the bits	
 		// Local copy and bits extraction
-		uint4 flags;
+		int4 flags;
 		flags.x = ! EXTRACT_KEY_BIT(localData[tid4.x], shift);
         flags.y = ! EXTRACT_KEY_BIT(localData[tid4.y], shift);
         flags.z = ! EXTRACT_KEY_BIT(localData[tid4.z], shift);
         flags.w = ! EXTRACT_KEY_BIT(localData[tid4.w], shift);
 								
 		//---- Do a scan of the 128 bits and retreive the total number of '1' in 'bitsOnCount'
-		uint4 localBitsScan = exclusive_scan_128(tid, flags, bitsOnCount);
+		int4 localBitsScan = exclusive_scan_128(tid, flags, bitsOnCount);
 		
 		BARRIER_LOCAL;
 		
 		//---- Relocate to the right position	
-		uint4 offset = (1 - flags) * ((uint4)(bitsOnCount[0]) + tid4 - localBitsScan) + flags * localBitsScan;
+		int4 offset = (1 - flags) * ((int4)(bitsOnCount[0]) + tid4 - localBitsScan) + flags * localBitsScan;
 		localTemp[offset.x] = localData[tid4.x];
 		localTemp[offset.y] = localData[tid4.y];
 		localTemp[offset.z] = localData[tid4.z];
@@ -245,7 +246,7 @@ void kernel__radixLocalSort(
 	if (gid4.x < N) data[gid4.x] = localData[tid4.x];
     if (gid4.y < N) data[gid4.y] = localData[tid4.y];
     if (gid4.z < N) data[gid4.z] = localData[tid4.z];
-    if (gid4.w < N) data[gid4.w] = localData[tid4.w];	
+    if (gid4.w < N) data[gid4.w] = localData[tid4.w];
 }
 
 #else

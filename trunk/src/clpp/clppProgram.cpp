@@ -57,8 +57,8 @@ bool clppProgram::compile(clppContext* context, string fileName)
 #ifdef __APPLE__
     const char* buildOptions = "-DMAC -cl-fast-relaxed-math";
 #else
-    //const char* buildOptions = "-cl-fast-relaxed-math";
-	const char* buildOptions = "";
+    const char* buildOptions = "-cl-fast-relaxed-math";
+	//const char* buildOptions = "";
 #endif
 
 	clStatus = clBuildProgram(_clProgram, 0, NULL, buildOptions, NULL, NULL);
