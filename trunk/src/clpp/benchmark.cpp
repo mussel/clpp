@@ -1,6 +1,6 @@
 // In order to test that no value has been loosed ! Can take time to check !
 #define PARAM_CHECK_HASLOOSEDVALUES 0
-#define PARAM_BENCHMARK_LOOPS 20
+#define PARAM_BENCHMARK_LOOPS 1
 
 // The number of bits to sort
 #define PARAM_SORT_BITS 32
@@ -16,6 +16,7 @@
 #include "clpp/clppSort_Blelloch.h"
 #include "clpp/clppSort_CPU.h"
 #include "clpp/clppSort_RadixSort.h"
+#include "clpp/clppSort_RadixSortGPU.h"
 
 #include <string.h>
 
@@ -95,24 +96,33 @@ void test_Scan(clppContext* context)
 void test_Sort(clppContext* context)
 {
 	//---- Brute force
-	cout << "--------------- Brute force sort" << endl;
-	/*for(unsigned int i = 0; i < datasetSizesCount; i++)
-	{
-		clppSort* clppsort = new clppSort_CPU(context);
-		benchmark_sort(*context, clppsort, datasetSizes[i]);
-		delete clppsort;
-	}
+	//cout << "--------------- Brute force sort" << endl;
+	//for(unsigned int i = 0; i < datasetSizesCount; i++)
+	//{
+	//	clppSort* clppsort = new clppSort_CPU(context);
+	//	benchmark_sort(*context, clppsort, datasetSizes[i]);
+	//	delete clppsort;
+	//}
 
 	//---- Blelloch
-	cout << "--------------- Blelloch sort" << endl;
-	for(unsigned int i = 0; i < datasetSizesCount; i++)
-	{
-		clppSort* clppsort = new clppSort_Blelloch(context, datasetSizes[i]);
-		benchmark_sort(*context, clppsort, datasetSizes[i]);	
-	}*/
+	//cout << "--------------- Blelloch sort" << endl;
+	//for(unsigned int i = 0; i < datasetSizesCount; i++)
+	//{
+	//	clppSort* clppsort = new clppSort_Blelloch(context, datasetSizes[i]);
+	//	benchmark_sort(*context, clppsort, datasetSizes[i]);	
+	//}
 
-	//---- Satish Radix-sort
-	cout << "--------------- Satish sort Key" << endl;
+	//---- Radix-sort : generic version
+	//cout << "--------------- Radix sort Key" << endl;
+	//for(unsigned int i = 0; i < datasetSizesCount; i++)
+	//{
+	//	clppSort* clppsort = new clppSort_RadixSort(context, datasetSizes[i], PARAM_SORT_BITS, true);
+	//	benchmark_sort(*context, clppsort, datasetSizes[i]);
+	//	delete clppsort;
+	//}
+
+	//---- Radix-sort : Satish version
+	cout << "--------------- Satish radix sort Key" << endl;
 	for(unsigned int i = 0; i < datasetSizesCount; i++)
 	{
 		clppSort* clppsort = new clppSort_RadixSort(context, datasetSizes[i], PARAM_SORT_BITS, true);

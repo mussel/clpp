@@ -373,6 +373,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\clpp\clppSort_RadixSortGPU.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\clpp\StopWatch.cpp"
 				>
 			</File>
@@ -424,6 +428,10 @@
 			</File>
 			<File
 				RelativePath=".\src\clpp\clppSort_RadixSort.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\clpp\clppSort_RadixSortGPU.h"
 				>
 			</File>
 			<File

@@ -1,5 +1,5 @@
 //#define BENCHMARK
-#include "clpp/clppSort_RadixSort.h"
+#include "clpp/clppSort_RadixSortGPU.h"
 #include "clpp/clpp.h"
 
 #include "clpp/StopWatch.h"
@@ -12,7 +12,7 @@
 
 #pragma region Constructor
 
-clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxElements, unsigned int bits, bool keysOnly)
+clppSort_RadixSortGPU::clppSort_RadixSortGPU(clppContext* context, unsigned int maxElements, unsigned int bits, bool keysOnly)
 {
 	_keysOnly = keysOnly;
 	_valueSize = 4;
@@ -22,7 +22,7 @@ clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxEle
 
 	_bits = bits;
 
-	if (!compile(context, "clppSort_RadixSort.cl"))
+	if (!compile(context, "clppSort_RadixSortGPU.cl"))
 		return;
 
 	//---- Prepare all the kernels
@@ -38,6 +38,7 @@ clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxEle
 	checkCLStatus(clStatus);
 
 	//---- Get the workgroup size
+	//clGetKernelWorkGroupInfo(_kernel_RadixLocalSort, _context->clDevice, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &_workgroupSize, 0);
 	_workgroupSize = 32;
 
 	_scan = clpp::createBestScan(context, sizeof(int), maxElements);
@@ -48,7 +49,7 @@ clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxEle
 	_is_clBuffersOwner = false;
 }
 
-clppSort_RadixSort::~clppSort_RadixSort()
+clppSort_RadixSortGPU::~clppSort_RadixSortGPU()
 {
 	if (_is_clBuffersOwner)
 	{
@@ -72,7 +73,7 @@ clppSort_RadixSort::~clppSort_RadixSort()
 
 #pragma region compilePreprocess
 
-string clppSort_RadixSort::compilePreprocess(string kernel)
+string clppSort_RadixSortGPU::compilePreprocess(string kernel)
 {
 	string source;
 
@@ -103,7 +104,7 @@ string clppSort_RadixSort::compilePreprocess(string kernel)
 
 inline int roundUpDiv(int A, int B) { return (A + B - 1) / (B); }
 
-void clppSort_RadixSort::sort()
+void clppSort_RadixSortGPU::sort()
 {
 	// Satish et al. empirically set b = 4. The size of a work-group is in hundreds of
 	// work-items, depending on the concrete device and each work-item processes more than one
@@ -174,19 +175,22 @@ void clppSort_RadixSort::sort()
     }
 }
 
-void clppSort_RadixSort::radixLocal(const size_t* global, const size_t* local, cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset)
+void clppSort_RadixSortGPU::radixLocal(const size_t* global, const size_t* local, cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset)
 {
     cl_int clStatus;
     unsigned int a = 0;
 
+	unsigned int Ndiv16 = roundUpDiv(_datasetSize, 16);
+	size_t global_16[1] = {toMultipleOf(Ndiv16, _workgroupSize)};
+
 	if (_keysOnly)
-		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, _keySize * 2 * 4 * _workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)
+		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, _keySize * 2 * 16 * _workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)
 	else
-		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, (_valueSize+_keySize) * 2 * 4 * _workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)
+		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, (_valueSize+_keySize) * 2 * 16 * _workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)&data);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(int), (const void*)&bitOffset);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(unsigned int), (const void*)&_datasetSize);
-	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_RadixLocalSort, 1, NULL, global, local, 0, NULL, NULL);
+	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_RadixLocalSort, 1, NULL, global_16, local, 0, NULL, NULL);
 
 #ifdef BENCHMARK
     clStatus |= clFinish(_context->clQueue);
@@ -194,7 +198,7 @@ void clppSort_RadixSort::radixLocal(const size_t* global, const size_t* local, c
 #endif
 }
 
-void clppSort_RadixSort::localHistogram(const size_t* global, const size_t* local, cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset)
+void clppSort_RadixSortGPU::localHistogram(const size_t* global, const size_t* local, cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset)
 {
 	cl_int clStatus;
 	clStatus = clSetKernelArg(_kernel_LocalHistogram, 0, sizeof(cl_mem), (const void*)&data);
@@ -210,7 +214,7 @@ void clppSort_RadixSort::localHistogram(const size_t* global, const size_t* loca
 #endif
 }
 
-void clppSort_RadixSort::radixPermute(const size_t* global, const size_t* local, cl_mem dataIn, cl_mem dataOut, cl_mem histScan, cl_mem blockHists, int bitOffset, unsigned int numBlocks)
+void clppSort_RadixSortGPU::radixPermute(const size_t* global, const size_t* local, cl_mem dataIn, cl_mem dataOut, cl_mem histScan, cl_mem blockHists, int bitOffset, unsigned int numBlocks)
 {
     cl_int clStatus;
     clStatus  = clSetKernelArg(_kernel_RadixPermute, 0, sizeof(cl_mem), (const void*)&dataIn);
@@ -232,7 +236,7 @@ void clppSort_RadixSort::radixPermute(const size_t* global, const size_t* local,
 
 #pragma region pushDatas
 
-void clppSort_RadixSort::pushDatas(void* dataSet, size_t datasetSize)
+void clppSort_RadixSortGPU::pushDatas(void* dataSet, size_t datasetSize)
 {
 	cl_int clStatus;
 
@@ -288,7 +292,7 @@ void clppSort_RadixSort::pushDatas(void* dataSet, size_t datasetSize)
 		clEnqueueWriteBuffer(_context->clQueue, _clBuffer_dataSet, CL_FALSE, 0, (_valueSize+_keySize) * _datasetSize, _dataSet, 0, 0, 0);
 }
 
-void clppSort_RadixSort::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize)
+void clppSort_RadixSortGPU::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize)
 {
 	cl_int clStatus;
 
@@ -329,7 +333,7 @@ void clppSort_RadixSort::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize
 
 #pragma region popDatas
 
-void clppSort_RadixSort::popDatas()
+void clppSort_RadixSortGPU::popDatas()
 {
 	cl_int clStatus;
 	if (_keysOnly)
