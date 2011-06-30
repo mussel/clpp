@@ -41,6 +41,12 @@
 // Because our workgroup size = SIMT size, we use the natural synchronization provided by SIMT.
 // So, we don't need any barrier to synchronize
 #define BARRIER_LOCAL barrier(CLK_LOCAL_MEM_FENCE)
+#define SIMT 32
+#define SIMT_1 (SIMT-1)
+#define SIMT_2 (SIMT-2)
+#define COMPUTE_UNITS 4
+#define TPG (COMPUTE_UNITS * SIMT)
+#define TPG_2 (TPG-2)
 
 //------------------------------------------------------------
 // exclusive_scan_128
@@ -49,22 +55,21 @@
 //------------------------------------------------------------
 
 inline 
-uint4 exclusive_scan_128(const uint tid, uint4 initialValue, __local uint* bitsOnCount)
-{
-	__local uint localBuffer[64];
-		
+uint4 inclusive_scan_128(__local uint* localBuffer, const uint tid, uint block, uint lane, uint4 initialValue, __local uint* bitsOnCount)
+{	
 	//---- scan : 4 bits
 	uint4 localBits = initialValue;
 	localBits.y += localBits.x;
 	localBits.z += localBits.y;
 	localBits.w += localBits.z;
 	
-	//---- scan 128 bits
-	// Scan each 4st values (The sums)
+	//---- scan the last 4x32 bits (The sum in the previous scan)
 	
-	uint tid2 = tid + 32;
+	//uint tid2 = 2 * tid - lane;
+	uint tid2 = block * 2 * SIMT + lane;
 	
-	localBuffer[tid] = 0;
+	localBuffer[tid2] = 0;
+	tid2 += SIMT;
 	localBuffer[tid2] = localBits.w;
 	
 	localBuffer[tid2] += localBuffer[tid2 - 1];
@@ -73,50 +78,49 @@ uint4 exclusive_scan_128(const uint tid, uint4 initialValue, __local uint* bitsO
 	localBuffer[tid2] += localBuffer[tid2 - 8];
 	localBuffer[tid2] += localBuffer[tid2 - 16];
 	
-	// Total number of '1' in the array, retreived from the inclusive scan
-	//if (tid > WGZ_2)
-	//	bitsOnCount[0] = localBuffer[63];
-	
-	// 1 - To exclusive scan
-	// 2 - Add the sums
-	//int toAdd = (tid > 0) ? localBuffer[tid2-1] : 0;
-	//return localBits - initialValue + toAdd;
-	
-	return localBits - initialValue + localBuffer[tid2-1];
+	//---- Add the sum to create a scan of 128 bits
+	return localBits + localBuffer[tid2 - 1];
 }
 
 inline 
 uint4 exclusive_scan_512(const uint tid, uint4 initialValue, __local uint* bitsOnCount)
 {
-	uint4 localBits = exclusive_scan_128(tid, initialValue, bitsOnCount);
+	__local uint localBuffer[TPG*2];
+	uint lane = tid & SIMT_1;
+	uint block = tid >> 5;
+	
+	uint4 localBits = inclusive_scan_128(localBuffer, tid, block, lane, initialValue, bitsOnCount);
 	
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	//---- Scan 512
-	
-	__local uint localBuffer[64];
-	
-	if ((tid & 31) == 31)
-		localBuffer[16 + tid >> 5] = localBits.w;
+	if (lane > SIMT_2)
+	{
+		localBuffer[block] = 0;
+		localBuffer[4 + block] = localBits.w;
+	}
 		
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
-	if (tid < 16)
+	// Use the SIMT capabilities
+	if (tid < 4)
 	{
-		localBuffer[tid] = 0;
-
-		uint tid2 = tid + 16;		
+		uint tid2 = tid + 4;		
 		localBuffer[tid2] += localBuffer[tid2 - 1];
 		localBuffer[tid2] += localBuffer[tid2 - 2];
 	}
 	
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
-	// Total number of '1' in the array, retreived from the inclusive scan
-	if (tid > WGZ_x4_2)
-		bitsOnCount[0] = localBuffer[15] + initialValue.w;
+	// Add the sum
+	localBits += localBuffer[block + 4 - 1];
 	
-	return localBits.x + localBuffer[16 + tid >> 5];
+	// Total number of '1' in the array, retreived from the inclusive scan
+	if (tid > TPG_2)
+		bitsOnCount[0] = localBits.w;
+		
+	// To exclusive scan
+	return localBits - initialValue;
 }
 
 //------------------------------------------------------------
@@ -129,18 +133,18 @@ uint4 exclusive_scan_512(const uint tid, uint4 initialValue, __local uint* bitsO
 
 __kernel
 void kernel__radixLocalSort(
-	__local KV_TYPE* localData,			// size 4*4 int2s (8 kB)
-	__global KV_TYPE* data,				// size 4*4 int2s per block (8 kB)
-	const int bitOffset,				// k*4, k=0..7
-	const int N)						// Total number of items to sort
+	//__local KV_TYPE* localData,
+	__global KV_TYPE* data,
+	const int bitOffset,
+	const int N)
 {
-	const uint tid = (uint)get_local_id(0);		
-	//const uint4 tid4 = ((const uint4)tid) + (const uint4)(0,WGZ,WGZ_x2,WGZ_x3);	
-	//const uint4 gid4 = tid4 + ((const uint4)get_group_id(0)<<2);
-    const uint4 tid4 = ((const uint4)tid) + (const uint4)(0,WGZ_x4,WGZ_x4*2,WGZ_x4*3);		
-	const uint4 gid4 = tid4 + ((const uint4)get_group_id(0)<<2);
+	const uint tid = (uint)get_local_id(0);
+	const uint4 tid4 = (const uint4)(tid << 2) + (const uint4)(0,1,2,3);
+	const uint4 gid4 = (const uint4)(get_global_id(0) << 2) + (const uint4)(0,1,2,3);
 	
 	// Local memory
+	__local KV_TYPE localDataArray[TPG*4*2];
+	__local KV_TYPE* localData = localDataArray;
     __local uint bitsOnCount[1];
 
     // Each thread copies 4 (Cell,Tri) pairs into local memory
@@ -151,11 +155,11 @@ void kernel__radixLocalSort(
 	
 	//-------- 1) 4 x local 1-bit split
 
-	__local KV_TYPE* localTemp = localData + WGZ_x4;
+	__local KV_TYPE* localTemp = localData + TPG;
 	#pragma unroll // SLOWER on some cards (cheap cards) and with small data-sets !!
     for(uint shift = bitOffset; shift < (bitOffset+4); shift++) // Radix 4
     {
-		BARRIER_LOCAL;
+		barrier(CLK_LOCAL_MEM_FENCE);
 		
 		//---- Setup the array of 4 bits (of level shift)
 		// Create the '1s' array as explained at : http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html
@@ -166,11 +170,11 @@ void kernel__radixLocalSort(
         flags.y = ! EXTRACT_KEY_BIT(localData[tid4.y], shift);
         flags.z = ! EXTRACT_KEY_BIT(localData[tid4.z], shift);
         flags.w = ! EXTRACT_KEY_BIT(localData[tid4.w], shift);
-								
+
 		//---- Do a scan of the 128 bits and retreive the total number of '1' in 'bitsOnCount'
 		uint4 localBitsScan = exclusive_scan_512(tid, flags, bitsOnCount);
 		
-		BARRIER_LOCAL;
+		barrier(CLK_LOCAL_MEM_FENCE);
 		
 		//---- Relocate to the right position	
 		uint4 offset = (1-flags) * ((uint4)(bitsOnCount[0]) + tid4 - localBitsScan) + flags * localBitsScan;
@@ -179,18 +183,17 @@ void kernel__radixLocalSort(
 		localTemp[offset.z] = localData[tid4.z];
 		localTemp[offset.w] = localData[tid4.w];
 		
-		BARRIER_LOCAL;
+		barrier(CLK_LOCAL_MEM_FENCE);
 
 		// Swap the buffer pointers
 		__local KV_TYPE* swBuf = localData;
 		localData = localTemp;
 		localTemp = swBuf;
 		
-		BARRIER_LOCAL;
+		barrier(CLK_LOCAL_MEM_FENCE);
     }
 	
-	// FASTER !!
-	//barrier(CLK_LOCAL_MEM_FENCE); // NO CRASH !!
+	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	// Write sorted data back to global memory
 	if (gid4.x < N) data[gid4.x] = localData[tid4.x];

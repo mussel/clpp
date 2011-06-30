@@ -125,7 +125,7 @@ void test_Sort(clppContext* context)
 	cout << "--------------- Satish radix sort Key" << endl;
 	for(unsigned int i = 0; i < datasetSizesCount; i++)
 	{
-		clppSort* clppsort = new clppSort_RadixSort(context, datasetSizes[i], PARAM_SORT_BITS, true);
+		clppSort* clppsort = new clppSort_RadixSortGPU(context, datasetSizes[i], PARAM_SORT_BITS, true);
 		benchmark_sort(*context, clppsort, datasetSizes[i]);
 		delete clppsort;
 	}
@@ -303,9 +303,11 @@ void makeRandomUint32Vector(unsigned int* a, unsigned int numElements, unsigned 
 
     srand(95123);
     //cout << "Warning, max int = "<< (1<<_TOTALBITS)<<endl;
-    for(unsigned int i=0; i < numElements; ++i)  { 
-      // a[i] = ((rand() & keyshiftmask)<<16) | (rand() & keymask); 
-      a[i] = (rand()%(1<<_TOTALBITS));
+	for(unsigned int i=0; i < numElements; ++i)  { 
+		// a[i] = ((rand() & keyshiftmask)<<16) | (rand() & keymask); 
+		//a[i] = (rand()%(1<<_TOTALBITS));
+		a[i] = i+1;
+		//a[i] = 1;
     }
 }
 
@@ -317,7 +319,7 @@ void makeRandomUint32Vector_KV(unsigned int* a, unsigned int numElements, const 
 	{
 		a[i * 2 + 0] = rand() % max;
 		//a[i * 2 + 0] = 1;
-		a[i * 2 + 1] = i;
+		//a[i * 2 + 1] = i;
     }
 }
 

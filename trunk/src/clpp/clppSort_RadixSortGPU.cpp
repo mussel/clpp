@@ -164,7 +164,7 @@ void clppSort_RadixSortGPU::sort()
 		sw.StartTimer();
 #endif
 
-		radixPermute(global, local, dataA, dataB, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset, numBlocks);
+		//radixPermute(global, local, dataA, dataB, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset, numBlocks);
 
 #ifdef BENCHMARK
 		sw.StopTimer();
@@ -180,17 +180,22 @@ void clppSort_RadixSortGPU::radixLocal(const size_t* global, const size_t* local
     cl_int clStatus;
     unsigned int a = 0;
 
-	unsigned int Ndiv16 = roundUpDiv(_datasetSize, 16);
-	size_t global_16[1] = {toMultipleOf(Ndiv16, _workgroupSize)};
+	int workgroupSize = 128;
 
-	if (_keysOnly)
-		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, _keySize * 2 * 16 * _workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)
+	unsigned int Ndiv = roundUpDiv(_datasetSize, 4); // Each work item handle 4 entries
+	size_t global_128[1] = {toMultipleOf(Ndiv, workgroupSize)};
+	size_t local_128[1] = {workgroupSize};
+
+	/*if (_keysOnly)
+		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, _keySize * 2 * 16 * workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)
 	else
-		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, (_valueSize+_keySize) * 2 * 16 * _workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)
+		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, (_valueSize+_keySize) * 2 * 16 * workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)*/
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)&data);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(int), (const void*)&bitOffset);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(unsigned int), (const void*)&_datasetSize);
-	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_RadixLocalSort, 1, NULL, global_16, local, 0, NULL, NULL);
+	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_RadixLocalSort, 1, NULL, global_128, local_128, 0, NULL, NULL);
+
+	//clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSet, CL_TRUE, 0, _keySize * _datasetSize, _dataSetOut, 0, NULL, NULL);
 
 #ifdef BENCHMARK
     clStatus |= clFinish(_context->clQueue);
