@@ -57,10 +57,10 @@ int main(int argc, const char** argv)
 	//test_Scan(&context);
 
 	// Sorting : key
-	test_Sort(&context);
+	//test_Sort(&context);
 
 	// Sorting : key + value
-	//test_Sort_KV(&context);
+	test_Sort_KV(&context);
 }
 
 #pragma region test_Scan

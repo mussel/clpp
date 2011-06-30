@@ -5,6 +5,7 @@
 
 #include "clpp/clppSort_Blelloch.h"
 #include "clpp/clppSort_RadixSort.h"
+#include "clpp/clppSort_RadixSortGPU.h"
 
 clppScan* clpp::createBestScan(clppContext* context, size_t valueSize, unsigned int maxElements)
 {
@@ -16,10 +17,16 @@ clppScan* clpp::createBestScan(clppContext* context, size_t valueSize, unsigned 
 
 clppSort* clpp::createBestSort(clppContext* context, unsigned int maxElements, unsigned int bits)
 {
+	if (context->isGPU)
+		return new clppSort_RadixSortGPU(context, maxElements, bits, true);
+
 	return new clppSort_RadixSort(context, maxElements, bits, true);
 }
 
 clppSort* clpp::createBestSortKV(clppContext* context, unsigned int maxElements, unsigned int bits)
 {
+	if (context->isGPU)
+		return new clppSort_RadixSortGPU(context, maxElements, bits, false);
+
 	return new clppSort_RadixSort(context, maxElements, bits, false);
 }
