@@ -156,10 +156,10 @@ void kernel__radixLocalSort(
 	//-------- 1) 4 x local 1-bit split
 
 	__local KV_TYPE* localTemp = localData + TPG;
-	#pragma unroll // SLOWER on some cards (cheap cards) and with small data-sets !!
+	#pragma unroll
     for(uint shift = bitOffset; shift < (bitOffset+4); shift++) // Radix 4
     {
-		barrier(CLK_LOCAL_MEM_FENCE);
+		//barrier(CLK_LOCAL_MEM_FENCE);
 		
 		//---- Setup the array of 4 bits (of level shift)
 		// Create the '1s' array as explained at : http://http.developer.nvidia.com/GPUGems3/gpugems3_ch39.html
@@ -174,7 +174,7 @@ void kernel__radixLocalSort(
 		//---- Do a scan of the 128 bits and retreive the total number of '1' in 'bitsOnCount'
 		uint4 localBitsScan = exclusive_scan_512(tid, flags, bitsOnCount);
 		
-		barrier(CLK_LOCAL_MEM_FENCE);
+		//barrier(CLK_LOCAL_MEM_FENCE);
 		
 		//---- Relocate to the right position	
 		uint4 offset = (1-flags) * ((uint4)(bitsOnCount[0]) + tid4 - localBitsScan) + flags * localBitsScan;
@@ -183,7 +183,7 @@ void kernel__radixLocalSort(
 		localTemp[offset.z] = localData[tid4.z];
 		localTemp[offset.w] = localData[tid4.w];
 		
-		barrier(CLK_LOCAL_MEM_FENCE);
+		//barrier(CLK_LOCAL_MEM_FENCE);
 
 		// Swap the buffer pointers
 		__local KV_TYPE* swBuf = localData;
@@ -193,7 +193,7 @@ void kernel__radixLocalSort(
 		barrier(CLK_LOCAL_MEM_FENCE);
     }
 	
-	barrier(CLK_LOCAL_MEM_FENCE);
+	//barrier(CLK_LOCAL_MEM_FENCE);
 	
 	// Write sorted data back to global memory
 	if (gid4.x < N) data[gid4.x] = localData[tid4.x];

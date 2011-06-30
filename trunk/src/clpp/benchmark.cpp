@@ -1,6 +1,6 @@
 // In order to test that no value has been loosed ! Can take time to check !
 #define PARAM_CHECK_HASLOOSEDVALUES 0
-#define PARAM_BENCHMARK_LOOPS 1
+#define PARAM_BENCHMARK_LOOPS 20
 
 // The number of bits to sort
 #define PARAM_SORT_BITS 32
@@ -305,8 +305,8 @@ void makeRandomUint32Vector(unsigned int* a, unsigned int numElements, unsigned 
     //cout << "Warning, max int = "<< (1<<_TOTALBITS)<<endl;
 	for(unsigned int i=0; i < numElements; ++i)  { 
 		// a[i] = ((rand() & keyshiftmask)<<16) | (rand() & keymask); 
-		//a[i] = (rand()%(1<<_TOTALBITS));
-		a[i] = i+1;
+		a[i] = (rand()%(1<<_TOTALBITS));
+		//a[i] = i+1;
 		//a[i] = 1;
     }
 }
