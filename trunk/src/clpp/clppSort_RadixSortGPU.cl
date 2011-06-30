@@ -133,7 +133,7 @@ uint4 exclusive_scan_512(const uint tid, uint4 initialValue, __local uint* bitsO
 
 __kernel
 void kernel__radixLocalSort(
-	//__local KV_TYPE* localData,
+	__local KV_TYPE* localData,
 	__global KV_TYPE* data,
 	const int bitOffset,
 	const int N)
@@ -143,8 +143,8 @@ void kernel__radixLocalSort(
 	const uint4 gid4 = (const uint4)(get_global_id(0) << 2) + (const uint4)(0,1,2,3);
 	
 	// Local memory
-	__local KV_TYPE localDataArray[TPG*4*2];
-	__local KV_TYPE* localData = localDataArray;
+	//__local KV_TYPE localDataArray[TPG*4*2];
+	//__local KV_TYPE* localData = localDataArray;
     __local uint bitsOnCount[1];
 
     // Each thread copies 4 (Cell,Tri) pairs into local memory
