@@ -133,7 +133,7 @@ uint4 exclusive_scan_512(const uint tid, uint4 initialValue, __local uint* bitsO
 
 __kernel
 void kernel__radixLocalSort(
-	__local KV_TYPE* localData,
+	//__local KV_TYPE* localDataOLD,
 	__global KV_TYPE* data,
 	const int bitOffset,
 	const int N)
@@ -143,8 +143,9 @@ void kernel__radixLocalSort(
 	const uint4 gid4 = (const uint4)(get_global_id(0) << 2) + (const uint4)(0,1,2,3);
 	
 	// Local memory
-	//__local KV_TYPE localDataArray[TPG*4*2];
-	//__local KV_TYPE* localData = localDataArray;
+	__local KV_TYPE localDataArray[TPG*4*2]; // Faster than using it as a parameter !!!
+	__local KV_TYPE* localData = localDataArray;
+	__local KV_TYPE* localTemp = localData + TPG;
     __local uint bitsOnCount[1];
 
     // Each thread copies 4 (Cell,Tri) pairs into local memory
@@ -153,9 +154,7 @@ void kernel__radixLocalSort(
     localData[tid4.z] = (gid4.z < N) ? data[gid4.z] : MAX_KV_TYPE;
     localData[tid4.w] = (gid4.w < N) ? data[gid4.w] : MAX_KV_TYPE;
 	
-	//-------- 1) 4 x local 1-bit split
-
-	__local KV_TYPE* localTemp = localData + TPG;
+	//-------- 1) 4 x local 1-bit split	
 	#pragma unroll
     for(uint shift = bitOffset; shift < (bitOffset+4); shift++) // Radix 4
     {
@@ -174,7 +173,8 @@ void kernel__radixLocalSort(
 		//---- Do a scan of the 128 bits and retreive the total number of '1' in 'bitsOnCount'
 		uint4 localBitsScan = exclusive_scan_512(tid, flags, bitsOnCount);
 		
-		//barrier(CLK_LOCAL_MEM_FENCE);
+		// Waiting for 'bitsOnCount'
+		barrier(CLK_LOCAL_MEM_FENCE);
 		
 		//---- Relocate to the right position	
 		uint4 offset = (1-flags) * ((uint4)(bitsOnCount[0]) + tid4 - localBitsScan) + flags * localBitsScan;
@@ -183,14 +183,13 @@ void kernel__radixLocalSort(
 		localTemp[offset.z] = localData[tid4.z];
 		localTemp[offset.w] = localData[tid4.w];
 		
-		//barrier(CLK_LOCAL_MEM_FENCE);
+		// Wait before swapping the "local" buffer pointers. They are shared by the whole local context
+		barrier(CLK_LOCAL_MEM_FENCE);
 
 		// Swap the buffer pointers
 		__local KV_TYPE* swBuf = localData;
 		localData = localTemp;
 		localTemp = swBuf;
-		
-		barrier(CLK_LOCAL_MEM_FENCE);
     }
 	
 	//barrier(CLK_LOCAL_MEM_FENCE);

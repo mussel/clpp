@@ -1,6 +1,6 @@
 // In order to test that no value has been loosed ! Can take time to check !
 #define PARAM_CHECK_HASLOOSEDVALUES 0
-#define PARAM_BENCHMARK_LOOPS 1
+#define PARAM_BENCHMARK_LOOPS 20
 
 // The number of bits to sort
 #define PARAM_SORT_BITS 32
@@ -41,7 +41,7 @@ void test_Sort_KV(clppContext* context);
 
 //unsigned int datasetSizes[8] = {262144, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
 unsigned int datasetSizes[8] = {16000, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
-unsigned int datasetSizesCount = 1;
+unsigned int datasetSizesCount = 6;
 
 StopWatch* stopWatcher = new StopWatch();
 

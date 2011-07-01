@@ -186,12 +186,10 @@ void clppSort_RadixSortGPU::radixLocal(const size_t* global, const size_t* local
 	size_t global_128[1] = {toMultipleOf(Ndiv, workgroupSize)};
 	size_t local_128[1] = {workgroupSize};
 
-	if (_keysOnly)
+	/*if (_keysOnly)
 		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, _keySize * 2 * 4 * workgroupSize, (const void*)NULL);
-		//clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, _keySize * 2 * 16 * workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)
 	else
-		//clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, (_valueSize+_keySize) * 2 * 16 * workgroupSize, (const void*)NULL);
-		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, (_valueSize+_keySize) * 2 * 4 * workgroupSize, (const void*)NULL);// 2 KV array of 128 items (2 for permutations)
+		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, (_valueSize+_keySize) * 2 * 4 * workgroupSize, (const void*)NULL);// 2 KV array of 128 items (2 for permutations)*/
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)&data);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(int), (const void*)&bitOffset);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(unsigned int), (const void*)&_datasetSize);
