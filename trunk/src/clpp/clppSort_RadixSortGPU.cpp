@@ -195,8 +195,6 @@ void clppSort_RadixSortGPU::radixLocal(const size_t* global, const size_t* local
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(unsigned int), (const void*)&_datasetSize);
 	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_RadixLocalSort, 1, NULL, global_128, local_128, 0, NULL, NULL);
 
-	//clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSet, CL_TRUE, 0, _keySize * _datasetSize, _dataSetOut, 0, NULL, NULL);
-
 #ifdef BENCHMARK
     clStatus |= clFinish(_context->clQueue);
     checkCLStatus(clStatus);

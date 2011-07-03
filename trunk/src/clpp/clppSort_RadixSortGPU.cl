@@ -55,7 +55,7 @@
 //------------------------------------------------------------
 
 inline 
-uint4 inclusive_scan_128(__local uint* localBuffer, const uint tid, uint block, uint lane, uint4 initialValue, __local uint* bitsOnCount)
+uint4 inclusive_scan_128(volatile __local uint* localBuffer, const uint tid, uint block, uint lane, uint4 initialValue, __local uint* bitsOnCount)
 {	
 	//---- scan : 4 bits
 	uint4 localBits = initialValue;
@@ -65,7 +65,12 @@ uint4 inclusive_scan_128(__local uint* localBuffer, const uint tid, uint block, 
 	
 	//---- scan the last 4x32 bits (The sum in the previous scan)
 	
+	// The following is the same as 2 * SIMT_SIZE * simtId + threadInSIMT = 
+    // 64*(threadIdx.x >> 5) + (threadIdx.x & (:WARP_SIZE - 1))
+    //int localId = get_local_id(0);
+    //int idx = 2 * localId - (localId & (WARP_SIZE - 1));
 	//uint tid2 = 2 * tid - lane;
+	
 	uint tid2 = block * 2 * SIMT + lane;
 	
 	localBuffer[tid2] = 0;
