@@ -1,6 +1,6 @@
 // In order to test that no value has been loosed ! Can take time to check !
 #define PARAM_CHECK_HASLOOSEDVALUES 0
-#define PARAM_BENCHMARK_LOOPS 20
+#define PARAM_BENCHMARK_LOOPS 1
 
 // The number of bits to sort
 #define PARAM_SORT_BITS 32
@@ -40,8 +40,15 @@ void test_Sort(clppContext* context);
 void test_Sort_KV(clppContext* context);
 
 //unsigned int datasetSizes[8] = {262144, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
-unsigned int datasetSizes[8] = {16000, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
-unsigned int datasetSizesCount = 6;
+//unsigned int datasetSizes[8] = {16000, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
+
+// Small problems
+//unsigned int datasetSizes[10] = {100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000};
+
+// Big problems
+unsigned int datasetSizes[10] = {16000000, 32000000, 48000000, 64000000, 80000000, 96000000, 112000000, 128000000, 144000000, 160000000};
+
+unsigned int datasetSizesCount = 10;
 
 StopWatch* stopWatcher = new StopWatch();
 
@@ -51,7 +58,7 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(0, 0);
+	context.setup(2, 0);
 
 	// Scan
 	//test_Scan(&context);
@@ -113,25 +120,25 @@ void test_Sort(clppContext* context)
 	//}
 
 	//---- Radix-sort : generic version
-	//cout << "--------------- Radix sort Key" << endl;
-	//for(unsigned int i = 0; i < datasetSizesCount; i++)
-	//{
-	//	clppSort* clppsort = new clppSort_RadixSort(context, datasetSizes[i], PARAM_SORT_BITS, true);
-	//	benchmark_sort(*context, clppsort, datasetSizes[i]);
-	//	delete clppsort;
-	//}
+	cout << "--------------- Radix sort Key" << endl;
+	for(unsigned int i = 0; i < datasetSizesCount; i++)
+	{
+		clppSort* clppsort = new clppSort_RadixSort(context, datasetSizes[i], PARAM_SORT_BITS, true);
+		benchmark_sort(*context, clppsort, datasetSizes[i]);
+		delete clppsort;
+	}
 
 	//---- Radix-sort : Satish version
-	if (context->isGPU)
-	{
-		cout << "--------------- Satish radix sort Key" << endl;
-		for(unsigned int i = 0; i < datasetSizesCount; i++)
-		{
-			clppSort* clppsort = new clppSort_RadixSortGPU(context, datasetSizes[i], PARAM_SORT_BITS, true);
-			benchmark_sort(*context, clppsort, datasetSizes[i]);
-			delete clppsort;
-		}
-	}
+	//if (context->isGPU)
+	//{
+	//	cout << "--------------- Satish radix sort Key" << endl;
+	//	for(unsigned int i = 0; i < datasetSizesCount; i++)
+	//	{
+	//		clppSort* clppsort = new clppSort_RadixSortGPU(context, datasetSizes[i], PARAM_SORT_BITS, true);
+	//		benchmark_sort(*context, clppsort, datasetSizes[i]);
+	//		delete clppsort;
+	//	}
+	//}
 
 	// Merill
 	//memcpy(keys, keysCopy, datasetSize * sizeof(int));
