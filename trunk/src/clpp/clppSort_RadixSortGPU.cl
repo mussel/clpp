@@ -88,9 +88,8 @@ uint4 inclusive_scan_128(volatile __local uint* localBuffer, const uint tid, uin
 }
 
 inline 
-uint4 exclusive_scan_512(const uint tid, uint4 initialValue, __local uint* bitsOnCount)
+uint4 exclusive_scan_512(volatile __local uint* localBuffer, const uint tid, uint4 initialValue, __local uint* bitsOnCount)
 {
-	__local uint localBuffer[TPG*2];
 	uint lane = tid & SIMT_1;
 	uint block = tid >> 5;
 	
@@ -152,6 +151,7 @@ void kernel__radixLocalSort(
 	__local KV_TYPE* localData = localDataArray;
 	__local KV_TYPE* localTemp = localData + TPG;
     __local uint bitsOnCount[1];
+	__local uint localBuffer[TPG*2];
 
     // Each thread copies 4 (Cell,Tri) pairs into local memory
     localData[tid4.x] = (gid4.x < N) ? data[gid4.x] : MAX_KV_TYPE;
@@ -176,7 +176,7 @@ void kernel__radixLocalSort(
         flags.w = ! EXTRACT_KEY_BIT(localData[tid4.w], shift);
 
 		//---- Do a scan of the 128 bits and retreive the total number of '1' in 'bitsOnCount'
-		uint4 localBitsScan = exclusive_scan_512(tid, flags, bitsOnCount);
+		uint4 localBitsScan = exclusive_scan_512(localBuffer, tid, flags, bitsOnCount);
 		
 		// Waiting for 'bitsOnCount'
 		barrier(CLK_LOCAL_MEM_FENCE);
