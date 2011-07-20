@@ -21,7 +21,7 @@
 
 using namespace std;
 
-//void makeOneVector(unsigned int* a, unsigned int numElements);
+void makeOneVector(unsigned int* a, unsigned int numElements);
 //void makeRandomUint16Vector(unsigned short *a, unsigned int numElements, unsigned int keybits);
 //void makeRandomUint32Vector_i(unsigned int *a, unsigned int numElements, unsigned int keybits);
 void makeRandomUint32Vector(unsigned int *a, unsigned int numElements, unsigned int keybits, bool keysOnly);
@@ -56,17 +56,17 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(2, 0);
+	context.setup(1, 0);
 	context.printInformation();
 
 	// Scan
-	//test_Scan(&context);
+	test_Scan(&context);
 
 	// Sorting : key
 	//test_Sort(&context);
 
 	// Sorting : key + value
-	test_Sort_KV(&context);
+	//test_Sort_KV(&context);
 }
 
 #pragma region test_Scan
@@ -74,21 +74,27 @@ int main(int argc, const char** argv)
 void test_Scan(clppContext* context)
 {
 	//---- Default scan
-	cout << "--------------- Scan : Default scan" << endl;
-	for(unsigned int i = 0; i < datasetSizesCount; i++)
+	if (context->isCPU)
 	{
-		clppScan* scan = new clppScan_Default(context, sizeof(int), datasetSizes[i]);
-		benchmark_scan(context, scan, datasetSizes[i]);
-		delete scan;
+		cout << "--------------- Scan : CPU scan" << endl;
+		for(unsigned int i = 0; i < datasetSizesCount; i++)
+		{
+			clppScan* scan = new clppScan_Default(context, sizeof(int), datasetSizes[i]);
+			benchmark_scan(context, scan, datasetSizes[i]);
+			delete scan;
+		}
 	}
 
 	//---- GPU scan
-	cout << "--------------- Scan : GPU scan" << endl;
-	for(unsigned int i = 0; i < datasetSizesCount; i++)
+	if (context->isGPU)
 	{
-		clppScan* scan = new clppScan_GPU(context, sizeof(int), datasetSizes[i]);
-		benchmark_scan(context, scan, datasetSizes[i]);
-		delete scan;
+		cout << "--------------- Scan : GPU scan" << endl;
+		for(unsigned int i = 0; i < datasetSizesCount; i++)
+		{
+			clppScan* scan = new clppScan_GPU(context, sizeof(int), datasetSizes[i]);
+			benchmark_scan(context, scan, datasetSizes[i]);
+			delete scan;
+		}
 	}
 
 	//scan = new clppScan_Merrill(context, datasetSize);
@@ -187,8 +193,8 @@ void benchmark_scan(clppContext* context, clppScan* scan, int datasetSize)
 {
 	//---- Create a set of data
 	unsigned int* values = (unsigned int*)malloc(datasetSize * sizeof(int));
-	//makeOneVector(values, datasetSize);
-	makeRandomUint32Vector(values, datasetSize, 32, true);
+	makeOneVector(values, datasetSize);
+	//makeRandomUint32Vector(values, datasetSize, 32, true);
 
 	//---- Scan : default
 	unsigned int* cpuScanValues = (unsigned int*)malloc(datasetSize * sizeof(int));
@@ -299,11 +305,11 @@ void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int dataset
 
 #pragma region make...
 
-//void makeOneVector(unsigned int* a, unsigned int numElements)
-//{
-//    for(unsigned int i = 0; i < numElements; ++i)   
-//        a[i] = 1; 
-//}
+void makeOneVector(unsigned int* a, unsigned int numElements)
+{
+    for(unsigned int i = 0; i < numElements; ++i)   
+        a[i] = 1; 
+}
 //
 //void makeRandomUint16Vector(unsigned short *a, unsigned int numElements, unsigned int keybits)
 //{
@@ -347,11 +353,11 @@ void makeRandomUint32Vector(unsigned int* a, unsigned int numElements, unsigned 
 {
 	int mult = keysOnly ? 1 : 2;
 
-	//int possiblesValues[] = {1, 2, 4, 8, 16};
+	int possiblesValues[] = {1, 2, 4, 8, 16};
 
 	keybits--; // signed int support
 
-    srand(95123);
+    //srand(95123);
 	unsigned int max = ( 1 << keybits ) - 1; // Max 'signed' value
     for(unsigned int i = 0; i < numElements; i++)
 	{

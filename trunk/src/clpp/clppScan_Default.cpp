@@ -16,6 +16,9 @@ clppScan_Default::clppScan_Default(clppContext* context, size_t valueSize, unsig
 	if (!compile(context, clCode_clppScan_Default))
 		return;
 
+	//if (!compile(context, string("clppScan_Default.cl")))
+	//	return;
+
 	//---- Prepare all the kernels
 	cl_int clStatus;
 
