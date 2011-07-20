@@ -288,11 +288,7 @@ void kernel__UniformAdd(
 	//output[gid] += blockSums[blockId];
 	//output[gid+1] += blockSums[blockId];
 
-#ifdef OCL_PLATFORM_INTEL
-	T localBuffer[1];
-#else
     __local T localBuffer[1];
-#endif
 
 #ifdef SUPPORT_AVOID_BANK_CONFLICT
 	uint blockOffset = 1024 - 1;
@@ -300,11 +296,8 @@ void kernel__UniformAdd(
         localBuffer[0] = blockSums[blockId + blockOffset];
 #else
 
-#ifndef OCL_PLATFORM_INTEL
     if (tid < 1)
-#endif
         localBuffer[0] = blockSums[blockId];
-#endif
 
     barrier(CLK_LOCAL_MEM_FENCE);
 	
