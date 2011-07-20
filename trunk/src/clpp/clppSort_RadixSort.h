@@ -18,6 +18,7 @@ public:
 	void pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize);
 
 	void popDatas();
+	void popDatas(void* dataSet);
 
 	string compilePreprocess(string kernel);
 

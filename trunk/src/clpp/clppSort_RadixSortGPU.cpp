@@ -340,11 +340,16 @@ void clppSort_RadixSortGPU::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetS
 
 void clppSort_RadixSortGPU::popDatas()
 {
+	popDatas(_dataSetOut);
+}
+
+void clppSort_RadixSortGPU::popDatas(void* dataSet)
+{
 	cl_int clStatus;
 	if (_keysOnly)
-		clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, _keySize * _datasetSize, _dataSetOut, 0, NULL, NULL);
+		clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, _keySize * _datasetSize, dataSet, 0, NULL, NULL);
 	else
-		clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, (_valueSize + _keySize) * _datasetSize, _dataSetOut, 0, NULL, NULL);
+		clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, (_valueSize + _keySize) * _datasetSize, dataSet, 0, NULL, NULL);
 	checkCLStatus(clStatus);
 }
 

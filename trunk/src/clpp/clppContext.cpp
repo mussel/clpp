@@ -112,18 +112,6 @@ void clppContext::setup(unsigned int platformId, unsigned int deviceId)
 	//---- Queue
 	clQueue = clCreateCommandQueue(clContext, clDevice, CL_QUEUE_PROFILING_ENABLE, &clStatus);
 	assert(clStatus == CL_SUCCESS);
-
-	//---- Display some info about the context
-	//char platformName[500];
-	//clGetPlatformInfo(clPlatform, CL_PLATFORM_NAME, 500, platformName, NULL);
-
-	//cl_device_type deviceType;
-	//clStatus = clGetDeviceInfo(clDevice, CL_DEVICE_TYPE, sizeof(cl_device_type), (void*)&deviceType,NULL);
-	//
-	//char deviceName[500];
-	//clStatus = clGetDeviceInfo(clDevice, CL_DEVICE_NAME, 500, deviceName, NULL);
-
-	//cout << "Platform[" << platformName << "] Device[" << deviceName << "]" << endl << endl<< endl;
 }
 
 char* clppContext::stristr(const char *String, const char *Pattern)
@@ -184,4 +172,22 @@ int clppContext::GetSIMTCapability()
 	}
 
 	return 1;
+}
+
+void clppContext::printInformation()
+{
+	cl_int clStatus;
+
+	//---- Display some info about the context
+	char platformName[500];
+	clGetPlatformInfo(clPlatform, CL_PLATFORM_NAME, 500, platformName, NULL);
+
+	cl_device_type deviceType;
+	clStatus = clGetDeviceInfo(clDevice, CL_DEVICE_TYPE, sizeof(cl_device_type), (void*)&deviceType,NULL);
+	
+	char deviceName[500];
+	clStatus = clGetDeviceInfo(clDevice, CL_DEVICE_NAME, 500, deviceName, NULL);
+
+	cout << "OpenCL Platform : " << platformName << endl;
+	cout << "OpenCL Device   : " << deviceName << endl << endl<< endl;
 }

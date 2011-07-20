@@ -29,6 +29,9 @@ public:
 	// Returns the SIMT Capability of the device.
 	int GetSIMTCapability();
 
+	// Print the information related to the context.
+	void printInformation();
+
 	// Informations
 	bool isGPU;
 	bool isCPU;

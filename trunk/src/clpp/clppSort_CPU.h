@@ -12,11 +12,13 @@ public:
 	string getName() { return "CPU Brute force"; }
 
 	void sort();
+	void sort(void* dataSet) {}
 
 	void pushDatas(void* dataSet, size_t datasetSize);
 	void pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize);
 
 	void popDatas();
+	void popDatas(void* dataSet) {}
 
 	void waitCompletion() {}
 };

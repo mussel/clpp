@@ -16,7 +16,7 @@ public:
 	virtual string getName() = 0;
 
 	/// Sort the pushed data set 
-	virtual void sort() = 0;
+	virtual void sort() = 0;	
 
 	/// Push the data on the device
 	///
@@ -32,6 +32,7 @@ public:
 
 	/// Pop the data from the device
 	virtual void popDatas() = 0;
+	virtual void popDatas(void* dataSet) = 0;
 
 protected:
 	
