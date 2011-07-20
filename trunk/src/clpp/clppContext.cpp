@@ -80,6 +80,8 @@ void clppContext::setup(unsigned int platformId, unsigned int deviceId)
 		Vendor = Vendor_Intel;
 	else if (stristr(infoStr, "AMD") != NULL)
 		Vendor = Vendor_AMD;
+	else if (stristr(infoStr, "Advanced Micro Devices") != NULL)
+		Vendor = Vendor_AMD;
 	else if (stristr(infoStr, "NVidia") != NULL)
 		Vendor = Vendor_NVidia;
 	else if (stristr(infoStr, "Apple") != NULL)

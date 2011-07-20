@@ -55,16 +55,16 @@ int main(int argc, const char** argv)
 {
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(0, 0);
+	context.setup(1, 0);
 
 	// Scan
 	//test_Scan(&context);
 
 	// Sorting : key
-	test_Sort(&context);
+	//test_Sort(&context);
 
 	// Sorting : key + value
-	//test_Sort_KV(&context);
+	test_Sort_KV(&context);
 }
 
 #pragma region test_Scan
@@ -117,13 +117,16 @@ void test_Sort(clppContext* context)
 	//}
 
 	//---- Radix-sort : generic version
-	//cout << "--------------- Radix sort Key" << endl;
-	//for(unsigned int i = 0; i < datasetSizesCount; i++)
-	//{
-	//	clppSort* clppsort = new clppSort_RadixSort(context, datasetSizes[i], PARAM_SORT_BITS, true);
-	//	benchmark_sort(*context, clppsort, datasetSizes[i]);
-	//	delete clppsort;
-	//}
+	if (context->isCPU)
+	{
+		cout << "--------------- Radix sort Key" << endl;
+		for(unsigned int i = 0; i < datasetSizesCount; i++)
+		{
+			clppSort* clppsort = new clppSort_RadixSort(context, datasetSizes[i], PARAM_SORT_BITS, true);
+			benchmark_sort(*context, clppsort, datasetSizes[i]);
+			delete clppsort;
+		}
+	}
 
 	//---- Radix-sort : Satish version
 	if (context->isGPU)
@@ -149,6 +152,18 @@ void test_Sort(clppContext* context)
 
 void test_Sort_KV(clppContext* context)
 {
+	//---- Satish Radix-sort
+	if (context->isCPU)
+	{
+		cout << "--------------- Satish sort Key-Value" << endl;
+		for(unsigned int i = 0; i < datasetSizesCount; i++)
+		{
+			clppSort* clppsort = new clppSort_RadixSort(context, datasetSizes[i], PARAM_SORT_BITS, false);
+			benchmark_sort_KV(*context, clppsort, datasetSizes[i], PARAM_SORT_BITS);
+			delete clppsort;
+		}
+	}
+
 	//---- Satish Radix-sort
 	if (context->isGPU)
 	{
