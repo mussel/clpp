@@ -27,6 +27,9 @@ clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxEle
 	if (!compile(context, clCode_clppSort_RadixSort))
 		return;
 
+	//if (!compile(context, string("clppSort_RadixSort.cl")))
+	//	return;
+
 	//---- Prepare all the kernels
 	cl_int clStatus;
 
@@ -80,8 +83,8 @@ string clppSort_RadixSort::compilePreprocess(string kernel)
 
 	//if (_templateType == Int)
 	{
-		source = _keysOnly ? "#define MAX_KV_TYPE (int)(0x7FFFFFFF)\n" : "#define MAX_KV_TYPE (int2)(0x7FFFFFFF,0xFFFFFFFF)\n";
-		source += "#define K_TYPE int\n";
+		source = _keysOnly ? "#define MAX_KV_TYPE ((int)(0x7FFFFFFF))\n" : "#define MAX_KV_TYPE ((int2)(0x7FFFFFFF,0xFFFFFFFF))\n";
+		//source += "#define K_TYPE int\n";
 		source += _keysOnly ? "#define KV_TYPE int\n" : "#define KV_TYPE int2\n";
 		source += "#define K_TYPE_IDENTITY 0\n";
 
@@ -90,7 +93,7 @@ string clppSort_RadixSort::compilePreprocess(string kernel)
 	}
 	/*else if (_templateType == UInt)
 	{
-		source = "#define MAX_KV_TYPE (int2)0xFFFFFFFF\n";
+		source = "#define MAX_KV_TYPE ((int2)0xFFFFFFFF)\n";
 		source += "#define K_TYPE uint\n";
 		source += "#define KV_TYPE uint2\n";
 		source += "#define K_TYPE_IDENTITY 0\n";

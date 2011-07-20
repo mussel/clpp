@@ -41,7 +41,7 @@ bool clppProgram::compile(clppContext* context, string fileName)
 {
 	string programSource = loadSource(_basePath + fileName);
 
-	return compile(context, programSource.c_str());
+	return compile(context, (char*)programSource.c_str());
 }
 
 bool clppProgram::compile(clppContext* context, char* kernelCode)

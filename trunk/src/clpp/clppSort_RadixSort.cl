@@ -171,6 +171,7 @@ void kernel__radixLocalSort(
 		//----
 		int offset;
 		int4 invFlags = 1 - flags;
+		
 		offset = invFlags.x * (bitsOnCount[0] + tid4.x - localBitsScan[tid4.x]) + flags.x * localBitsScan[tid4.x];
 		localTemp[offset] = localData[tid4.x];
 		
