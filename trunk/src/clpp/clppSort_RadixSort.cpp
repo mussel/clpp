@@ -6,6 +6,8 @@
 
 #include "clpp/clppScan_Default.h"
 
+#include "clpp/clppSort_RadixSort_CLKernel.h"
+
 // Next :
 // 1 - Allow templating
 // 2 - Allow to sort on specific bits only
@@ -22,7 +24,7 @@ clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxEle
 
 	_bits = bits;
 
-	if (!compile(context, "clppSort_RadixSort.cl"))
+	if (!compile(context, clCode_clppSort_RadixSort))
 		return;
 
 	//---- Prepare all the kernels

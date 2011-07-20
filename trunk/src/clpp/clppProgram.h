@@ -31,6 +31,7 @@ public:
 	virtual ~clppProgram();
 
 	bool compile(clppContext* context, string fileName);
+	bool compile(clppContext* context, char* kernelCode);
 	virtual string compilePreprocess(string programSource);
 
 	// Wait for the end of the program

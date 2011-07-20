@@ -13,7 +13,6 @@
 #include "clpp/clppScan_Default.h"
 #include "clpp/clppScan_GPU.h"
 
-#include "clpp/clppSort_Blelloch.h"
 #include "clpp/clppSort_CPU.h"
 #include "clpp/clppSort_RadixSort.h"
 #include "clpp/clppSort_RadixSortGPU.h"
@@ -54,8 +53,6 @@ StopWatch* stopWatcher = new StopWatch();
 
 int main(int argc, const char** argv)
 {
-	clppProgram::setBasePath("src/clpp/");
-
 	//---- Prepare a clpp Context
 	clppContext context;
 	context.setup(0, 0);
@@ -309,16 +306,16 @@ void makeRandomUint16Vector(unsigned short *a, unsigned int numElements, unsigne
 void makeRandomUint32Vector(unsigned int* a, unsigned int numElements, unsigned int keybits)
 {
     // Fill up with some random data
-    // int keyshiftmask = 0;
-    // if (keybits > 16) keyshiftmask = (1 << (keybits - 16)) - 1;
-    // int keymask = 0xffff;
-    // if (keybits < 16) keymask = (1 << keybits) - 1;
+    int keyshiftmask = 0;
+    if (keybits > 16) keyshiftmask = (1 << (keybits - 16)) - 1;
+    int keymask = 0xffff;
+    if (keybits < 16) keymask = (1 << keybits) - 1;
 
     srand(95123);
     //cout << "Warning, max int = "<< (1<<_TOTALBITS)<<endl;
 	for(unsigned int i=0; i < numElements; ++i)  { 
-		// a[i] = ((rand() & keyshiftmask)<<16) | (rand() & keymask); 
-		a[i] = (rand()%(1<<_TOTALBITS));
+		a[i] = ((rand() & keyshiftmask)<<16) | (rand() & keymask); 
+		//a[i] = (rand()%(1<<_TOTALBITS));
 		//a[i] = i+1;
 		//a[i] = 1;
     }

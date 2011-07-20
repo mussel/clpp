@@ -6,6 +6,8 @@
 
 #include "clpp/clppScan_Default.h"
 
+#include "clpp/clppSort_RadixSortGPU_CLKernel.h"
+
 // Next :
 // 1 - Allow templating
 // 2 - Allow to sort on specific bits only
@@ -22,7 +24,7 @@ clppSort_RadixSortGPU::clppSort_RadixSortGPU(clppContext* context, unsigned int 
 
 	_bits = bits;
 
-	if (!compile(context, "clppSort_RadixSortGPU.cl"))
+	if (!compile(context, clCode_clppSort_RadixSortGPU))
 		return;
 
 	//---- Prepare all the kernels

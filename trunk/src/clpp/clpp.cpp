@@ -3,7 +3,6 @@
 #include "clpp/clppScan_Default.h"
 #include "clpp/clppScan_GPU.h"
 
-#include "clpp/clppSort_Blelloch.h"
 #include "clpp/clppSort_RadixSort.h"
 #include "clpp/clppSort_RadixSortGPU.h"
 

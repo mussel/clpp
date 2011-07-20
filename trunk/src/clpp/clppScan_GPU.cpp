@@ -1,4 +1,5 @@
 #include "clpp/clppScan_GPU.h"
+#include "clpp/clppScan_GPU_CLKernel.h"
 
 #include <iostream>
 
@@ -17,7 +18,7 @@ clppScan_GPU::clppScan_GPU(clppContext* context, size_t valueSize, unsigned int 
 	_clBuffer_values = 0;
 
 	//---- Compilation
-	if (!compile(context, "clppScan_GPU.cl"))
+	if (!compile(context, clCode_clppScan_GPU))
 		return;
 
 	//---- Prepare all the kernels

@@ -188,7 +188,7 @@ void kernel__radixLocalSort(
 		localTemp[offset.z] = localData[tid4.z];
 		localTemp[offset.w] = localData[tid4.w];
 		
-		// Wait before swapping the "local" buffer pointers. They are shared by the whole local context
+		// Wait before swapping the 'local' buffer pointers. They are shared by the whole local context
 		barrier(CLK_LOCAL_MEM_FENCE);
 
 		// Swap the buffer pointers

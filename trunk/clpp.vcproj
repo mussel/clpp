@@ -361,10 +361,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\clpp\clppSort_Blelloch.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\src\clpp\clppSort_CPU.cpp"
 				>
 			</File>
@@ -416,10 +412,6 @@
 			</File>
 			<File
 				RelativePath=".\src\clpp\clppSort.h"
-				>
-			</File>
-			<File
-				RelativePath=".\src\clpp\clppSort_Blelloch.h"
 				>
 			</File>
 			<File

@@ -1,4 +1,5 @@
 #include "clpp/clppScan_Default.h"
+#include "clpp/clppScan_Default_CLKernel.h"
 
 // Next :
 // 1 - Allow templating
@@ -12,7 +13,7 @@ clppScan_Default::clppScan_Default(clppContext* context, size_t valueSize, unsig
 	_clBuffer_values = 0;
 	_clBuffer_BlockSums = 0;
 
-	if (!compile(context, "clppScan_Default.cl"))
+	if (!compile(context, clCode_clppScan_Default))
 		return;
 
 	//---- Prepare all the kernels

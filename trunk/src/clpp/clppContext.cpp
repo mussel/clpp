@@ -11,6 +11,46 @@ void clppContext::setup()
 	setup(0, 0);
 }
 
+void clppContext::setup(cl_platform_id platform, cl_device_id device, cl_context context, cl_command_queue queue)
+{
+	isGPU = isCPU = false;
+	Vendor = Vendor_Unknown;
+
+	cl_int clStatus;
+
+	size_t infoLen;
+	char infoStr[1024];
+	cl_device_type infoType;
+
+	//---- Retreive information about platforms
+	clPlatform = platform;
+
+	clGetPlatformInfo (clPlatform, CL_PLATFORM_VENDOR, sizeof(infoStr), infoStr, &infoLen);
+	if (stristr(infoStr, "Intel") != NULL)
+		Vendor = Vendor_Intel;
+	else if (stristr(infoStr, "AMD") != NULL)
+		Vendor = Vendor_AMD;
+	else if (stristr(infoStr, "NVidia") != NULL)
+		Vendor = Vendor_NVidia;
+	else if (stristr(infoStr, "Apple") != NULL)
+		Vendor = Vendor_NVidia;
+
+	//---- Devices
+	clDevice = device;
+		
+	clGetDeviceInfo(clDevice, CL_DEVICE_TYPE, sizeof(infoType), &infoType, &infoLen);
+	if (infoType & CL_DEVICE_TYPE_CPU)
+		isCPU = true;
+	if (infoType & CL_DEVICE_TYPE_GPU)
+		isGPU = true;
+
+	//---- Context
+	clContext = context;
+
+	//---- Queue
+	clQueue = queue;
+}
+
 void clppContext::setup(unsigned int platformId, unsigned int deviceId)
 {
 	isGPU = isCPU = false;
@@ -72,16 +112,16 @@ void clppContext::setup(unsigned int platformId, unsigned int deviceId)
 	assert(clStatus == CL_SUCCESS);
 
 	//---- Display some info about the context
-	char platformName[500];
-	clGetPlatformInfo(clPlatform, CL_PLATFORM_NAME, 500, platformName, NULL);
+	//char platformName[500];
+	//clGetPlatformInfo(clPlatform, CL_PLATFORM_NAME, 500, platformName, NULL);
 
-	cl_device_type deviceType;
-	clStatus = clGetDeviceInfo(clDevice, CL_DEVICE_TYPE, sizeof(cl_device_type), (void*)&deviceType,NULL);
-	
-	char deviceName[500];
-	clStatus = clGetDeviceInfo(clDevice, CL_DEVICE_NAME, 500, deviceName, NULL);
+	//cl_device_type deviceType;
+	//clStatus = clGetDeviceInfo(clDevice, CL_DEVICE_TYPE, sizeof(cl_device_type), (void*)&deviceType,NULL);
+	//
+	//char deviceName[500];
+	//clStatus = clGetDeviceInfo(clDevice, CL_DEVICE_NAME, 500, deviceName, NULL);
 
-	cout << "Platform[" << platformName << "] Device[" << deviceName << "]" << endl << endl<< endl;
+	//cout << "Platform[" << platformName << "] Device[" << deviceName << "]" << endl << endl<< endl;
 }
 
 char* clppContext::stristr(const char *String, const char *Pattern)

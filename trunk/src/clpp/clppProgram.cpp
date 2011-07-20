@@ -39,11 +39,18 @@ void clppProgram::setBasePath(string basePath)
 
 bool clppProgram::compile(clppContext* context, string fileName)
 {
+	string programSource = loadSource(_basePath + fileName);
+
+	return compile(context, programSource.c_str());
+}
+
+bool clppProgram::compile(clppContext* context, char* kernelCode)
+{
 	cl_int clStatus;
 
 	_context = context;
 
-	string programSource = loadSource(_basePath + fileName);
+	string programSource = string(kernelCode);
 
 	//---- Some preprocessing
 	programSource = compilePreprocess(programSource);

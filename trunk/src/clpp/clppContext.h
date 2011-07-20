@@ -21,6 +21,9 @@ public:
 	void setup();
 
 	// Setup with a specific platform and device
+	void setup(cl_platform_id platform, cl_device_id device, cl_context context, cl_command_queue queue);
+
+	// Setup with a specific platform and device
 	void setup(unsigned int platformId, unsigned int deviceId);
 
 	// Returns the SIMT Capability of the device.
