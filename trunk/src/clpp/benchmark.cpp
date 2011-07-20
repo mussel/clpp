@@ -323,16 +323,17 @@ void makeRandomUint16Vector(unsigned short *a, unsigned int numElements, unsigne
 void makeRandomUint32Vector(unsigned int* a, unsigned int numElements, unsigned int keybits)
 {
     // Fill up with some random data
-    int keyshiftmask = 0;
-    if (keybits > 16) keyshiftmask = (1 << (keybits - 16)) - 1;
-    int keymask = 0xffff;
-    if (keybits < 16) keymask = (1 << keybits) - 1;
+    //int keyshiftmask = 0;
+    //if (keybits > 16) keyshiftmask = (1 << (keybits - 16)) - 1;
+    //int keymask = 0xffff;
+    //if (keybits < 16) keymask = (1 << keybits) - 1;
 
     srand(95123);
     //cout << "Warning, max int = "<< (1<<_TOTALBITS)<<endl;
+	unsigned int max = (1<<keybits-1) - 1; // Max 'signed' value
 	for(unsigned int i=0; i < numElements; ++i)  { 
-		a[i] = ((rand() & keyshiftmask)<<16) | (rand() & keymask); 
-		//a[i] = (rand()%(1<<_TOTALBITS));
+		//a[i] = ((rand() & keyshiftmask)<<16) | (rand() & keymask); 
+		a[i] = rand() % max;
 		//a[i] = i+1;
 		//a[i] = 1;
     }

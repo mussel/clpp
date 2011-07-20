@@ -207,7 +207,7 @@ void kernel__radixLocalSort(
 //------------------------------------------------------------
 // kernel__localHistogram
 //
-// Purpose :
+// Purpose : create the local memory histogram
 //------------------------------------------------------------
 
 __kernel
@@ -216,7 +216,6 @@ void kernel__localHistogram(__global KV_TYPE* data, const int bitOffset, __globa
     const int tid = (int)get_local_id(0);
     const int4 tid4 = (int4)(tid << 2) + (const int4)(0,1,2,3);
 	const int4 gid4 = (int4)(get_global_id(0) << 2) + (const int4)(0,1,2,3);
-	const int blockId = (int)get_group_id(0);
 	
 	__local uint localData[WGZ*4];
     __local int localHistStart[16];
@@ -273,6 +272,7 @@ void kernel__localHistogram(__global KV_TYPE* data, const int bitOffset, __globa
     // Write histogram to global memomry
     if (tid < 16)
     {
+		const int blockId = (int)get_group_id(0);
         hist[tid * get_num_groups(0) + blockId] = localHistEnd[tid] - localHistStart[tid] + 1;
 		blockHists[(blockId << 5) + tid] = localHistStart[tid];
     }
