@@ -3,7 +3,7 @@
 #define PARAM_BENCHMARK_LOOPS 20
 
 // The number of bits to sort
-#define PARAM_SORT_BITS 28
+#define PARAM_SORT_BITS 32
 
 #include <stdlib.h>
 #include <algorithm>
@@ -29,7 +29,7 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
 void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int datasetSize, unsigned int bits);
 
 bool checkIsSorted(int* tocheck, size_t datasetSize, string algorithmName, bool keysOnly);
-bool checkHasLooseDatasKV(int* unsorted, unsigned int* sorted, size_t datasetSize, string algorithmName);
+bool checkHasLooseDatasKV(int* unsorted, int* sorted, size_t datasetSize, string algorithmName);
 
 void test_Scan(clppContext* context);
 void test_Sort(clppContext* context);
@@ -44,7 +44,7 @@ unsigned int datasetSizes[10] = {100000, 200000, 300000, 400000, 500000, 600000,
 // Big problems
 //unsigned int datasetSizes[10] = {16000000, 32000000, 48000000, 64000000, 80000000, 96000000, 112000000, 128000000, 144000000, 160000000};
 
-unsigned int datasetSizesCount = 10;
+unsigned int datasetSizesCount = 2;
 
 StopWatch* stopWatcher = new StopWatch();
 
@@ -106,13 +106,13 @@ void test_Scan(clppContext* context)
 void test_Sort(clppContext* context)
 {
 	//---- Brute force
-	//cout << "--------------- Brute force sort" << endl;
-	//for(unsigned int i = 0; i < datasetSizesCount; i++)
-	//{
-	//	clppSort* clppsort = new clppSort_CPU(context);
-	//	benchmark_sort(*context, clppsort, datasetSizes[i]);
-	//	delete clppsort;
-	//}
+	cout << "--------------- Brute force sort" << endl;
+	for(unsigned int i = 0; i < datasetSizesCount; i++)
+	{
+		clppSort* clppsort = new clppSort_CPU(context);
+		benchmark_sort(*context, clppsort, datasetSizes[i], PARAM_SORT_BITS);
+		delete clppsort;
+	}
 
 	//---- Blelloch
 	//cout << "--------------- Blelloch sort" << endl;
@@ -270,10 +270,12 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
 void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int datasetSize, unsigned int bits)
 {
 	int* unsortedDatas = (int*)malloc(2 * datasetSize * sizeof(int));
+	int* unsortedDatasCopy = (int*)malloc(2 * datasetSize * sizeof(int));
 
 	for(unsigned int i = 0; i < PARAM_BENCHMARK_LOOPS; i++)
 	{
 		makeRandomInt32Vector(unsortedDatas, datasetSize, bits, false);
+		memcpy(unsortedDatasCopy, unsortedDatas, 2 * datasetSize * sizeof(int));
 
 		//---- Push the datas
  		sort->pushDatas(unsortedDatas, datasetSize);
@@ -293,7 +295,7 @@ void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int dataset
 		sort->popDatas();
 		checkIsSorted(unsortedDatas, datasetSize, sort->getName(), false);
 #if PARAM_CHECK_HASLOOSEDVALUES
-		checkHasLooseDatasKV(unsortedDatas, sortedDatas, datasetSize, sort->getName());
+		checkHasLooseDatasKV(unsortedDatasCopy, unsortedDatas, datasetSize, sort->getName());
 #endif
 	}
 
@@ -420,7 +422,7 @@ bool checkIsSorted(int* tocheck, size_t datasetSize, string algorithmName, bool 
 	return true;
 }
 
-bool checkHasLooseDatasKV(int* unsorted, unsigned int* sorted, size_t datasetSize, string algorithmName)
+bool checkHasLooseDatasKV(int* unsorted, int* sorted, size_t datasetSize, string algorithmName)
 {
 	for(size_t i = 0; i < datasetSize; i++)
 	{

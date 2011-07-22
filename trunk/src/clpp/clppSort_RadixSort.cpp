@@ -123,8 +123,8 @@ void clppSort_RadixSort::sort()
 	size_t global[1] = {toMultipleOf(Ndiv4, _workgroupSize)};
     size_t local[1] = {_workgroupSize};
 
-	cl_mem dataA = _clBuffer_dataSet;
-    cl_mem dataB = _clBuffer_dataSetOut;
+	cl_mem* dataA = &_clBuffer_dataSet;
+    cl_mem* dataB = &_clBuffer_dataSetOut;
     for(unsigned int bitOffset = 0; bitOffset < _bits; bitOffset += 4)
 	{
 		// 1) Each workgroup sorts its tile by using local memory
@@ -142,7 +142,7 @@ void clppSort_RadixSort::sort()
 		sw.StartTimer();
 #endif
 
-        localHistogram(global, local, dataA, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset);
+        localHistogram(global, local, dataA, &_clBuffer_radixHist1, &_clBuffer_radixHist2, bitOffset);
 
 #ifdef BENCHMARK
 		sw.StopTimer();
@@ -168,7 +168,7 @@ void clppSort_RadixSort::sort()
 		sw.StartTimer();
 #endif
 
-		radixPermute(global, local, dataA, dataB, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset, numBlocks);
+		radixPermute(global, local, dataA, dataB, &_clBuffer_radixHist1, &_clBuffer_radixHist2, bitOffset, numBlocks);
 
 #ifdef BENCHMARK
 		sw.StopTimer();
@@ -179,7 +179,7 @@ void clppSort_RadixSort::sort()
     }
 }
 
-void clppSort_RadixSort::radixLocal(const size_t* global, const size_t* local, cl_mem data, int bitOffset)
+void clppSort_RadixSort::radixLocal(const size_t* global, const size_t* local, cl_mem* data, int bitOffset)
 {
     cl_int clStatus;
     unsigned int a = 0;
@@ -188,7 +188,7 @@ void clppSort_RadixSort::radixLocal(const size_t* global, const size_t* local, c
 		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, _keySize * 2 * 4 * _workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)
 	else
 		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, (_valueSize+_keySize) * 2 * 4 * _workgroupSize, (const void*)NULL);	// 2 KV array of 128 items (2 for permutations)
-    clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)&data);
+    clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)data);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(int), (const void*)&bitOffset);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(unsigned int), (const void*)&_datasetSize);
 	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_RadixLocalSort, 1, NULL, global, local, 0, NULL, NULL);
@@ -199,13 +199,13 @@ void clppSort_RadixSort::radixLocal(const size_t* global, const size_t* local, c
 #endif
 }
 
-void clppSort_RadixSort::localHistogram(const size_t* global, const size_t* local, cl_mem data, cl_mem radixCount, cl_mem radixOffsets, int bitOffset)
+void clppSort_RadixSort::localHistogram(const size_t* global, const size_t* local, cl_mem* data, cl_mem* radixCount, cl_mem* radixOffsets, int bitOffset)
 {
 	cl_int clStatus;
-	clStatus = clSetKernelArg(_kernel_LocalHistogram, 0, sizeof(cl_mem), (const void*)&data);
+	clStatus = clSetKernelArg(_kernel_LocalHistogram, 0, sizeof(cl_mem), (const void*)data);
 	clStatus |= clSetKernelArg(_kernel_LocalHistogram, 1, sizeof(int), (const void*)&bitOffset);
-	clStatus |= clSetKernelArg(_kernel_LocalHistogram, 2, sizeof(cl_mem), (const void*)&radixCount);
-	clStatus |= clSetKernelArg(_kernel_LocalHistogram, 3, sizeof(cl_mem), (const void*)&radixOffsets);
+	clStatus |= clSetKernelArg(_kernel_LocalHistogram, 2, sizeof(cl_mem), (const void*)radixCount);
+	clStatus |= clSetKernelArg(_kernel_LocalHistogram, 3, sizeof(cl_mem), (const void*)radixOffsets);
 	clStatus |= clSetKernelArg(_kernel_LocalHistogram, 4, sizeof(unsigned int), (const void*)&_datasetSize);
 	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_LocalHistogram, 1, NULL, global, local, 0, NULL, NULL);	
 
@@ -215,13 +215,13 @@ void clppSort_RadixSort::localHistogram(const size_t* global, const size_t* loca
 #endif
 }
 
-void clppSort_RadixSort::radixPermute(const size_t* global, const size_t* local, cl_mem dataIn, cl_mem dataOut, cl_mem histScan, cl_mem blockHists, int bitOffset, unsigned int numBlocks)
+void clppSort_RadixSort::radixPermute(const size_t* global, const size_t* local, cl_mem* dataIn, cl_mem* dataOut, cl_mem* histScan, cl_mem* blockHists, int bitOffset, unsigned int numBlocks)
 {
     cl_int clStatus;
-    clStatus  = clSetKernelArg(_kernel_RadixPermute, 0, sizeof(cl_mem), (const void*)&dataIn);
-    clStatus |= clSetKernelArg(_kernel_RadixPermute, 1, sizeof(cl_mem), (const void*)&dataOut);
-    clStatus |= clSetKernelArg(_kernel_RadixPermute, 2, sizeof(cl_mem), (const void*)&histScan);
-    clStatus |= clSetKernelArg(_kernel_RadixPermute, 3, sizeof(cl_mem), (const void*)&blockHists);
+    clStatus  = clSetKernelArg(_kernel_RadixPermute, 0, sizeof(cl_mem), (const void*)dataIn);
+    clStatus |= clSetKernelArg(_kernel_RadixPermute, 1, sizeof(cl_mem), (const void*)dataOut);
+    clStatus |= clSetKernelArg(_kernel_RadixPermute, 2, sizeof(cl_mem), (const void*)histScan);
+    clStatus |= clSetKernelArg(_kernel_RadixPermute, 3, sizeof(cl_mem), (const void*)blockHists);
     clStatus |= clSetKernelArg(_kernel_RadixPermute, 4, sizeof(int), (const void*)&bitOffset);
     clStatus |= clSetKernelArg(_kernel_RadixPermute, 5, sizeof(unsigned int), (const void*)&_datasetSize);
 	clStatus |= clSetKernelArg(_kernel_RadixPermute, 6, sizeof(unsigned int), (const void*)&numBlocks);

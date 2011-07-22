@@ -224,7 +224,7 @@ void kernel__localHistogram(__global KV_TYPE* data, const int bitOffset, __globa
 	const int4 gid4 = (int4)(get_global_id(0) << 2) + (const int4)(0,1,2,3);
 	const int blockId = (int)get_group_id(0);
 	
-	__local uint localData[WGZ*4];
+	__local uint localData[WGZ_x4];
     __local int localHistStart[16];
     __local int localHistEnd[16];
 	

@@ -37,9 +37,9 @@ private:
 
 	unsigned int _bits;
 
-	void radixLocal(const size_t* global, const size_t* local, cl_mem data, int bitOffset);
-	void localHistogram(const size_t* global, const size_t* local, cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset);
-	void radixPermute(const size_t* global, const size_t* local, cl_mem dataIn, cl_mem dataOut, cl_mem histScan, cl_mem blockHists, int bitOffset, unsigned int numBlocks);
+	void radixLocal(const size_t* global, const size_t* local, cl_mem* data, int bitOffset);
+	void localHistogram(const size_t* global, const size_t* local, cl_mem* data, cl_mem* hist, cl_mem* blockHists, int bitOffset);
+	void radixPermute(const size_t* global, const size_t* local, cl_mem* dataIn, cl_mem* dataOut, cl_mem* histScan, cl_mem* blockHists, int bitOffset, unsigned int numBlocks);
 	void freeUpRadixMems();
 
 	clppScan* _scan;
