@@ -295,9 +295,9 @@ void kernel__UniformAdd(
     if (tid < 1)
         localBuffer[0] = blockSums[blockId + blockOffset];
 #else
-
     if (tid < 1)
         localBuffer[0] = blockSums[blockId];
+#endif
 
     barrier(CLK_LOCAL_MEM_FENCE);
 	

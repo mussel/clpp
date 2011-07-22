@@ -3,7 +3,7 @@
 #define PARAM_BENCHMARK_LOOPS 20
 
 // The number of bits to sort
-#define PARAM_SORT_BITS 32
+#define PARAM_SORT_BITS 28
 
 #include <stdlib.h>
 #include <algorithm>
@@ -363,8 +363,8 @@ void makeOneVector(unsigned int* a, unsigned int numElements)
 //    srand(95123);
 //    for(unsigned int i=0; i < numElements; ++i)   
 //    { 
-//        a[i] = ((rand() & keyshiftmask)<<16) | (rand() & keymask);
-//		a[i] &= 0x7FFFFFFF; // To insure it is a signed value
+//        a[i * mult + 0] = ((rand() & keyshiftmask)<<16) | (rand() & keymask);
+//		a[i * mult + 0] &= 0x7FFFFFFF; // To insure it is a signed value
 //
 //		if (!keysOnly)
 //			a[i * mult + 1] = i;
@@ -383,8 +383,8 @@ void makeRandomInt32Vector(int* a, unsigned int numElements, unsigned int keybit
 	unsigned int max = ( 1 << (keybits-1) ) - 1; // Max 'signed' value	
     for(unsigned int i = 0; i < numElements; i++)
 	{
-		float rnd = ((float)rand() / (float)RAND_MAX);
-		a[i * mult + 0] =  rnd * (max - 1);
+		//float rnd = ((double)rand() / (double)RAND_MAX);
+		a[i * mult + 0] =  ((double)rand() / (double)RAND_MAX) * (max - 1);
 		//a[i * mult + 0] = i;
 		//a[i * mult + 0] = numElements+1-i;
 		//a[i * mult + 0] = possiblesValues[(rand() % 5)];
