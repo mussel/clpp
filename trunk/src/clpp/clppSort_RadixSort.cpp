@@ -24,11 +24,11 @@ clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxEle
 
 	_bits = bits;
 
-	if (!compile(context, clCode_clppSort_RadixSort))
-		return;
-
-	//if (!compile(context, string("clppSort_RadixSort.cl")))
+	//if (!compile(context, clCode_clppSort_RadixSort))
 	//	return;
+
+	if (!compile(context, string("clppSort_RadixSort.cl")))
+		return;
 
 	//---- Prepare all the kernels
 	cl_int clStatus;
@@ -83,9 +83,9 @@ string clppSort_RadixSort::compilePreprocess(string kernel)
 
 	//if (_templateType == Int)
 	{
-		source = _keysOnly ? "#define MAX_KV_TYPE ((int)(0x7FFFFFFF))\n" : "#define MAX_KV_TYPE ((int2)(0x7FFFFFFF,0xFFFFFFFF))\n";
-		//source += "#define K_TYPE int\n";
+		source = _keysOnly ? "#define MAX_KV_TYPE 0x7FFFFFFF\n" : "#define MAX_KV_TYPE ((int2)(0x7FFFFFFF,0xFFFFFFFF))\n";
 		source += _keysOnly ? "#define KV_TYPE int\n" : "#define KV_TYPE int2\n";
+
 		source += "#define K_TYPE_IDENTITY 0\n";
 
 		if (_keysOnly)
@@ -133,7 +133,7 @@ void clppSort_RadixSort::sort()
 		sw.StartTimer();
 #endif
 
-        radixLocal(global, local, dataA, _clBuffer_radixHist1, _clBuffer_radixHist2, bitOffset);
+        radixLocal(global, local, dataA, bitOffset);
 
 #ifdef BENCHMARK
 		sw.StopTimer();
@@ -156,7 +156,7 @@ void clppSort_RadixSort::sort()
 		sw.StartTimer();
 #endif
 
-		_scan->pushDatas(_clBuffer_radixHist1, 16 * numBlocks);
+		_scan->pushCLDatas(_clBuffer_radixHist1, 16 * numBlocks);
 		_scan->scan();
 
 #ifdef BENCHMARK
@@ -179,7 +179,7 @@ void clppSort_RadixSort::sort()
     }
 }
 
-void clppSort_RadixSort::radixLocal(const size_t* global, const size_t* local, cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset)
+void clppSort_RadixSort::radixLocal(const size_t* global, const size_t* local, cl_mem data, int bitOffset)
 {
     cl_int clStatus;
     unsigned int a = 0;
@@ -199,13 +199,13 @@ void clppSort_RadixSort::radixLocal(const size_t* global, const size_t* local, c
 #endif
 }
 
-void clppSort_RadixSort::localHistogram(const size_t* global, const size_t* local, cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset)
+void clppSort_RadixSort::localHistogram(const size_t* global, const size_t* local, cl_mem data, cl_mem radixCount, cl_mem radixOffsets, int bitOffset)
 {
 	cl_int clStatus;
 	clStatus = clSetKernelArg(_kernel_LocalHistogram, 0, sizeof(cl_mem), (const void*)&data);
 	clStatus |= clSetKernelArg(_kernel_LocalHistogram, 1, sizeof(int), (const void*)&bitOffset);
-	clStatus |= clSetKernelArg(_kernel_LocalHistogram, 2, sizeof(cl_mem), (const void*)&hist);
-	clStatus |= clSetKernelArg(_kernel_LocalHistogram, 3, sizeof(cl_mem), (const void*)&blockHists);
+	clStatus |= clSetKernelArg(_kernel_LocalHistogram, 2, sizeof(cl_mem), (const void*)&radixCount);
+	clStatus |= clSetKernelArg(_kernel_LocalHistogram, 3, sizeof(cl_mem), (const void*)&radixOffsets);
 	clStatus |= clSetKernelArg(_kernel_LocalHistogram, 4, sizeof(unsigned int), (const void*)&_datasetSize);
 	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_LocalHistogram, 1, NULL, global, local, 0, NULL, NULL);	
 
@@ -265,7 +265,8 @@ void clppSort_RadixSort::pushDatas(void* dataSet, size_t datasetSize)
 		_clBuffer_radixHist1 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * 16 * numBlocks, NULL, &clStatus);
 		checkCLStatus(clStatus);
 
-		_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * 2 * 16 * numBlocks, NULL, &clStatus);
+		//_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * 2 * 16 * numBlocks, NULL, &clStatus);
+		_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * 16 * numBlocks, NULL, &clStatus);
 		checkCLStatus(clStatus);
 
 		//---- Copy on the device
@@ -327,7 +328,7 @@ void clppSort_RadixSort::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize
 		// row size = numblocks
 		_clBuffer_radixHist1 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * 16 * numBlocks, NULL, &clStatus);
 		checkCLStatus(clStatus);
-		_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * 2 * 16 * numBlocks, NULL, &clStatus);
+		_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * 16 * numBlocks, NULL, &clStatus);
 		checkCLStatus(clStatus);
 	}
 

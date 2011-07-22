@@ -154,7 +154,7 @@ void clppSort_RadixSortGPU::sort()
 		sw.StartTimer();
 #endif
 
-		_scan->pushDatas(_clBuffer_radixHist1, 16 * numBlocks);
+		_scan->pushCLDatas(_clBuffer_radixHist1, 16 * numBlocks);
 		_scan->scan();
 
 #ifdef BENCHMARK

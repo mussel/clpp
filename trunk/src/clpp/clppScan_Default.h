@@ -14,9 +14,10 @@ public:
 	void scan();
 
 	void pushDatas(void* values, size_t datasetSize);
-	void pushDatas(cl_mem clBuffer_values, size_t datasetSize);
+	void pushCLDatas(cl_mem clBuffer_values, size_t datasetSize);
 
 	void popDatas();
+	void popDatas(void* dataSet);
 
 private:
 	cl_kernel _kernel_Scan;

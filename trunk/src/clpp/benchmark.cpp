@@ -22,16 +22,14 @@
 using namespace std;
 
 void makeOneVector(unsigned int* a, unsigned int numElements);
-//void makeRandomUint16Vector(unsigned short *a, unsigned int numElements, unsigned int keybits);
-//void makeRandomUint32Vector_i(unsigned int *a, unsigned int numElements, unsigned int keybits);
-void makeRandomUint32Vector(unsigned int *a, unsigned int numElements, unsigned int keybits, bool keysOnly);
+void makeRandomInt32Vector(int *a, unsigned int numElements, unsigned int keybits, bool keysOnly);
 
 void benchmark_scan(clppContext* context, clppScan* scan, int datasetSize);
-void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSize);
+void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSize, unsigned int bits);
 void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int datasetSize, unsigned int bits);
 
-bool checkIsSorted(unsigned int* tocheck, size_t datasetSize, string algorithmName, bool keysOnly);
-bool checkHasLooseDatasKV(unsigned int* unsorted, unsigned int* sorted, size_t datasetSize, string algorithmName);
+bool checkIsSorted(int* tocheck, size_t datasetSize, string algorithmName, bool keysOnly);
+bool checkHasLooseDatasKV(int* unsorted, unsigned int* sorted, size_t datasetSize, string algorithmName);
 
 void test_Scan(clppContext* context);
 void test_Sort(clppContext* context);
@@ -60,10 +58,10 @@ int main(int argc, const char** argv)
 	context.printInformation();
 
 	// Scan
-	test_Scan(&context);
+	//test_Scan(&context);
 
 	// Sorting : key
-	//test_Sort(&context);
+	test_Sort(&context);
 
 	// Sorting : key + value
 	//test_Sort_KV(&context);
@@ -131,7 +129,7 @@ void test_Sort(clppContext* context)
 		for(unsigned int i = 0; i < datasetSizesCount; i++)
 		{
 			clppSort* clppsort = new clppSort_RadixSort(context, datasetSizes[i], PARAM_SORT_BITS, true);
-			benchmark_sort(*context, clppsort, datasetSizes[i]);
+			benchmark_sort(*context, clppsort, datasetSizes[i], PARAM_SORT_BITS);
 			delete clppsort;
 		}
 	}
@@ -143,7 +141,7 @@ void test_Sort(clppContext* context)
 		for(unsigned int i = 0; i < datasetSizesCount; i++)
 		{
 			clppSort* clppsort = new clppSort_RadixSortGPU(context, datasetSizes[i], PARAM_SORT_BITS, true);
-			benchmark_sort(*context, clppsort, datasetSizes[i]);
+			benchmark_sort(*context, clppsort, datasetSizes[i], PARAM_SORT_BITS);
 			delete clppsort;
 		}
 	}
@@ -192,12 +190,12 @@ void test_Sort_KV(clppContext* context)
 void benchmark_scan(clppContext* context, clppScan* scan, int datasetSize)
 {
 	//---- Create a set of data
-	unsigned int* values = (unsigned int*)malloc(datasetSize * sizeof(int));
-	makeOneVector(values, datasetSize);
-	//makeRandomUint32Vector(values, datasetSize, 32, true);
+	int* values = (int*)malloc(datasetSize * sizeof(int));
+	//makeOneVector(values, datasetSize);
+	makeRandomInt32Vector(values, datasetSize, 8, true);
 
 	//---- Scan : default
-	unsigned int* cpuScanValues = (unsigned int*)malloc(datasetSize * sizeof(int));
+	int* cpuScanValues = (int*)malloc(datasetSize * sizeof(int));
 	memcpy(cpuScanValues, values, datasetSize * sizeof(int));
 	cpuScanValues[0] = 0;
 	for(unsigned int i = 1; i < datasetSize; i++)
@@ -232,28 +230,30 @@ void benchmark_scan(clppContext* context, clppScan* scan, int datasetSize)
 
 #pragma region benchmark_sort
 
-void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSize)
+void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSize, unsigned int bits)
 {
 	//---- Create a new set of random datas
-	unsigned int* keys = (unsigned int*)malloc(datasetSize * sizeof(int));
-	//makeRandomUint32Vector_i(keys, datasetSize, 16);
-	makeRandomUint32Vector(keys, datasetSize, 32, true);  
+	int* keys = (int*)malloc(datasetSize * sizeof(int));
 
-	//---- Push the datas
- 	sort->pushDatas(keys, datasetSize);
-
-	//---- Sort
-	stopWatcher->StartTimer();
-	for(int i = 0; i < PARAM_BENCHMARK_LOOPS; i++)
+	for(unsigned int i = 0; i < PARAM_BENCHMARK_LOOPS; i++)
 	{
+		makeRandomInt32Vector(keys, datasetSize, bits, true);  
+
+		//---- Push the datas
+ 		sort->pushDatas(keys, datasetSize);
+
+		//---- Sort
+		stopWatcher->StartTimer();
+		
 		sort->sort();
 		sort->waitCompletion();	
-	}
-	stopWatcher->StopTimer();
+		
+		stopWatcher->StopTimer();
 
-	//---- Check if it is sorted
-	sort->popDatas();
-	checkIsSorted(keys, datasetSize, sort->getName(), true);
+		//---- Check if it is sorted
+		sort->popDatas();
+		checkIsSorted(keys, datasetSize, sort->getName(), true);
+	}
 
 	float time = stopWatcher->GetElapsedTime() / PARAM_BENCHMARK_LOOPS;
 	float kps = (1000 / time) * datasetSize;
@@ -269,11 +269,11 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
 
 void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int datasetSize, unsigned int bits)
 {
-	unsigned int* unsortedDatas = (unsigned int*)malloc(2 * datasetSize * sizeof(int));
+	int* unsortedDatas = (int*)malloc(2 * datasetSize * sizeof(int));
 
-	for(int i = 0; i < PARAM_BENCHMARK_LOOPS; i++)
+	for(unsigned int i = 0; i < PARAM_BENCHMARK_LOOPS; i++)
 	{
-		makeRandomUint32Vector(unsortedDatas, datasetSize, bits, false);
+		makeRandomInt32Vector(unsortedDatas, datasetSize, bits, false);
 
 		//---- Push the datas
  		sort->pushDatas(unsortedDatas, datasetSize);
@@ -311,7 +311,7 @@ void makeOneVector(unsigned int* a, unsigned int numElements)
         a[i] = 1; 
 }
 //
-//void makeRandomUint16Vector(unsigned short *a, unsigned int numElements, unsigned int keybits)
+//void makeRandomInt16Vector(unsigned short *a, unsigned int numElements, unsigned int keybits)
 //{
 //    // Fill up with some random data
 //    int keyshiftmask = 0;
@@ -324,13 +324,13 @@ void makeOneVector(unsigned int* a, unsigned int numElements)
 //        a[i] = ((rand() & keyshiftmask)<<16); 
 //}
 //
-//void makeRandomUint32Vector_i(unsigned int* a, unsigned int numElements, unsigned int keybits)
+//void makeRandomInt32Vector_i(unsigned int* a, unsigned int numElements, unsigned int keybits)
 //{
 //    for(unsigned int i = 0; i < numElements; ++i)   
 //        a[i] = numElements - i; 
 //}
 
-//void makeRandomUint32Vector(unsigned int* a, unsigned int numElements, unsigned int keybits)
+//void makeRandomInt32Vector(unsigned int* a, unsigned int numElements, unsigned int keybits)
 //{
 //    // Fill up with some random data
 //    //int keyshiftmask = 0;
@@ -349,22 +349,51 @@ void makeOneVector(unsigned int* a, unsigned int numElements)
 //    }
 //}
 
-void makeRandomUint32Vector(unsigned int* a, unsigned int numElements, unsigned int keybits, bool keysOnly)
+// NVidia version
+//void makeRandomInt32Vector(int *a, unsigned int numElements, unsigned int keybits, bool keysOnly)
+//{
+//	int mult = keysOnly ? 1 : 2;
+//
+//    // Fill up with some random data
+//    int keyshiftmask = 0;
+//    if (keybits > 16) keyshiftmask = (1 << (keybits - 16)) - 1;
+//    int keymask = 0xffff;
+//    if (keybits < 16) keymask = (1 << keybits) - 1;
+//
+//    srand(95123);
+//    for(unsigned int i=0; i < numElements; ++i)   
+//    { 
+//        a[i] = ((rand() & keyshiftmask)<<16) | (rand() & keymask);
+//		a[i] &= 0x7FFFFFFF; // To insure it is a signed value
+//
+//		if (!keysOnly)
+//			a[i * mult + 1] = i;
+//    }
+//}
+
+void makeRandomInt32Vector(int* a, unsigned int numElements, unsigned int keybits, bool keysOnly)
 {
 	int mult = keysOnly ? 1 : 2;
 
-	int possiblesValues[] = {1, 2, 4, 8, 16};
+	//int possiblesValues[] = {1, 2, 4, 8, 16};
 
-	keybits--; // signed int support
+	//keybits -= 4;
 
-    //srand(95123);
-	unsigned int max = ( 1 << keybits ) - 1; // Max 'signed' value
+	srand(0);
+	unsigned int max = ( 1 << (keybits-1) ) - 1; // Max 'signed' value	
     for(unsigned int i = 0; i < numElements; i++)
 	{
-		a[i * mult + 0] = ((float)rand() / (float)RAND_MAX) * max;
+		float rnd = ((float)rand() / (float)RAND_MAX);
+		a[i * mult + 0] =  rnd * (max - 1);
 		//a[i * mult + 0] = i;
 		//a[i * mult + 0] = numElements+1-i;
 		//a[i * mult + 0] = possiblesValues[(rand() % 5)];
+
+		a[i * mult + 0] &= 0x7FFFFFFF; // To insure it is a signed value
+
+		if (a[i * mult + 0] >= max)
+			cout << "Error, max int = " << max << endl;
+
 		if (!keysOnly)
 			a[i * mult + 1] = i;
     }
@@ -374,10 +403,10 @@ void makeRandomUint32Vector(unsigned int* a, unsigned int numElements, unsigned 
 
 #pragma region checkIsSorted
 
-bool checkIsSorted(unsigned int* tocheck, size_t datasetSize, string algorithmName, bool keysOnly)
+bool checkIsSorted(int* tocheck, size_t datasetSize, string algorithmName, bool keysOnly)
 {
 	int mult = keysOnly ? 1 : 2;
-	unsigned int previous = 0;
+	int previous = 0;
 	for(size_t i = 0; i < datasetSize; i++)
 	{
 		if (previous > tocheck[i*mult])
@@ -391,17 +420,17 @@ bool checkIsSorted(unsigned int* tocheck, size_t datasetSize, string algorithmNa
 	return true;
 }
 
-bool checkHasLooseDatasKV(unsigned int* unsorted, unsigned int* sorted, size_t datasetSize, string algorithmName)
+bool checkHasLooseDatasKV(int* unsorted, unsigned int* sorted, size_t datasetSize, string algorithmName)
 {
 	for(size_t i = 0; i < datasetSize; i++)
 	{
-		unsigned int key = unsorted[i * 2];
-		unsigned int value = unsorted[i * 2 + 1];
+		int key = unsorted[i * 2];
+		int value = unsorted[i * 2 + 1];
 		bool hasFound = false;
 		for(size_t j = 0; j < datasetSize; j++)
 		{
-			unsigned int sortedKey = sorted[j * 2];
-			unsigned int sortedValue = sorted[j * 2 + 1];			
+			int sortedKey = sorted[j * 2];
+			int sortedValue = sorted[j * 2 + 1];			
 
 			hasFound = (key == sortedKey && value == sortedValue);
 			if (hasFound)	

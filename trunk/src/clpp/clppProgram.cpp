@@ -191,4 +191,7 @@ void clppProgram::checkCLStatus(cl_int clStatus)
 void clppProgram::waitCompletion()
 {
 	clFinish(_context->clQueue);
+
+	//cl_int clStatus = clFinish(_context->clQueue);
+	//checkCLStatus(clStatus);
 }

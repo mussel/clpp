@@ -150,7 +150,7 @@ void clppScan_GPU::pushDatas(void* values, size_t datasetSize)
 		clEnqueueWriteBuffer(_context->clQueue, _clBuffer_values, CL_FALSE, 0, _valueSize * _datasetSize, _values, 0, 0, 0);
 }
 
-void clppScan_GPU::pushDatas(cl_mem clBuffer_values, size_t datasetSize)
+void clppScan_GPU::pushCLDatas(cl_mem clBuffer_values, size_t datasetSize)
 {
 	_values = 0;
 
@@ -167,6 +167,12 @@ void clppScan_GPU::pushDatas(cl_mem clBuffer_values, size_t datasetSize)
 void clppScan_GPU::popDatas()
 {
 	cl_int clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_values, CL_TRUE, 0, _valueSize * _datasetSize, _values, 0, NULL, NULL);
+	checkCLStatus(clStatus);
+}
+
+void clppScan_GPU::popDatas(void* dataSet)
+{
+	cl_int clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_values, CL_TRUE, 0, _valueSize * _datasetSize, dataSet, 0, NULL, NULL);
 	checkCLStatus(clStatus);
 }
 

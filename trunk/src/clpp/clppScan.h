@@ -30,10 +30,11 @@ public:
 	virtual void pushDatas(void* values, size_t datasetSize) = 0;
 
 	// Push a buffer that is already on the device side. (Data are not sended)
-	virtual void pushDatas(cl_mem clBuffer_values, size_t datasetSize) = 0;
+	virtual void pushCLDatas(cl_mem clBuffer_values, size_t datasetSize) = 0;
 
 	// Retreive the datas (To the same zone as the source).
 	virtual void popDatas() = 0;
+	virtual void popDatas(void* dataSet) = 0;
 
 protected:
 	size_t _datasetSize;	// The number of values to scan
