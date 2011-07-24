@@ -28,6 +28,8 @@ private:
 #if defined(__linux__) || defined(__APPLE__)
 	double start;
 	double end;
+	time_t tStart;
+	time_t tEnd;
 
 	double ClockTime()
 	{
