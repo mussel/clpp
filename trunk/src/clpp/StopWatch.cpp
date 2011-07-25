@@ -44,17 +44,46 @@ StopWatch::StopWatch()
 
 void StopWatch::StartTimer( )
 {
-	start = ClockTime();
+
+#ifdef __MACH__
+ timestart = mach_absolute_time();
+#else
+  gettimeofday(&start,NULL);
+#endif
+
 }
  
 void StopWatch::StopTimer()
 {
-	end = ClockTime();
+
+#ifdef __MACH__
+  timestop = mach_absolute_time();
+#else
+  gettimeofday(&end, NULL);
+#endif
+
+
 }
 
 double StopWatch::GetElapsedTime()
 {
-	return (end - start);
+
+#ifdef __MACH__
+	mach_timebase_info_data_t info;
+	mach_timebase_info(&info);
+
+     uint64_t duration = timestop-timestart	;
+
+     duration *= info.numer;
+     duration /= info.denom;
+
+     return (double) duration * 0.000001 ;
+
+#else
+	double elapsed = (end.tv_sec -start.tv_sec)*1000.0;
+	elapsed += (end.tv_usec - start.tv_usec)/1000.0;
+	return elapsed;
+#endif
 }
 
 #endif

@@ -1,6 +1,7 @@
 #ifndef __CLPP_STOPWATCH_H__
 #define __CLPP_STOPWATCH_H__
 
+
 #ifdef WIN32
 #include <windows.h>
  
@@ -12,9 +13,22 @@ typedef struct
 
 #endif
 
+
 #if defined(__linux__) || defined(__APPLE__)
+
+#include <time.h>
 #include <sys/time.h>
+
 #endif
+
+#ifdef __APPLE__
+#include <stdint.h>
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
+
+
+
  
 class StopWatch
 {
@@ -26,19 +40,20 @@ private:
 #endif
 
 #if defined(__linux__) || defined(__APPLE__)
-	double start;
-	double end;
-	time_t tStart;
-	time_t tEnd;
 
-	double ClockTime()
-	{
-		struct timeval t;
-		gettimeofday(&t, 0);
+   timeval start;
+   timeval end;
 
-		return t.tv_sec + t.tv_usec / 1000.0;
-	}
+#ifdef __APPLE__
+   uint64_t  timestart;
+   uint64_t  timestop;
 #endif
+
+
+#endif
+
+
+
 
 public:
 	StopWatch();
