@@ -23,8 +23,7 @@ typedef struct
 
 #ifdef __APPLE__
 #include <stdint.h>
-#include <mach/clock.h>
-#include <mach/mach.h>
+#include <mach/mach_time.h>
 #endif
 
 
