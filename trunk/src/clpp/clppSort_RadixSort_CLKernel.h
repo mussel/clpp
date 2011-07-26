@@ -164,7 +164,7 @@ char clCode_clppSort_RadixSort[]=
 "	const int4 gid4 = (int4)(get_global_id(0) << 2) + (const int4)(0,1,2,3);\n"
 "	const int blockId = (int)get_group_id(0);\n"
 "	\n"
-"	__local uint localData[WGZ*4];\n"
+"	__local uint localData[WGZ_x4];\n"
 "__local int localHistStart[16];\n"
 "__local int localHistEnd[16];\n"
 "	\n"

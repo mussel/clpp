@@ -3,7 +3,7 @@
 #define PARAM_BENCHMARK_LOOPS 20
 
 // The number of bits to sort
-#define PARAM_SORT_BITS 32
+#define PARAM_SORT_BITS 28
 
 #include <stdlib.h>
 #include <algorithm>
@@ -58,10 +58,10 @@ int main(int argc, const char** argv)
 	context.printInformation();
 
 	// Scan
-	//test_Scan(&context);
+	test_Scan(&context);
 
 	// Sorting : key
-	test_Sort(&context);
+	//test_Sort(&context);
 
 	// Sorting : key + value
 	//test_Sort_KV(&context);

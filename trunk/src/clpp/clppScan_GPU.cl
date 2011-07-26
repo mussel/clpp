@@ -119,8 +119,25 @@ void kernel__scan_block_anylength(
 		const uint offset = i * TC + (bidx * B);
 		const uint offsetIdx = offset + idx;
 		
+#ifdef OCL_PLATFORM_AMD
+		if (offsetIdx > size-1)
+		{
+			// To avoid to lock !
+			barrier(CLK_LOCAL_MEM_FENCE);
+			barrier(CLK_LOCAL_MEM_FENCE);
+			barrier(CLK_LOCAL_MEM_FENCE);
+			
+			barrier(CLK_LOCAL_MEM_FENCE);
+			barrier(CLK_LOCAL_MEM_FENCE);
+			barrier(CLK_LOCAL_MEM_FENCE);
+			barrier(CLK_LOCAL_MEM_FENCE);
+			barrier(CLK_LOCAL_MEM_FENCE);
+			continue;
+		}
+#else
 		if (offsetIdx > size-1) return;
-		
+#endif
+
 		// Step 1: Read TC elements from global (off-chip) memory to local memory (on-chip)
 		T input = localBuf[idx] = dataSet[offsetIdx];		
 		
