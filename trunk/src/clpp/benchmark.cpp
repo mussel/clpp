@@ -373,6 +373,25 @@ void makeOneVector(unsigned int* a, unsigned int numElements)
 //    }
 //}
 
+template <class T>
+void makeShuffleVector(T* a, size_t numElements, unsigned int keybits, bool keysOnly){
+
+	int mult = keysOnly ? 1:2;
+
+	T swap;
+
+	srand(0);
+	for(size_t i=0;i< mult*numElements; i++){
+		a[i]=i;
+	}
+	for(size_t i=0;i< mult*numElements; i++){
+			swap = a[i];
+			j= rand()% (mult*numElements-i);
+			a[i]=a[j];
+			a[j]=swap;
+		}
+}
+
 void makeRandomInt32Vector(int* a, unsigned int numElements, unsigned int keybits, bool keysOnly)
 {
 	int mult = keysOnly ? 1 : 2;
