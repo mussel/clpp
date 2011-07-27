@@ -385,12 +385,13 @@ void makeShuffleVector(T* a, size_t numElements, unsigned int keybits, bool keys
 		a[i]=i;
 	}
 	for(size_t i=0;i< mult*numElements; i++){
+
 			swap = a[i];
-			j= rand()% (mult*numElements-i);
+			size_t j= rand()% (mult*numElements-i);
 			a[i]=a[j];
 			a[j]=swap;
 		}
-}
+};
 
 void makeRandomInt32Vector(int* a, unsigned int numElements, unsigned int keybits, bool keysOnly)
 {
