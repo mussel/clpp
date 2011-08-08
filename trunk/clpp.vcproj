@@ -345,6 +345,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\clpp\clppCount.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\clpp\clppProgram.cpp"
 				>
 			</File>
@@ -392,6 +396,10 @@
 			</File>
 			<File
 				RelativePath=".\src\clpp\clppContext.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\clpp\clppCount.h"
 				>
 			</File>
 			<File

@@ -17,6 +17,8 @@
 #include "clpp/clppSort_RadixSort.h"
 #include "clpp/clppSort_RadixSortGPU.h"
 
+#include "clpp/clppCount.h"
+
 #include <string.h>
 
 using namespace std;
@@ -34,6 +36,7 @@ bool checkHasLooseDatasKV(int* unsorted, int* sorted, size_t datasetSize, string
 void test_Scan(clppContext* context);
 void test_Sort(clppContext* context);
 void test_Sort_KV(clppContext* context);
+void test_Count(clppContext* context);
 
 //unsigned int datasetSizes[8] = {262144, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
 //unsigned int datasetSizes[8] = {16000, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
@@ -54,17 +57,20 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(1, 0);
+	context.setup(0, 0);
 	context.printInformation();
 
 	// Scan
-	test_Scan(&context);
+	//test_Scan(&context);
 
 	// Sorting : key
 	//test_Sort(&context);
 
 	// Sorting : key + value
 	//test_Sort_KV(&context);
+
+	// Count
+	test_Count(&context);
 }
 
 #pragma region test_Scan
@@ -184,6 +190,26 @@ void test_Sort_KV(clppContext* context)
 }
 
 #pragma endregion
+
+void test_Count(clppContext* context)
+{
+	int datasetSize = 100000;
+
+	clppCount* counter = new clppCount(context, sizeof(int), 4, datasetSize);
+
+	//---- Prepare the datas-set
+	int* values = (int*)malloc(datasetSize * sizeof(int));
+	int possiblesValues[] = {1, 2, 4, 8, 16};
+	for(int i = 0; i < datasetSize; i++)
+	{
+		values[i] = possiblesValues[(rand() % 5)];
+	}
+
+	counter->pushDatas(values, datasetSize);
+	counter->count();
+
+	//---- Check the results
+}
 
 #pragma region benchmark_scan
 
