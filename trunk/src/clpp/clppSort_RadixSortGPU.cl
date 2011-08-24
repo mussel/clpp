@@ -245,9 +245,9 @@ void kernel__radixLocalSort(
 __kernel
 void kernel__localHistogram(__global KV_TYPE* data, const int bitOffset, __global int* radixCount, __global int* radixOffsets, const int N)
 {
-    const int tid = (int)get_local_id(0);
-    const int4 tid4 = (int4)(tid << 2) + (const int4)(0,1,2,3);
-	const int4 gid4 = (int4)(get_global_id(0) << 2) + (const int4)(0,1,2,3);
+    const uint tid = (uint)get_local_id(0);
+    const uint4 tid4 = (uint4)(tid << 2) + (const uint4)(0,1,2,3);
+	const uint4 gid4 = (uint4)(get_global_id(0) << 2) + (const uint4)(0,1,2,3);
 	const int blockId = (int)get_group_id(0);
 	
 	__local uint localData[WGZ*4];

@@ -25,11 +25,11 @@ clppSort_RadixSortGPU::clppSort_RadixSortGPU(clppContext* context, unsigned int 
 
 	_bits = bits;
 
-	//if (!compile(context, string("clppSort_RadixSortGPU.cl")))
-	//	return;
-
-	if (!compile(context, clCode_clppSort_RadixSortGPU))
+	if (!compile(context, string("clppSort_RadixSortGPU.cl")))
 		return;
+
+	//if (!compile(context, clCode_clppSort_RadixSortGPU))
+	//	return;
 
 	//---- Prepare all the kernels
 	cl_int clStatus;
@@ -85,17 +85,17 @@ string clppSort_RadixSortGPU::compilePreprocess(string kernel)
 
 	//if (_templateType == Int)
 	//{
-		source = _keysOnly ? "#define MAX_KV_TYPE (int)(0x7FFFFFFF)\n" : "#define MAX_KV_TYPE (int2)(0x7FFFFFFF,0xFFFFFFFF)\n";
-		source += "#define K_TYPE int\n";
-		source += _keysOnly ? "#define KV_TYPE int\n" : "#define KV_TYPE int2\n";
-		source += "#define K_TYPE_IDENTITY 0\n";
+		//source = _keysOnly ? "#define MAX_KV_TYPE (int)(0x7FFFFFFF)\n" : "#define MAX_KV_TYPE (int2)(0x7FFFFFFF,0xFFFFFFFF)\n";
+		//source += "#define K_TYPE int\n";
+		//source += _keysOnly ? "#define KV_TYPE int\n" : "#define KV_TYPE int2\n";
+		//source += "#define K_TYPE_IDENTITY 0\n";
 	//}
 	//else if (_templateType == UInt)
 	//{
-	//	source = "#define MAX_KV_TYPE (uint2)0xFFFFFFFF\n";
-	//	source += "#define K_TYPE uint\n";
-	//	source += "#define KV_TYPE uint2\n";
-	//	source += "#define K_TYPE_IDENTITY 0\n";
+		source = _keysOnly ? "#define MAX_KV_TYPE (uint)(0xFFFFFFFF)\n" : "#define MAX_KV_TYPE (uint2)(0xFFFFFFFF,0xFFFFFFFF)\n";
+		source += "#define K_TYPE uint\n";
+		source += _keysOnly ? "#define KV_TYPE uint\n" : "#define KV_TYPE uint2\n";
+		source += "#define K_TYPE_IDENTITY 0\n";
 	//}
 
 	if (_keysOnly)
