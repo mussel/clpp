@@ -1,4 +1,5 @@
 //#define BENCHMARK
+//#define TEST_STEPS
 #include "clpp/clppSort_RadixSortGPU.h"
 #include "clpp/clpp.h"
 
@@ -23,6 +24,9 @@ clppSort_RadixSortGPU::clppSort_RadixSortGPU(clppContext* context, unsigned int 
 	_clBuffer_dataSetOut = 0;
 
 	_bits = bits;
+
+	//if (!compile(context, string("clppSort_RadixSortGPU.cl")))
+	//	return;
 
 	if (!compile(context, clCode_clppSort_RadixSortGPU))
 		return;
@@ -80,22 +84,22 @@ string clppSort_RadixSortGPU::compilePreprocess(string kernel)
 	string source;
 
 	//if (_templateType == Int)
-	{
+	//{
 		source = _keysOnly ? "#define MAX_KV_TYPE (int)(0x7FFFFFFF)\n" : "#define MAX_KV_TYPE (int2)(0x7FFFFFFF,0xFFFFFFFF)\n";
 		source += "#define K_TYPE int\n";
 		source += _keysOnly ? "#define KV_TYPE int\n" : "#define KV_TYPE int2\n";
 		source += "#define K_TYPE_IDENTITY 0\n";
+	//}
+	//else if (_templateType == UInt)
+	//{
+	//	source = "#define MAX_KV_TYPE (uint2)0xFFFFFFFF\n";
+	//	source += "#define K_TYPE uint\n";
+	//	source += "#define KV_TYPE uint2\n";
+	//	source += "#define K_TYPE_IDENTITY 0\n";
+	//}
 
-		if (_keysOnly)
-			source += "#define KEYS_ONLY 1\n";
-	}
-	/*else if (_templateType == UInt)
-	{
-		source = "#define MAX_KV_TYPE (int2)0xFFFFFFFF\n";
-		source += "#define K_TYPE uint\n";
-		source += "#define KV_TYPE uint2\n";
-		source += "#define K_TYPE_IDENTITY 0\n";
-	}*/
+	if (_keysOnly)
+		source += "#define KEYS_ONLY 1\n";
 
 	return clppSort::compilePreprocess(source + kernel);
 }
@@ -172,9 +176,33 @@ void clppSort_RadixSortGPU::sort()
 		sw.StopTimer();
 		cout << "Global reorder   " << sw.GetElapsedTime() << endl;
 #endif
+		//break;
 
         std::swap(dataA, dataB);
     }
+
+#ifdef TEST_STEPS
+
+	//---- Test the local sort
+	int mult = _keysOnly ? 1 : 2;
+
+	// Verify that it is locally sorted
+	clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSet, CL_TRUE, 0, sizeof(int) * mult * _datasetSize, _dataSet, 0, NULL, NULL);
+	
+	int previous = 0;
+	for(size_t i = 0; i < _datasetSize; i++)
+	{
+		int extracted = ((int*)_dataSet)[i*mult];
+		if (previous > extracted)
+		{
+			cout << "Radix sort GPU FAILED - local sort " << endl;
+			return;
+		}
+		previous = extracted;
+
+		if (i%32 == 0) previous = 0;
+	}
+#endif
 }
 
 void clppSort_RadixSortGPU::radixLocal(const size_t* global, const size_t* local, cl_mem data, cl_mem hist, cl_mem blockHists, int bitOffset)
@@ -192,14 +220,14 @@ void clppSort_RadixSortGPU::radixLocal(const size_t* global, const size_t* local
 		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, _keySize * 2 * 4 * workgroupSize, (const void*)NULL);
 	else
 		clStatus  = clSetKernelArg(_kernel_RadixLocalSort, a++, (_valueSize+_keySize) * 2 * 4 * workgroupSize, (const void*)NULL);// 2 KV array of 128 items (2 for permutations)*/
-    clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)&data);
+    clStatus = clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(cl_mem), (const void*)&data);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(int), (const void*)&bitOffset);
     clStatus |= clSetKernelArg(_kernel_RadixLocalSort, a++, sizeof(unsigned int), (const void*)&_datasetSize);
 	clStatus |= clEnqueueNDRangeKernel(_context->clQueue, _kernel_RadixLocalSort, 1, NULL, global_128, local_128, 0, NULL, NULL);
 
 #ifdef BENCHMARK
     clStatus |= clFinish(_context->clQueue);
-    checkCLStatus(clStatus);
+    checkCLStatus(clStatus);	
 #endif
 }
 
@@ -293,8 +321,13 @@ void clppSort_RadixSortGPU::pushDatas(void* dataSet, size_t datasetSize)
 		_is_clBuffersOwner = true;
 	}
 	else
+	{
 		// Just resend
-		clEnqueueWriteBuffer(_context->clQueue, _clBuffer_dataSet, CL_FALSE, 0, (_valueSize+_keySize) * _datasetSize, _dataSet, 0, 0, 0);
+		if (_keysOnly)
+			clEnqueueWriteBuffer(_context->clQueue, _clBuffer_dataSet, CL_FALSE, 0, _keySize * _datasetSize, _dataSet, 0, 0, 0);
+		else
+			clEnqueueWriteBuffer(_context->clQueue, _clBuffer_dataSet, CL_FALSE, 0, (_valueSize+_keySize) * _datasetSize, _dataSet, 0, 0, 0);
+	}
 }
 
 void clppSort_RadixSortGPU::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize)
@@ -326,7 +359,10 @@ void clppSort_RadixSortGPU::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetS
 		// row size = numblocks
 		_clBuffer_radixHist1 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, sizeof(int) * 16 * numBlocks, NULL, &clStatus);
 		checkCLStatus(clStatus);
-		_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize + _keySize) * 16 * numBlocks, NULL, &clStatus);
+		if (_keysOnly)
+			_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * 16 * numBlocks, NULL, &clStatus);
+		else
+			_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize + _keySize) * 16 * numBlocks, NULL, &clStatus);
 		checkCLStatus(clStatus);
 	}
 

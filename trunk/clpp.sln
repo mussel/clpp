@@ -1,9 +1,9 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual Studio 2010
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "clpp", "clpp.vcxproj", "{7E8F5E8C-716F-4B3B-9CE2-1A48B6A2DF7D}"
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "clpp", "clpp.vcproj", "{7E8F5E8C-716F-4B3B-9CE2-1A48B6A2DF7D}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "eResources", "src\eResources\eResources.vcxproj", "{14F5DBF9-C6F4-4B3C-80A1-3FB4C62C503C}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "eResources", "src\eResources\eResources.vcproj", "{14F5DBF9-C6F4-4B3C-80A1-3FB4C62C503C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

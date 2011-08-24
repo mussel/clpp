@@ -29,7 +29,7 @@
 #define WGZ_x4_1 (WGZ_x4-1)
 #define WGZ_x4_2 (WGZ_x4-2)
 
-#if KEYS_ONLY
+#ifdef KEYS_ONLY
 #define KEY(DATA) (DATA)
 #else
 #define KEY(DATA) (DATA.x)
@@ -149,7 +149,7 @@ void kernel__radixLocalSort(
 	// Local memory
 	__local KV_TYPE localDataArray[TPG*4*2]; // Faster than using it as a parameter !!!
 	__local KV_TYPE* localData = localDataArray;
-	__local KV_TYPE* localTemp = localData + TPG;
+	__local KV_TYPE* localTemp = localData + TPG * 4;
     __local uint bitsOnCount[1];
 	__local uint localBuffer[TPG*2];
 
@@ -160,7 +160,7 @@ void kernel__radixLocalSort(
     localData[tid4.w] = (gid4.w < N) ? data[gid4.w] : MAX_KV_TYPE;
 	
 	//-------- 1) 4 x local 1-bit split	
-	#pragma unroll
+	//#pragma unroll
     for(uint shift = bitOffset; shift < (bitOffset+4); shift++) // Radix 4
     {
 		//barrier(CLK_LOCAL_MEM_FENCE);
@@ -187,6 +187,30 @@ void kernel__radixLocalSort(
 		localTemp[offset.y] = localData[tid4.y];
 		localTemp[offset.z] = localData[tid4.z];
 		localTemp[offset.w] = localData[tid4.w];
+		
+		// localData[offset.x] = offset.x;
+		// localData[offset.y] = offset.y;
+		// localData[offset.z] = offset.z;
+		// localData[offset.w] = offset.w;
+		
+		// localData[tid4.x] = offset.x;
+		// localData[tid4.y] = offset.y;
+		// localData[tid4.z] = offset.z;
+		// localData[tid4.w] = offset.w;
+		
+		// localData[tid4.x] = localBitsScan.x;
+		// localData[tid4.y] = localBitsScan.y;
+		// localData[tid4.z] = localBitsScan.z;
+		// localData[tid4.w] = localBitsScan.w;
+			
+		// localData[tid4.x] = flags.x;
+		// localData[tid4.y] = flags.y;
+		// localData[tid4.z] = flags.z;
+		// localData[tid4.w] = flags.w;
+		
+		//localTemp[offset.x]=localTemp[offset.y]=localTemp[offset.z]=localTemp[offset.w] = bitsOnCount[0];
+		//localData = localTemp;
+		//break;
 		
 		// Wait before swapping the 'local' buffer pointers. They are shared by the whole local context
 		barrier(CLK_LOCAL_MEM_FENCE);
@@ -303,7 +327,7 @@ void kernel__localHistogram(__global KV_TYPE* data, const int bitOffset, __globa
 __kernel
 void kernel__radixPermute(
 	__global const KV_TYPE* dataIn,		// size 4*4 int2s per block
-	__global KV_TYPE* dataOut,				// size 4*4 int2s per block
+	__global KV_TYPE* dataOut,			// size 4*4 int2s per block
 	__global const int* histSum,		// size 16 per block (64 B)
 	__global const int* blockHists,		// size 16 int2s per block (64 B)
 	const int bitOffset,				// k*4, k=0..7

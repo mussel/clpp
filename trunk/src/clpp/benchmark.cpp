@@ -3,7 +3,7 @@
 #define PARAM_BENCHMARK_LOOPS 20
 
 // The number of bits to sort
-#define PARAM_SORT_BITS 28
+#define PARAM_SORT_BITS 32
 
 #include <stdlib.h>
 #include <algorithm>
@@ -30,7 +30,7 @@ void benchmark_scan(clppContext* context, clppScan* scan, int datasetSize);
 void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSize, unsigned int bits);
 void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int datasetSize, unsigned int bits);
 
-bool checkIsSorted(int* tocheck, size_t datasetSize, string algorithmName, bool keysOnly);
+bool checkIsSorted(int* tocheck, size_t datasetSize, string algorithmName, bool keysOnly, int sortId);
 bool checkHasLooseDatasKV(int* unsorted, int* sorted, size_t datasetSize, string algorithmName);
 
 void test_Scan(clppContext* context);
@@ -47,7 +47,7 @@ unsigned int datasetSizes[10] = {100000, 200000, 300000, 400000, 500000, 600000,
 // Big problems
 //unsigned int datasetSizes[10] = {16000000, 32000000, 48000000, 64000000, 80000000, 96000000, 112000000, 128000000, 144000000, 160000000};
 
-unsigned int datasetSizesCount = 2;
+unsigned int datasetSizesCount = 10;
 
 StopWatch* stopWatcher = new StopWatch();
 
@@ -57,20 +57,20 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(0, 0);
+	context.setup(2, 0);
 	context.printInformation();
 
 	// Scan
 	//test_Scan(&context);
 
 	// Sorting : key
-	//test_Sort(&context);
+	test_Sort(&context);
 
 	// Sorting : key + value
 	//test_Sort_KV(&context);
 
 	// Count
-	test_Count(&context);
+	//test_Count(&context);
 }
 
 #pragma region test_Scan
@@ -112,21 +112,13 @@ void test_Scan(clppContext* context)
 void test_Sort(clppContext* context)
 {
 	//---- Brute force
-	cout << "--------------- Brute force sort" << endl;
+	/*cout << "--------------- Brute force sort" << endl;
 	for(unsigned int i = 0; i < datasetSizesCount; i++)
 	{
 		clppSort* clppsort = new clppSort_CPU(context);
 		benchmark_sort(*context, clppsort, datasetSizes[i], PARAM_SORT_BITS);
 		delete clppsort;
-	}
-
-	//---- Blelloch
-	//cout << "--------------- Blelloch sort" << endl;
-	//for(unsigned int i = 0; i < datasetSizesCount; i++)
-	//{
-	//	clppSort* clppsort = new clppSort_Blelloch(context, datasetSizes[i]);
-	//	benchmark_sort(*context, clppsort, datasetSizes[i]);	
-	//}
+	}*/
 
 	//---- Radix-sort : generic version
 	if (context->isCPU)
@@ -191,6 +183,8 @@ void test_Sort_KV(clppContext* context)
 
 #pragma endregion
 
+#pragma region test_Count
+
 void test_Count(clppContext* context)
 {
 	int datasetSize = 100000;
@@ -210,6 +204,8 @@ void test_Count(clppContext* context)
 
 	//---- Check the results
 }
+
+#pragma endregion
 
 #pragma region benchmark_scan
 
@@ -278,7 +274,7 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
 
 		//---- Check if it is sorted
 		sort->popDatas();
-		checkIsSorted(keys, datasetSize, sort->getName(), true);
+		checkIsSorted(keys, datasetSize, sort->getName(), true, i);
 	}
 
 	float time = stopWatcher->GetElapsedTime() / PARAM_BENCHMARK_LOOPS;
@@ -319,7 +315,7 @@ void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int dataset
 
 		//---- Check if it is sorted
 		sort->popDatas();
-		checkIsSorted(unsortedDatas, datasetSize, sort->getName(), false);
+		checkIsSorted(unsortedDatas, datasetSize, sort->getName(), false, i);
 #if PARAM_CHECK_HASLOOSEDVALUES
 		checkHasLooseDatasKV(unsortedDatasCopy, unsortedDatas, datasetSize, sort->getName());
 #endif
@@ -423,12 +419,14 @@ void makeRandomInt32Vector(int* a, unsigned int numElements, unsigned int keybit
 {
 	int mult = keysOnly ? 1 : 2;
 
-	//int possiblesValues[] = {1, 2, 4, 8, 16};
+	int possiblesValues[] = {1, 2, 4, 8, 16};
 
 	//keybits -= 4;
 
 	srand(0);
 	unsigned int max = ( 1 << (keybits-1) ) - 1; // Max 'signed' value	
+
+	max = ( 1 << (24) ) - 1;
     for(unsigned int i = 0; i < numElements; i++)
 	{
 		//float rnd = ((double)rand() / (double)RAND_MAX);
@@ -436,8 +434,9 @@ void makeRandomInt32Vector(int* a, unsigned int numElements, unsigned int keybit
 		//a[i * mult + 0] = i;
 		//a[i * mult + 0] = numElements+1-i;
 		//a[i * mult + 0] = possiblesValues[(rand() % 5)];
+		//a[i * mult + 0] = 512-i%512; // to test local sort
 
-		a[i * mult + 0] &= 0x7FFFFFFF; // To insure it is a signed value
+		//a[i * mult + 0] &= 0x7FFFFFFF; // To insure it is a signed value
 
 		if (a[i * mult + 0] >= max)
 			cout << "Error, max int = " << max << endl;
@@ -451,7 +450,7 @@ void makeRandomInt32Vector(int* a, unsigned int numElements, unsigned int keybit
 
 #pragma region checkIsSorted
 
-bool checkIsSorted(int* tocheck, size_t datasetSize, string algorithmName, bool keysOnly)
+bool checkIsSorted(int* tocheck, size_t datasetSize, string algorithmName, bool keysOnly, int sortId)
 {
 	int mult = keysOnly ? 1 : 2;
 	int previous = 0;
@@ -459,11 +458,13 @@ bool checkIsSorted(int* tocheck, size_t datasetSize, string algorithmName, bool 
 	{
 		if (previous > tocheck[i*mult])
 		{
-			cout << "Algorithm FAILED : " << algorithmName << endl;
+			cout << "Algorithm FAILED : LoopId[" << sortId << "] " << algorithmName << endl;
 			return false;
 		}
 		previous = tocheck[i*mult];
 	}
+
+	//cout << "SUCCESS : " << algorithmName << endl;
 
 	return true;
 }
