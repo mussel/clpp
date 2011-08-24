@@ -1,5 +1,5 @@
 //#define BENCHMARK
-//#define TEST_STEPS
+#define TEST_STEPS
 #include "clpp/clppSort_RadixSortGPU.h"
 #include "clpp/clpp.h"
 
@@ -176,32 +176,35 @@ void clppSort_RadixSortGPU::sort()
 		sw.StopTimer();
 		cout << "Global reorder   " << sw.GetElapsedTime() << endl;
 #endif
-		//break;
 
         std::swap(dataA, dataB);
     }
 
+	//if ((_bits/4) % 2 == 0)
+		clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSet, CL_TRUE, 0, sizeof(int) * _datasetSize, _dataSet, 0, NULL, NULL);
+	//else
+		clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, sizeof(int) * _datasetSize, _dataSet, 0, NULL, NULL);
 #ifdef TEST_STEPS
 
 	//---- Test the local sort
-	int mult = _keysOnly ? 1 : 2;
+	//int mult = _keysOnly ? 1 : 2;
 
 	// Verify that it is locally sorted
-	clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSet, CL_TRUE, 0, sizeof(int) * mult * _datasetSize, _dataSet, 0, NULL, NULL);
+	//clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, sizeof(int) * mult * _datasetSize, _dataSet, 0, NULL, NULL);
 	
-	int previous = 0;
-	for(size_t i = 0; i < _datasetSize; i++)
-	{
-		int extracted = ((int*)_dataSet)[i*mult];
-		if (previous > extracted)
-		{
-			cout << "Radix sort GPU FAILED - local sort " << endl;
-			return;
-		}
-		previous = extracted;
+	//int previous = 0;
+	//for(size_t i = 0; i < _datasetSize; i++)
+	//{
+	//	int extracted = ((int*)_dataSet)[i*mult];
+	//	if (previous > extracted)
+	//	{
+	//		cout << "Radix sort GPU FAILED - local sort " << endl;
+	//		return;
+	//	}
+	//	previous = extracted;
 
-		if (i%32 == 0) previous = 0;
-	}
+	//	if (i%32 == 0) previous = 0;
+	//}
 #endif
 }
 
@@ -294,10 +297,10 @@ void clppSort_RadixSortGPU::pushDatas(void* dataSet, size_t datasetSize)
 		//---- Allocate
 		unsigned int numBlocks = roundUpDiv(_datasetSize, _workgroupSize * 4);
 	    
-		_clBuffer_radixHist1 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * 16 * numBlocks, NULL, &clStatus);
+		_clBuffer_radixHist1 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * 2 * 16 * numBlocks, NULL, &clStatus);
 		checkCLStatus(clStatus);
 
-		_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * 2 * 16 * numBlocks, NULL, &clStatus);
+		_clBuffer_radixHist2 = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * 16 * numBlocks, NULL, &clStatus);
 		checkCLStatus(clStatus);
 
 		//---- Copy on the device
@@ -366,6 +369,7 @@ void clppSort_RadixSortGPU::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetS
 		checkCLStatus(clStatus);
 	}
 
+	// BUG !!! MUST BE 2 DIFFERENT BUFFERS
 	_clBuffer_dataSet = clBuffer_dataSet;
 	_clBuffer_dataSetOut = clBuffer_dataSet;
 }
@@ -381,12 +385,20 @@ void clppSort_RadixSortGPU::popDatas()
 
 void clppSort_RadixSortGPU::popDatas(void* dataSet)
 {
+	// BUGGY
 	cl_int clStatus;
 	if (_keysOnly)
 		clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, _keySize * _datasetSize, dataSet, 0, NULL, NULL);
 	else
 		clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, (_valueSize + _keySize) * _datasetSize, dataSet, 0, NULL, NULL);
 	checkCLStatus(clStatus);
+
+	// CORRECT VERSION : due to "swap(dataA, dataB)"
+
+	//if ((_bits/4) % 2 == 0)
+		//clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSet, CL_TRUE, 0, sizeof(int) * _datasetSize, _dataSet, 0, NULL, NULL);
+	//else
+		//clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, sizeof(int) * _datasetSize, _dataSet, 0, NULL, NULL);
 }
 
 #pragma endregion

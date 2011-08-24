@@ -57,7 +57,7 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(2, 0);
+	context.setup(0, 0);
 	context.printInformation();
 
 	// Scan
@@ -67,7 +67,7 @@ int main(int argc, const char** argv)
 	test_Sort(&context);
 
 	// Sorting : key + value
-	test_Sort_KV(&context);
+	//test_Sort_KV(&context);
 
 	// Count
 	//test_Count(&context);
@@ -412,7 +412,8 @@ void makeRandomInt32Vector(unsigned int* a, unsigned int numElements, unsigned i
 		//a[i * mult + 0] = i;
 		//a[i * mult + 0] = numElements+1-i;
 		//a[i * mult + 0] = possiblesValues[(rand() % 5)];
-		//a[i * mult + 0] = 512-i%512; // to test local sort
+		
+		a[i * mult + 0] = 512-i%512; // to test local sort
 
 		//a[i * mult + 0] &= 0x7FFFFFFF; // To insure it is a signed value
 
