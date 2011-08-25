@@ -24,11 +24,11 @@ clppSort_RadixSort::clppSort_RadixSort(clppContext* context, unsigned int maxEle
 
 	_bits = bits;
 
-	//if (!compile(context, clCode_clppSort_RadixSort))
-	//	return;
-
-	if (!compile(context, string("clppSort_RadixSort.cl")))
+	if (!compile(context, clCode_clppSort_RadixSort))
 		return;
+
+	//if (!compile(context, string("clppSort_RadixSort.cl")))
+	//	return;
 
 	//---- Prepare all the kernels
 	cl_int clStatus;
