@@ -1,4 +1,4 @@
-//#define BENCHMARK
+#define BENCHMARK
 #define TEST_STEPS
 #include "clpp/clppSort_RadixSortGPU.h"
 #include "clpp/clpp.h"
