@@ -227,18 +227,20 @@ void kernel__localHistogram(__global KV_TYPE* data, const int bitOffset, __globa
 	const int blockId = (int)get_group_id(0);
 	
 	__local uint localData[WGZ_x4];
-    __local int localHistStart[16];
+	
+	// Contains the 2 histograms (16 values)
+    __local int localHistStart[16]; // 2^4 = 16
     __local int localHistEnd[16];
 	
 	//---- Extract the radix
-    localData[tid4.x] = (gid4.x < N) ? EXTRACT_KEY_4BITS(data[gid4.x], bitOffset) : EXTRACT_KEY_4BITS(MAX_KV_TYPE, bitOffset);
-    localData[tid4.y] = (gid4.y < N) ? EXTRACT_KEY_4BITS(data[gid4.y], bitOffset) : EXTRACT_KEY_4BITS(MAX_KV_TYPE, bitOffset);
-    localData[tid4.z] = (gid4.z < N) ? EXTRACT_KEY_4BITS(data[gid4.z], bitOffset) : EXTRACT_KEY_4BITS(MAX_KV_TYPE, bitOffset);
-    localData[tid4.w] = (gid4.w < N) ? EXTRACT_KEY_4BITS(data[gid4.w], bitOffset) : EXTRACT_KEY_4BITS(MAX_KV_TYPE, bitOffset);
+    localData[tid4.x] = (gid4.x < N) ? EXTRACT_KEY_4BITS(data[gid4.x], bitOffset) : 0xF; //EXTRACT_KEY_4BITS(MAX_KV_TYPE, bitOffset);
+    localData[tid4.y] = (gid4.y < N) ? EXTRACT_KEY_4BITS(data[gid4.y], bitOffset) : 0xF; //EXTRACT_KEY_4BITS(MAX_KV_TYPE, bitOffset);
+    localData[tid4.z] = (gid4.z < N) ? EXTRACT_KEY_4BITS(data[gid4.z], bitOffset) : 0xF; //EXTRACT_KEY_4BITS(MAX_KV_TYPE, bitOffset);
+    localData[tid4.w] = (gid4.w < N) ? EXTRACT_KEY_4BITS(data[gid4.w], bitOffset) : 0xF; //EXTRACT_KEY_4BITS(MAX_KV_TYPE, bitOffset);
 	
 	//---- Create the histogram
 
-    BARRIER_LOCAL;
+    barrier(CLK_LOCAL_MEM_FENCE);
 	
 	// Reset the local histogram
     if (tid < 16)
@@ -246,9 +248,9 @@ void kernel__localHistogram(__global KV_TYPE* data, const int bitOffset, __globa
         localHistStart[tid] = 0;
         localHistEnd[tid] = -1;
     }
-	BARRIER_LOCAL;
+	barrier(CLK_LOCAL_MEM_FENCE);
 	
-    // Finds the position where the localData entries differ and stores start index (localHistStart) for each radix.
+    // Finds the position where the localData entries differ and stores it in 'start index' (localHistStart) for each radix.
 	// This way, for the first 'instance' of a radix, we store its index.
 	// We also store where each radix ends in 'localHistEnd'.
 	//
@@ -288,9 +290,10 @@ void kernel__localHistogram(__global KV_TYPE* data, const int bitOffset, __globa
 		localHistStart[localData[0]] = 0;
 		localHistEnd[localData[WGZ_x4-1]] = WGZ_x4 - 1;		
     }
-    BARRIER_LOCAL;
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     //---- Write histogram to global memory
+	// Write the 16 histogram values to the global buffers
     if (tid < 16)
     {
         radixCount[tid * get_num_groups(0) + blockId] = localHistEnd[tid] - localHistStart[tid] + 1;
@@ -316,8 +319,9 @@ void kernel__radixPermute(
 {    
     const int tid = get_local_id(0);	
 	const int groupId = get_group_id(0);
-    const int4 tid4 = ((const int4)tid) + (const int4)(0,WGZ,WGZ_x2,WGZ_x3);		
-	const int4 gid4 = tid4 + ((const int4)groupId<<2);
+    const int4 tid4 = (int4)(tid << 2) + (const int4)(0,1,2,3);
+	const int4 gid4 = (int4)(get_global_id(0) << 2) + (const int4)(0,1,2,3);
+	
 	
     __local int sharedHistSum[16];
     __local int localHistStart[16];
@@ -326,7 +330,7 @@ void kernel__radixPermute(
     if (tid < 16)
     {
         sharedHistSum[tid] = histSum[tid * numBlocks + groupId];
-        localHistStart[tid] = blockHists[(groupId << 5) + tid]; // groupId * 32 + tid
+        localHistStart[tid] = blockHists[(groupId << 4) + tid]; // groupId * 32 + tid
     }
 	
 	BARRIER_LOCAL;

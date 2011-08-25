@@ -35,7 +35,7 @@
 
 #pragma OPENCL EXTENSION cl_amd_printf : enable
 
-#define T int
+#define T uint
 #define OPERATOR_INDEXOF(I) I
 #define OPERATOR_APPLY(A,B) A+B
 #define OPERATOR_IDENTITY 0

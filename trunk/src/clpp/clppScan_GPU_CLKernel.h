@@ -1,7 +1,7 @@
 
 char clCode_clppScan_GPU[]=
 "#pragma OPENCL EXTENSION cl_amd_printf : enable\n"
-"#define T int\n"
+"#define T uint\n"
 "#define OPERATOR_INDEXOF(I) I\n"
 "#define OPERATOR_APPLY(A,B) A+B\n"
 "#define OPERATOR_IDENTITY 0\n"

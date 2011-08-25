@@ -59,10 +59,10 @@ clppSort_RadixSort::~clppSort_RadixSort()
 	{
 		if (_clBuffer_dataSet)
 			clReleaseMemObject(_clBuffer_dataSet);
-
-		if (_clBuffer_dataSetOut)
-			clReleaseMemObject(_clBuffer_dataSetOut);
 	}
+
+	if (_clBuffer_dataSetOut)
+		clReleaseMemObject(_clBuffer_dataSetOut);
 
 	if (_clBuffer_radixHist1)
 		clReleaseMemObject(_clBuffer_radixHist1);
@@ -332,8 +332,18 @@ void clppSort_RadixSort::pushCLDatas(cl_mem clBuffer_dataSet, size_t datasetSize
 		checkCLStatus(clStatus);
 	}
 
+	// ISSUE : We need 2 different buffers, but
+	// a) when using 32 bits sort(by example) the result buffer is _clBuffer_dataSet
+	// b) when using 28 bits sort(by example) the result buffer is _clBuffer_dataSetOut
+	// Without copy, how can we do to put the result in _clBuffer_dataSet when using 28 bits ?
+
 	_clBuffer_dataSet = clBuffer_dataSet;
-	_clBuffer_dataSetOut = clBuffer_dataSet;
+	
+	if (_keysOnly)
+		_clBuffer_dataSetOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * _datasetSize, NULL, &clStatus);
+	else
+		_clBuffer_dataSetOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize+_keySize) * _datasetSize, NULL, &clStatus);
+	checkCLStatus(clStatus);
 }
 
 #pragma endregion
@@ -348,11 +358,21 @@ void clppSort_RadixSort::popDatas()
 void clppSort_RadixSort::popDatas(void* dataSet)
 {
 	cl_int clStatus;
+
 	if (_keysOnly)
-		clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, _keySize * _datasetSize, dataSet, 0, NULL, NULL);
+	{
+		if ((_bits/4) % 2 == 0)
+			clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSet, CL_TRUE, 0, _keySize * _datasetSize, dataSet, 0, NULL, NULL);
+		else
+			clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, _keySize * _datasetSize, dataSet, 0, NULL, NULL);
+	}
 	else
-		clStatus = clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, (_valueSize + _keySize) * _datasetSize, dataSet, 0, NULL, NULL);
-	checkCLStatus(clStatus);
+	{
+		if ((_bits/4) % 2 == 0)
+			clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSet, CL_TRUE, 0, (_valueSize + _keySize) * _datasetSize, dataSet, 0, NULL, NULL);
+		else
+			clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, (_valueSize + _keySize) * _datasetSize, dataSet, 0, NULL, NULL);
+	}
 }
 
 #pragma endregion

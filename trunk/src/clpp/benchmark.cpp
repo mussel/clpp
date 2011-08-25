@@ -31,7 +31,7 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
 void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int datasetSize, unsigned int bits);
 
 bool checkIsSorted(unsigned int* tocheck, size_t datasetSize, string algorithmName, bool keysOnly, int sortId);
-bool checkHasLooseDatasKV(int* unsorted, int* sorted, size_t datasetSize, string algorithmName);
+bool checkHasLooseDatasKV(unsigned int* unsorted, unsigned int* sorted, size_t datasetSize, string algorithmName);
 
 void test_Scan(clppContext* context);
 void test_Sort(clppContext* context);
@@ -67,7 +67,7 @@ int main(int argc, const char** argv)
 	test_Sort(&context);
 
 	// Sorting : key + value
-	//test_Sort_KV(&context);
+	test_Sort_KV(&context);
 
 	// Count
 	//test_Count(&context);
@@ -413,7 +413,7 @@ void makeRandomInt32Vector(unsigned int* a, unsigned int numElements, unsigned i
 		//a[i * mult + 0] = numElements+1-i;
 		//a[i * mult + 0] = possiblesValues[(rand() % 5)];
 		
-		a[i * mult + 0] = 512-i%512; // to test local sort
+		//a[i * mult + 0] = 512-i%512; // to test local sort
 
 		//a[i * mult + 0] &= 0x7FFFFFFF; // To insure it is a signed value
 
@@ -470,12 +470,12 @@ bool checkIsSorted(unsigned int* tocheck, size_t datasetSize, string algorithmNa
 	return true;
 }
 
-bool checkHasLooseDatasKV(int* unsorted, int* sorted, size_t datasetSize, string algorithmName)
+bool checkHasLooseDatasKV(unsigned int* unsorted, unsigned int* sorted, size_t datasetSize, string algorithmName)
 {
 	for(size_t i = 0; i < datasetSize; i++)
 	{
-		int key = unsorted[i * 2];
-		int value = unsorted[i * 2 + 1];
+		unsigned int key = unsorted[i * 2];
+		unsigned int value = unsorted[i * 2 + 1];
 		bool hasFound = false;
 		for(size_t j = 0; j < datasetSize; j++)
 		{
