@@ -365,6 +365,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\clpp\clppSort_BitonicSort.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\clpp\clppSort_CPU.cpp"
 				>
 			</File>
@@ -420,6 +424,10 @@
 			</File>
 			<File
 				RelativePath=".\src\clpp\clppSort.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\clpp\clppSort_BitonicSort.h"
 				>
 			</File>
 			<File

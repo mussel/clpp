@@ -16,6 +16,7 @@
 #include "clpp/clppSort_CPU.h"
 #include "clpp/clppSort_RadixSort.h"
 #include "clpp/clppSort_RadixSortGPU.h"
+#include "clpp/clppSort_BitonicSort.h"
 
 #include "clpp/clppCount.h"
 
@@ -42,7 +43,9 @@ void test_Count(clppContext* context);
 //unsigned int datasetSizes[8] = {16000, 128000, 256000, 512000, 1024000, 2048000, 4096000, 8196000};
 
 // Small problems
-unsigned int datasetSizes[10] = {100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000};
+//unsigned int datasetSizes[10] = {100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000};
+
+unsigned int datasetSizes[10] = {1<<10, 1<<12, 1<<13, 1<<14, 1<<15, 1<<16, 1<<17, 1<<18, 1<<19, 1<<20};
 
 // Big problems
 //unsigned int datasetSizes[10] = {16000000, 32000000, 48000000, 64000000, 80000000, 96000000, 112000000, 128000000, 144000000, 160000000};
@@ -61,7 +64,7 @@ int main(int argc, const char** argv)
 	context.printInformation();
 
 	// Scan
-	//test_Scan(&context);
+	test_Scan(&context);
 
 	// Sorting : key
 	test_Sort(&context);
@@ -178,6 +181,15 @@ void test_Sort_KV(clppContext* context)
 			benchmark_sort_KV(*context, clppsort, datasetSizes[i], PARAM_SORT_BITS);
 			delete clppsort;
 		}
+	}
+
+	//---- Bitonic-sort
+	cout << "--------------- Bitonic sort Key-Value" << endl;
+	for(unsigned int i = 0; i < datasetSizesCount; i++)
+	{
+		clppSort* clppsort = new clppSort_BitonicSort(context, datasetSizes[i], false);
+		benchmark_sort_KV(*context, clppsort, datasetSizes[i], 32);
+		delete clppsort;
 	}
 }
 
