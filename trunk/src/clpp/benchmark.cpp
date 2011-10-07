@@ -60,7 +60,7 @@ int main(int argc, const char** argv)
 
 	//---- Prepare a clpp Context
 	clppContext context;
-	context.setup(2, 0);
+	context.setup(0, 0);
 	context.printInformation();
 
 	// Scan
@@ -269,6 +269,7 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
 	//---- Create a new set of random datas
 	unsigned int* keys = (unsigned int*)malloc(datasetSize * sizeof(int));
 
+	float time = 0;
 	for(unsigned int i = 0; i < PARAM_BENCHMARK_LOOPS; i++)
 	{
 		makeRandomInt32Vector(keys, datasetSize, bits, true);  
@@ -283,13 +284,14 @@ void benchmark_sort(clppContext context, clppSort* sort, unsigned int datasetSiz
 		sort->waitCompletion();	
 		
 		stopWatcher->StopTimer();
+		time += stopWatcher->GetElapsedTime();
 
 		//---- Check if it is sorted
 		sort->popDatas();
 		checkIsSorted(keys, datasetSize, sort->getName(), true, i);
 	}
 
-	float time = stopWatcher->GetElapsedTime() / PARAM_BENCHMARK_LOOPS;
+	time /= PARAM_BENCHMARK_LOOPS;
 	float kps = (1000 / time) * datasetSize;
 	cout << "Performance for data-set size[" << datasetSize << "] time (ms): " << time << " KPS[" << (int)kps << "]" << endl;
 
@@ -306,6 +308,7 @@ void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int dataset
 	unsigned int* unsortedDatas = (unsigned int*)malloc(2 * datasetSize * sizeof(int));
 	unsigned int* unsortedDatasCopy = (unsigned int*)malloc(2 * datasetSize * sizeof(int));
 
+	float time = 0;
 	for(unsigned int i = 0; i < PARAM_BENCHMARK_LOOPS; i++)
 	{
 		makeRandomInt32Vector(unsortedDatas, datasetSize, bits, false);
@@ -316,14 +319,13 @@ void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int dataset
 
 		//---- Sort
 		stopWatcher->StartTimer();
-		sort->sort();
-		sort->waitCompletion();
-		stopWatcher->StopTimer();
 
-		float time = stopWatcher->GetElapsedTime() / PARAM_BENCHMARK_LOOPS;
-		float kps = (1000 / time) * datasetSize;
-		if (i == PARAM_BENCHMARK_LOOPS-1)
-			cout << "Performance for data-set size[" << datasetSize << "] time (ms): " << time << " KPS[" << (int)kps << "]" << endl;
+		sort->sort();
+
+		sort->waitCompletion();
+
+		stopWatcher->StopTimer();
+		time += stopWatcher->GetElapsedTime();
 
 		//---- Check if it is sorted
 		sort->popDatas();
@@ -332,6 +334,10 @@ void benchmark_sort_KV(clppContext context, clppSort* sort, unsigned int dataset
 		checkHasLooseDatasKV(unsortedDatasCopy, unsortedDatas, datasetSize, sort->getName());
 #endif
 	}
+
+	time /= PARAM_BENCHMARK_LOOPS;
+	float kps = (1000 / time) * datasetSize;
+	cout << "Performance for data-set size[" << datasetSize << "] time (ms): " << time << " KPS[" << (int)kps << "]" << endl;
 
 	//---- Free
 	free(unsortedDatas);
