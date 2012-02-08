@@ -137,16 +137,16 @@ void test_Sort(clppContext* context)
 	//}
 
 	//---- Radix-sort : GPU : Satish version
-	//if (context->isGPU)
-	//{
-	//	cout << "--------------- GPU : Key : Satish radix sort" << endl;
-	//	for(unsigned int i = 0; i < datasetSizesCount; i++)
-	//	{
-	//		clppSort* clppsort = new clppSort_RadixSortGPU(context, datasetSizes[i], PARAM_SORT_BITS, true);
-	//		benchmark_sort(*context, clppsort, datasetSizes[i], PARAM_SORT_BITS);
-	//		delete clppsort;
-	//	}
-	//}
+	if (context->isGPU)
+	{
+		cout << "--------------- GPU : Key : Satish radix sort" << endl;
+		for(unsigned int i = 0; i < datasetSizesCount; i++)
+		{
+			clppSort* clppsort = new clppSort_RadixSortGPU(context, datasetSizes[i], PARAM_SORT_BITS, true);
+			benchmark_sort(*context, clppsort, datasetSizes[i], PARAM_SORT_BITS);
+			delete clppsort;
+		}
+	}
 
 	//---- Bitonic-sort : GPU
 	if (context->isGPU)
