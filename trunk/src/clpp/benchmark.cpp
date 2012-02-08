@@ -194,16 +194,16 @@ void test_Sort_KV(clppContext* context)
 	//}
 
 	//---- Satish Radix-sort : GPU
-	//if (context->isGPU)
-	//{
-	//	cout << "--------------- GPU : Key-Value : Satish sort" << endl;
-	//	for(unsigned int i = 0; i < datasetSizesCount; i++)
-	//	{
-	//		clppSort* clppsort = new clppSort_RadixSortGPU(context, datasetSizes[i], PARAM_SORT_BITS, false);
-	//		benchmark_sort_KV(*context, clppsort, datasetSizes[i], PARAM_SORT_BITS);
-	//		delete clppsort;
-	//	}
-	//}
+	if (context->isGPU)
+	{
+		cout << "--------------- GPU : Key-Value : Satish sort" << endl;
+		for(unsigned int i = 0; i < datasetSizesCount; i++)
+		{
+			clppSort* clppsort = new clppSort_RadixSortGPU(context, datasetSizes[i], PARAM_SORT_BITS, false);
+			benchmark_sort_KV(*context, clppsort, datasetSizes[i], PARAM_SORT_BITS);
+			delete clppsort;
+		}
+	}
 
 	//---- Bitonic-sort : GPU
 	if (context->isGPU)

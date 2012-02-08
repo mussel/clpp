@@ -119,8 +119,10 @@ inline int roundUpDiv(int A, int B) { return (A + B - 1) / (B); }
 
 void clppSort_BitonicSortGPU::sort()
 {
+	int keyValueSize = _keysOnly ? _keySize : (_valueSize+_keySize);
+
 	// Copy the source data to the output
-	clEnqueueCopyBuffer(_context->clQueue, _clBuffer_dataSet, _clBuffer_dataSetOut, 0, 0, _keySize * _datasetSize, 0, NULL, NULL);
+	clEnqueueCopyBuffer(_context->clQueue, _clBuffer_dataSet, _clBuffer_dataSetOut, 0, 0, keyValueSize * _datasetSize, 0, NULL, NULL);
 	
 	// Sync
 	clEnqueueBarrier(_context->clQueue);   
@@ -211,7 +213,7 @@ void clppSort_BitonicSortGPU::sort()
 			int lenght2 = length<<1;
 			clStatus |= clSetKernelArg(_kernels[kid], 2, sizeof(int), &lenght2);				// DIR passed to kernel
 			if (doLocal>0)
-				clStatus |= clSetKernelArg(_kernels[kid], 3, doLocal * wg * _keySize, 0);
+				clStatus |= clSetKernelArg(_kernels[kid], 3, doLocal * wg * keyValueSize, 0);
 
 			size_t global[1] = {nThreads};
 			size_t local[1] = {wg};
