@@ -74,7 +74,7 @@ bool clppProgram::compile(clppContext* context, char* kernelCode)
 	if (clStatus != CL_SUCCESS)
 	{
 		size_t len;
-		char buffer[5000];
+		char buffer[50000];
 		printf("Error: Failed to build program executable!\n");
 		clGetProgramBuildInfo(_clProgram, context->clDevice, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
 

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="9.00"
 	Name="clpp"
 	ProjectGUID="{7E8F5E8C-716F-4B3B-9CE2-1A48B6A2DF7D}"
 	RootNamespace="oclFiniteDifferences3d"
@@ -369,6 +369,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\clpp\clppSort_BitonicSortGPU.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\clpp\clppSort_CPU.cpp"
 				>
 			</File>
@@ -428,6 +432,10 @@
 			</File>
 			<File
 				RelativePath=".\src\clpp\clppSort_BitonicSort.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\clpp\clppSort_BitonicSortGPU.h"
 				>
 			</File>
 			<File

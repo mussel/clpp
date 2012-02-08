@@ -6,6 +6,7 @@
 #include "clpp/clppSort_RadixSort.h"
 #include "clpp/clppSort_RadixSortGPU.h"
 #include "clpp/clppSort_BitonicSort.h"
+#include "clpp/clppSort_BitonicSortGPU.h"
 
 clppScan* clpp::createBestScan(clppContext* context, size_t valueSize, unsigned int maxElements)
 {
@@ -26,7 +27,12 @@ clppSort* clpp::createBestSort(clppContext* context, unsigned int maxElements, u
 clppSort* clpp::createBestSortKV(clppContext* context, unsigned int maxElements, unsigned int bits)
 {
 	if (context->isGPU)
+	{
+		if (maxElements < 1000000)
+			return new clppSort_BitonicSortGPU(context, maxElements, false);
+
 		return new clppSort_RadixSortGPU(context, maxElements, bits, false);
+	}
 
 	// CPU only and small sets
 	if (maxElements < 1000000)
