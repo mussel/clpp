@@ -47,6 +47,8 @@ void test_Count(clppContext* context);
 //unsigned int datasetSizes[10] = {100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000};
 
 unsigned int datasetSizes[10] = {1<<10, 1<<12, 1<<13, 1<<14, 1<<15, 1<<16, 1<<17, 1<<18, 1<<19, 1<<20};
+//unsigned int datasetSizes[10] = {40960, 1<<12, 1<<13, 1<<14, 1<<15, 1<<16, 1<<17, 1<<18, 1<<19, 1<<20};
+//unsigned int datasetSizes[10] = {256*256, 1<<12, 1<<13, 1<<14, 1<<15, 1<<16, 1<<17, 1<<18, 1<<19, 1<<20};
 
 // Big problems
 //unsigned int datasetSizes[10] = {16000000, 32000000, 48000000, 64000000, 80000000, 96000000, 112000000, 128000000, 144000000, 160000000};
@@ -68,7 +70,7 @@ int main(int argc, const char** argv)
 	//test_Scan(&context);
 
 	// Sorting : key
-	test_Sort(&context);
+	//test_Sort(&context);
 
 	// Sorting : key + value
 	test_Sort_KV(&context);
@@ -194,16 +196,16 @@ void test_Sort_KV(clppContext* context)
 	//}
 
 	//---- Satish Radix-sort : GPU
-	if (context->isGPU)
-	{
-		cout << "--------------- GPU : Key-Value : Satish sort" << endl;
-		for(unsigned int i = 0; i < datasetSizesCount; i++)
-		{
-			clppSort* clppsort = new clppSort_RadixSortGPU(context, datasetSizes[i], PARAM_SORT_BITS, false);
-			benchmark_sort_KV(*context, clppsort, datasetSizes[i], PARAM_SORT_BITS);
-			delete clppsort;
-		}
-	}
+	//if (context->isGPU)
+	//{
+	//	cout << "--------------- GPU : Key-Value : Satish sort" << endl;
+	//	for(unsigned int i = 0; i < datasetSizesCount; i++)
+	//	{
+	//		clppSort* clppsort = new clppSort_RadixSortGPU(context, datasetSizes[i], PARAM_SORT_BITS, false);
+	//		benchmark_sort_KV(*context, clppsort, datasetSizes[i], PARAM_SORT_BITS);
+	//		delete clppsort;
+	//	}
+	//}
 
 	//---- Bitonic-sort : GPU
 	if (context->isGPU)

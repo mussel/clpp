@@ -20,25 +20,19 @@
 // 2 - Allow to sort on specific bits only
 
 enum Kernels {
-  COPY_KERNEL,
-  PARALLEL_SELECTION_KERNEL,
-  PARALLEL_SELECTION_BLOCKS_KERNEL,
-  PARALLEL_SELECTION_LOCAL_KERNEL,
-  PARALLEL_MERGE_LOCAL_KERNEL,
-  PARALLEL_BITONIC_LOCAL_KERNEL,
-  PARALLEL_BITONIC_A_KERNEL,
   PARALLEL_BITONIC_B2_KERNEL,
   PARALLEL_BITONIC_B4_KERNEL,
   PARALLEL_BITONIC_B8_KERNEL,
   PARALLEL_BITONIC_B16_KERNEL,
-  PARALLEL_BITONIC_C2_KERNEL,
   PARALLEL_BITONIC_C4_KERNEL,
   NB_KERNELS
 };
 const char * KernelNames[NB_KERNELS+1] = {
-  "Copy","ParallelSelection","ParallelSelection_Blocks","ParallelSelection_Local", "ParallelMerge_Local", "ParallelBitonic_Local",
-  "ParallelBitonic_A", "ParallelBitonic_B2", "ParallelBitonic_B4", "ParallelBitonic_B8", "ParallelBitonic_B16",
-  "ParallelBitonic_C2", "ParallelBitonic_C4",
+  "ParallelBitonic_B2",
+  "ParallelBitonic_B4",
+  "ParallelBitonic_B8",
+  "ParallelBitonic_B16",
+  "ParallelBitonic_C4",
   0 };
 
 #pragma region Constructor
@@ -78,8 +72,8 @@ clppSort_BitonicSortGPU::~clppSort_BitonicSortGPU()
 			clReleaseMemObject(_clBuffer_dataSet);
 	}
 
-	if (_clBuffer_dataSetOut)
-		clReleaseMemObject(_clBuffer_dataSetOut);
+	//if (_clBuffer_dataSetOut)
+	//	clReleaseMemObject(_clBuffer_dataSetOut);
 }
 
 #pragma endregion
@@ -121,21 +115,10 @@ void clppSort_BitonicSortGPU::sort()
 {
 	int keyValueSize = _keysOnly ? _keySize : (_valueSize+_keySize);
 
-	// Copy the source data to the output
-	clEnqueueCopyBuffer(_context->clQueue, _clBuffer_dataSet, _clBuffer_dataSetOut, 0, 0, keyValueSize * _datasetSize, 0, NULL, NULL);
-	
-	// Sync
-	clEnqueueBarrier(_context->clQueue);   
-
-	cl_mem buffers[2];
-    buffers[0] = _clBuffer_dataSet;
-    buffers[1] = _clBuffer_dataSetOut;
-
 	for(int length = 1; length < _datasetSize; length <<= 1)
     {
 		int inc = length;
 		std::list<int> strategy; // vector defining the sequence of reductions
-		//strategy.clear();		
 		{
 			int ii = inc;
 			while (ii>0)
@@ -208,12 +191,14 @@ void clppSort_BitonicSortGPU::sort()
 			wg = min(wg, nThreads);
 
 			cl_int clStatus = 0;
-			clStatus |= clSetKernelArg(_kernels[kid], 0, sizeof(cl_mem), (const void*)&_clBuffer_dataSetOut);
-			clStatus |= clSetKernelArg(_kernels[kid], 1, sizeof(int), &inc);	// INC passed to kernel
-			int lenght2 = length<<1;
-			clStatus |= clSetKernelArg(_kernels[kid], 2, sizeof(int), &lenght2);				// DIR passed to kernel
+			unsigned int pId = 0;
+			clStatus |= clSetKernelArg(_kernels[kid], pId++, sizeof(cl_mem), (const void*)&_clBuffer_dataSet);
+			clStatus |= clSetKernelArg(_kernels[kid], pId++, sizeof(int), &inc);		// INC passed to kernel
+			int lenght2 = length << 1;
+			clStatus |= clSetKernelArg(_kernels[kid], pId++, sizeof(int), &lenght2);	// DIR passed to kernel
 			if (doLocal>0)
-				clStatus |= clSetKernelArg(_kernels[kid], 3, doLocal * wg * keyValueSize, 0);
+				clStatus |= clSetKernelArg(_kernels[kid], pId++, doLocal * wg * keyValueSize, 0);
+			clStatus |= clSetKernelArg(_kernels[kid], pId++, sizeof(unsigned int), (const void*)&_datasetSize);
 
 			size_t global[1] = {nThreads};
 			size_t local[1] = {wg};
@@ -233,7 +218,6 @@ void clppSort_BitonicSortGPU::sort()
 			inc >>= ninc;
 		}
     }
-    //mLastN = n;
 }
 
 #pragma endregion
@@ -257,7 +241,7 @@ void clppSort_BitonicSortGPU::pushDatas(void* dataSet, size_t datasetSize)
 		if (_clBuffer_dataSet)
 		{
 			clReleaseMemObject(_clBuffer_dataSet);
-			clReleaseMemObject(_clBuffer_dataSetOut);
+			//clReleaseMemObject(_clBuffer_dataSetOut);
 		}
 
 		//---- Copy on the device
@@ -266,16 +250,16 @@ void clppSort_BitonicSortGPU::pushDatas(void* dataSet, size_t datasetSize)
 			_clBuffer_dataSet = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, _keySize * _datasetSize, _dataSet, &clStatus);
 			checkCLStatus(clStatus);
 
-			_clBuffer_dataSetOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * _datasetSize, NULL, &clStatus);
-			checkCLStatus(clStatus);
+			//_clBuffer_dataSetOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * _datasetSize, NULL, &clStatus);
+			//checkCLStatus(clStatus);
 		}
 		else
 		{
 			_clBuffer_dataSet = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, (_valueSize+_keySize) * _datasetSize, _dataSet, &clStatus);
 			checkCLStatus(clStatus);
 
-			_clBuffer_dataSetOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize+_keySize) * _datasetSize, NULL, &clStatus);
-			checkCLStatus(clStatus);
+			//_clBuffer_dataSetOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize+_keySize) * _datasetSize, NULL, &clStatus);
+			//checkCLStatus(clStatus);
 		}
 
 		_is_clBuffersOwner = true;
@@ -307,7 +291,7 @@ void clppSort_BitonicSortGPU::pushCLDatas(cl_mem clBuffer_dataSet, size_t datase
 		if (_clBuffer_dataSet)
 		{
 			clReleaseMemObject(_clBuffer_dataSet);
-			clReleaseMemObject(_clBuffer_dataSetOut);
+			//clReleaseMemObject(_clBuffer_dataSetOut);
 		}
 
 		//---- Allocate
@@ -321,11 +305,11 @@ void clppSort_BitonicSortGPU::pushCLDatas(cl_mem clBuffer_dataSet, size_t datase
 
 	_clBuffer_dataSet = clBuffer_dataSet;
 	
-	if (_keysOnly)
-		_clBuffer_dataSetOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * _datasetSize, NULL, &clStatus);
-	else
-		_clBuffer_dataSetOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize+_keySize) * _datasetSize, NULL, &clStatus);
-	checkCLStatus(clStatus);
+	//if (_keysOnly)
+	//	_clBuffer_dataSetOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, _keySize * _datasetSize, NULL, &clStatus);
+	//else
+	//	_clBuffer_dataSetOut = clCreateBuffer(_context->clContext, CL_MEM_READ_WRITE, (_valueSize+_keySize) * _datasetSize, NULL, &clStatus);
+	//checkCLStatus(clStatus);
 }
 
 #pragma endregion
@@ -344,11 +328,11 @@ void clppSort_BitonicSortGPU::popDatas(void* dataSet)
 
 	if (_keysOnly)
 	{
-		clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, _keySize * _datasetSize, dataSet, 0, NULL, NULL);
+		clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSet, CL_TRUE, 0, _keySize * _datasetSize, dataSet, 0, NULL, NULL);
 	}
 	else
 	{
-		clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSetOut, CL_TRUE, 0, (_valueSize + _keySize) * _datasetSize, dataSet, 0, NULL, NULL);
+		clEnqueueReadBuffer(_context->clQueue, _clBuffer_dataSet, CL_TRUE, 0, (_valueSize + _keySize) * _datasetSize, dataSet, 0, NULL, NULL);
 	}
 }
 
